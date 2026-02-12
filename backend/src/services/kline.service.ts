@@ -4,8 +4,7 @@
  * Routing logic:
  *   1. If the base token has a Binance mapping and the quote is a stablecoin
  *      → fetch from Binance.
- *   2. Otherwise → discover the best DEX pair via Moralis token price API,
- *      then fetch OHLCV candles from Moralis pair OHLCV endpoint.
+ *   2. Otherwise → fetch OHLCV candles from OKX DEX Market API.
  *
  * The data source is an internal detail – the response format is identical
  * regardless of where the data comes from.
@@ -13,10 +12,8 @@
 
 import { getPriceFeed } from '../config/price-feeds.js';
 import { fetchBinanceKlines } from './binance.service.js';
-import {
-  fetchTokenInfo,
-  fetchTokenOHLCV,
-} from './moralis.service.js';
+import { fetchTokenInfo } from './moralis.service.js';
+import { fetchTokenOHLCV } from './okx.service.js';
 import type { KlineResponse, KlineInterval, TokenInfo } from '../schemas/kline.js';
 
 // ---------------------------------------------------------------------------

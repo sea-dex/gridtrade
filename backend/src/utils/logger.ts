@@ -62,6 +62,9 @@ export const binanceLogger = logger.child({ module: 'binance' });
 /** Moralis API client */
 export const moralisLogger = logger.child({ module: 'moralis' });
 
+/** OKX DEX Market API client */
+export const okxLogger = logger.child({ module: 'okx' });
+
 /** The Graph subgraph client */
 export const subgraphLogger = logger.child({ module: 'subgraph' });
 
