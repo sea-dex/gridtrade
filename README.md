@@ -15,7 +15,7 @@ GridEx is a decentralized grid trading protocol that allows traders to automate 
 
 ```
 gridtrade/
-├── gridex/          # Smart contracts (Solidity + Foundry)
+├── indexer/         # Indexer (Golang)
 ├── webapp/          # Frontend application (Next.js)
 ├── backend/         # Backend API (FastAPI)
 └── docs/            # Documentation
@@ -51,12 +51,11 @@ python run.py
 
 API will be available at [http://localhost:8000](http://localhost:8000).
 
-### Smart Contracts
+### Indexer
 
 ```bash
-cd gridex
-forge build
-forge test
+cd indexer
+make all
 ```
 
 ## Supported Networks
@@ -76,7 +75,7 @@ GridEx: `0x5F7943e9424eF9370392570D06fFA630a5124e9A`
 
 - [User Guide](./docs/USER_GUIDE.md) - How to use GridEx
 - [API Documentation](./docs/API.md) - REST API reference
-- [Smart Contract Docs](./gridex/README.md) - Contract documentation
+- [Indexer Docs](./indexer/README.md) - Contract documentation
 
 ## Tech Stack
 
@@ -94,12 +93,11 @@ GridEx: `0x5F7943e9424eF9370392570D06fFA630a5124e9A`
 - Python 3.11+
 - PostgreSQL
 - Redis
-- SQLAlchemy
 
-### Smart Contracts
-- Solidity 0.8.33
-- Foundry
-- OpenZeppelin
+### Indexer
+- Golang 1.25
+- Postgres
+- Kafka
 
 ## Development
 
@@ -118,8 +116,8 @@ cp backend/.env.example backend/.env
 ### Running Tests
 
 ```bash
-# Smart contracts
-cd gridex && forge test
+# Indexer
+cd indexer && make test
 
 # Frontend
 cd webapp && npm test
@@ -142,8 +140,8 @@ This project is licensed under the BUSL-1.1 License - see the [LICENSE](./LICENS
 
 ## Links
 
-- Website: https://gridex.io
-- App: https://app.gridex.io
+- Website: https://gridtrade.xyz
+- App: https://app.gridtrade.xyz
 - Discord: https://discord.gg/gridex
-- Twitter: https://twitter.com/gridex_protocol
-- GitHub: https://github.com/gridex
+- Twitter: https://twitter.com/sea_protocol
+- GitHub: https://github.com/sea-dex
