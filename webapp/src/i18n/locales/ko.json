@@ -1,0 +1,158 @@
+{
+  "common": {
+    "connect_wallet": "지갑 연결",
+    "disconnect": "연결 해제",
+    "loading": "로딩 중...",
+    "confirm": "확인",
+    "cancel": "취소",
+    "submit": "제출",
+    "success": "성공",
+    "error": "오류",
+    "copy": "복사",
+    "copied": "복사됨!",
+    "view_on_explorer": "탐색기에서 보기"
+  },
+  "nav": {
+    "home": "홈",
+    "grid_trading": "Grid",
+    "limit_order": "LimitOrder",
+    "leaderboard": "리더보드",
+    "info": "정보",
+    "docs": "문서"
+  },
+  "home": {
+    "title": "GridEx 프로토콜",
+    "subtitle": "탈중앙화 그리드 거래",
+    "description": "온체인 자동 그리드 거래 전략으로 거래 수익 극대화",
+    "get_started": "시작하기",
+    "learn_more": "자세히 알아보기",
+    "features": {
+      "title": "왜 GridEx인가?",
+      "automated": {
+        "title": "자동화된 거래",
+        "description": "그리드 주문을 한 번 설정하면 프로토콜이 나머지를 처리"
+      },
+      "decentralized": {
+        "title": "완전 탈중앙화",
+        "description": "모든 주문은 중앙화된 중개자 없이 온체인에서 실행"
+      },
+      "profitable": {
+        "title": "변동성에서 수익",
+        "description": "그리드 거래는 시장 변동에서 자동으로 수익 포착"
+      },
+      "secure": {
+        "title": "안전하고 감사됨",
+        "description": "스마트 컨트랙트는 최대 보안을 위해 철저히 감사됨"
+      }
+    },
+    "stats": {
+      "total_volume": "총 거래량",
+      "total_tvl": "총 예치금",
+      "total_grids": "활성 그리드",
+      "total_users": "총 사용자"
+    }
+  },
+  "grid": {
+    "title": "그리드 거래",
+    "place_order": "그리드 주문 생성",
+    "my_orders": "내 주문",
+    "order_form": {
+      "trading_pair": "거래 쌍",
+      "base_token": "기본 토큰",
+      "quote_token": "견적 토큰",
+      "price_range": "가격 범위",
+      "lower_price": "하한 가격",
+      "upper_price": "상한 가격",
+      "grid_count": "그리드 수",
+      "ask_settings": "매도 설정",
+      "ask_price0": "매도 시작 가격",
+      "ask_gap": "매도 간격",
+      "bid_settings": "매수 설정",
+      "bid_price0": "매수 시작 가격",
+      "bid_gap": "매수 간격",
+      "ask_orders": "매도 주문 수",
+      "bid_orders": "매수 주문 수",
+      "effective_counts": "유효 수량",
+      "amount_per_grid": "그리드당 수량",
+      "total_investment": "총 투자",
+      "total_base": "기본 토큰 합계",
+      "total_quote": "견적 토큰 합계",
+      "fee": "수수료",
+      "compound": "복리",
+      "compound_desc": "수익을 그리드에 재투자",
+      "place_grid": "그리드 주문 생성",
+      "insufficient_balance": "잔액 부족",
+      "approve_first": "먼저 토큰을 승인하세요"
+    },
+    "order_list": {
+      "grid_id": "그리드 ID",
+      "pair": "쌍",
+      "status": "상태",
+      "orders": "주문",
+      "profit": "수익",
+      "actions": "작업",
+      "withdraw": "출금",
+      "cancel": "취소",
+      "view_details": "상세 보기",
+      "no_orders": "그리드 주문을 찾을 수 없습니다",
+      "status_active": "활성",
+      "status_cancelled": "취소됨"
+    }
+  },
+  "limit": {
+    "title": "지정가 주문",
+    "place_order": "지정가 주문 생성",
+    "order_form": {
+      "side": "방향",
+      "buy": "매수",
+      "sell": "매도",
+      "price": "가격",
+      "amount": "수량",
+      "total": "총액",
+      "place_order": "주문하기"
+    }
+  },
+  "leaderboard": {
+    "title": "리더보드",
+    "subtitle": "최고 성과 그리드 전략",
+    "rank": "순위",
+    "trader": "트레이더",
+    "pair": "쌍",
+    "profit": "수익",
+    "profit_rate": "수익률",
+    "volume": "거래량",
+    "copy_strategy": "전략 복사",
+    "time_filter": {
+      "24h": "24시간",
+      "7d": "7일",
+      "30d": "30일",
+      "all": "전체"
+    }
+  },
+  "info": {
+    "title": "프로토콜 정보",
+    "overview": "개요",
+    "statistics": "통계",
+    "total_volume": "총 거래량",
+    "total_tvl": "총 예치금",
+    "total_grids": "생성된 총 그리드",
+    "total_trades": "총 거래 수",
+    "total_profit": "생성된 총 수익",
+    "volume_chart": "거래량 차트",
+    "tvl_chart": "예치금 차트"
+  },
+  "wallet": {
+    "connect": "지갑 연결",
+    "connecting": "연결 중...",
+    "connected": "연결됨",
+    "wrong_network": "잘못된 네트워크",
+    "switch_network": "네트워크 전환",
+    "balance": "잔액"
+  },
+  "errors": {
+    "wallet_not_connected": "먼저 지갑을 연결하세요",
+    "insufficient_balance": "잔액 부족",
+    "transaction_failed": "거래 실패",
+    "network_error": "네트워크 오류, 다시 시도하세요"
+  }
+}

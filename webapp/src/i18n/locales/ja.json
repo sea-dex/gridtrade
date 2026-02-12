@@ -1,0 +1,158 @@
+{
+  "common": {
+    "connect_wallet": "ウォレットを接続",
+    "disconnect": "切断",
+    "loading": "読み込み中...",
+    "confirm": "確認",
+    "cancel": "キャンセル",
+    "submit": "送信",
+    "success": "成功",
+    "error": "エラー",
+    "copy": "コピー",
+    "copied": "コピーしました！",
+    "view_on_explorer": "エクスプローラーで表示"
+  },
+  "nav": {
+    "home": "ホーム",
+    "grid_trading": "Grid",
+    "limit_order": "LimitOrder",
+    "leaderboard": "リーダーボード",
+    "info": "情報",
+    "docs": "ドキュメント"
+  },
+  "home": {
+    "title": "GridEx プロトコル",
+    "subtitle": "分散型グリッド取引",
+    "description": "オンチェーンの自動グリッド取引戦略で取引利益を最大化",
+    "get_started": "始める",
+    "learn_more": "詳細を見る",
+    "features": {
+      "title": "なぜGridEx？",
+      "automated": {
+        "title": "自動取引",
+        "description": "グリッド注文を一度設定すれば、プロトコルが残りを処理"
+      },
+      "decentralized": {
+        "title": "完全分散型",
+        "description": "すべての注文は中央集権的な仲介者なしでオンチェーンで実行"
+      },
+      "profitable": {
+        "title": "ボラティリティから利益",
+        "description": "グリッド取引は市場の変動から自動的に利益を獲得"
+      },
+      "secure": {
+        "title": "安全で監査済み",
+        "description": "スマートコントラクトは最大限のセキュリティのために徹底的に監査"
+      }
+    },
+    "stats": {
+      "total_volume": "総取引量",
+      "total_tvl": "総ロック額",
+      "total_grids": "アクティブグリッド",
+      "total_users": "総ユーザー数"
+    }
+  },
+  "grid": {
+    "title": "グリッド取引",
+    "place_order": "グリッド注文を作成",
+    "my_orders": "マイオーダー",
+    "order_form": {
+      "trading_pair": "取引ペア",
+      "base_token": "ベーストークン",
+      "quote_token": "クォートトークン",
+      "price_range": "価格範囲",
+      "lower_price": "下限価格",
+      "upper_price": "上限価格",
+      "grid_count": "グリッド数",
+      "ask_settings": "売り設定",
+      "ask_price0": "売り開始価格",
+      "ask_gap": "売り間隔",
+      "bid_settings": "買い設定",
+      "bid_price0": "買い開始価格",
+      "bid_gap": "買い間隔",
+      "ask_orders": "売り注文数",
+      "bid_orders": "買い注文数",
+      "effective_counts": "有効数量",
+      "amount_per_grid": "グリッドあたりの数量",
+      "total_investment": "総投資額",
+      "total_base": "ベーストークン合計",
+      "total_quote": "クォートトークン合計",
+      "fee": "手数料",
+      "compound": "複利",
+      "compound_desc": "利益をグリッドに再投資",
+      "place_grid": "グリッド注文を作成",
+      "insufficient_balance": "残高不足",
+      "approve_first": "まずトークンを承認してください"
+    },
+    "order_list": {
+      "grid_id": "グリッドID",
+      "pair": "ペア",
+      "status": "ステータス",
+      "orders": "注文",
+      "profit": "利益",
+      "actions": "アクション",
+      "withdraw": "引き出し",
+      "cancel": "キャンセル",
+      "view_details": "詳細を見る",
+      "no_orders": "グリッド注文が見つかりません",
+      "status_active": "アクティブ",
+      "status_cancelled": "キャンセル済み"
+    }
+  },
+  "limit": {
+    "title": "指値注文",
+    "place_order": "指値注文を作成",
+    "order_form": {
+      "side": "サイド",
+      "buy": "買い",
+      "sell": "売り",
+      "price": "価格",
+      "amount": "数量",
+      "total": "合計",
+      "place_order": "注文する"
+    }
+  },
+  "leaderboard": {
+    "title": "リーダーボード",
+    "subtitle": "トップパフォーマンスのグリッド戦略",
+    "rank": "ランク",
+    "trader": "トレーダー",
+    "pair": "ペア",
+    "profit": "利益",
+    "profit_rate": "利益率",
+    "volume": "取引量",
+    "copy_strategy": "戦略をコピー",
+    "time_filter": {
+      "24h": "24時間",
+      "7d": "7日間",
+      "30d": "30日間",
+      "all": "全期間"
+    }
+  },
+  "info": {
+    "title": "プロトコル情報",
+    "overview": "概要",
+    "statistics": "統計",
+    "total_volume": "総取引量",
+    "total_tvl": "総ロック額",
+    "total_grids": "作成されたグリッド総数",
+    "total_trades": "総取引数",
+    "total_profit": "生成された総利益",
+    "volume_chart": "取引量チャート",
+    "tvl_chart": "ロック額チャート"
+  },
+  "wallet": {
+    "connect": "ウォレットを接続",
+    "connecting": "接続中...",
+    "connected": "接続済み",
+    "wrong_network": "ネットワークエラー",
+    "switch_network": "ネットワークを切り替え",
+    "balance": "残高"
+  },
+  "errors": {
+    "wallet_not_connected": "まずウォレットを接続してください",
+    "insufficient_balance": "残高不足",
+    "transaction_failed": "トランザクション失敗",
+    "network_error": "ネットワークエラー、再試行してください"
+  }
+}

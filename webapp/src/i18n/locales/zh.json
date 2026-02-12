@@ -1,0 +1,186 @@
+{
+  "common": {
+    "connect_wallet": "连接钱包",
+    "disconnect": "断开连接",
+    "loading": "加载中...",
+    "confirm": "确认",
+    "cancel": "取消",
+    "submit": "提交",
+    "success": "成功",
+    "error": "错误",
+    "copy": "复制",
+    "copied": "已复制！",
+    "view_on_explorer": "在浏览器中查看"
+  },
+  "nav": {
+    "home": "首页",
+    "grid_trading": "Grid",
+    "limit_order": "LimitOrder",
+    "leaderboard": "排行榜",
+    "info": "信息",
+    "docs": "文档"
+  },
+  "home": {
+    "title": "GridEx 协议",
+    "subtitle": "去中心化网格交易",
+    "description": "通过链上自动化网格交易策略最大化您的交易利润",
+    "get_started": "开始使用",
+    "learn_more": "了解更多",
+    "features": {
+      "title": "为什么选择 GridEx？",
+      "automated": {
+        "title": "自动化交易",
+        "description": "一次设置网格订单，让协议自动处理其余事务"
+      },
+      "decentralized": {
+        "title": "完全去中心化",
+        "description": "所有订单都在链上执行，没有中心化中介"
+      },
+      "profitable": {
+        "title": "从波动中获利",
+        "description": "网格交易自动从市场波动中捕获利润"
+      },
+      "secure": {
+        "title": "安全且经过审计",
+        "description": "智能合约经过全面审计，确保最高安全性"
+      }
+    },
+    "stats": {
+      "total_volume": "总交易量",
+      "total_tvl": "总锁仓量",
+      "total_grids": "活跃网格",
+      "total_users": "总用户数"
+    }
+  },
+  "grid": {
+    "title": "网格交易",
+    "place_order": "创建网格订单",
+    "my_orders": "我的订单",
+    "order_form": {
+      "trading_pair": "交易对",
+      "base_token": "基础代币",
+      "quote_token": "计价代币",
+      "ask_settings": "卖单设置",
+      "ask_price0": "最低卖价",
+      "ask_gap": "卖单间距",
+      "bid_settings": "买单设置",
+      "bid_price0": "最高买价",
+      "bid_gap": "买单间距",
+      "effective_counts": "实际订单数量",
+      "base_balance": "Base 余额",
+      "quote_balance": "Quote 余额",
+      "total_base": "Base 总量",
+      "total_quote": "Quote 总量",
+      "grid_count": "网格数量",
+      "ask_settings": "卖单设置",
+      "ask_price0": "卖单起始价",
+      "ask_gap": "卖单间距",
+      "bid_settings": "买单设置",
+      "bid_price0": "买单起始价",
+      "bid_gap": "买单间距",
+      "ask_orders": "卖单数量",
+      "bid_orders": "买单数量",
+      "effective_counts": "实际数量",
+      "amount_per_grid": "每格数量",
+      "total_investment": "总投资",
+      "total_base": "所需基础代币",
+      "total_quote": "所需计价代币",
+      "fee": "手续费",
+      "compound": "复利",
+      "compound_desc": "将利润重新投入网格",
+      "place_grid": "创建网格订单",
+      "insufficient_balance": "余额不足",
+      "approve_first": "请先授权代币",
+      "approving_base": "正在授权 Base 代币...",
+      "approving_quote": "正在授权 Quote 代币...",
+      "placing_order": "正在创建网格订单..."
+    },
+    "order_list": {
+      "grid_id": "网格 ID",
+      "pair": "交易对",
+      "status": "状态",
+      "orders": "订单",
+      "profit": "利润",
+      "actions": "操作",
+      "withdraw": "提取",
+      "cancel": "取消",
+      "view_details": "查看详情",
+      "hide_details": "收起详情",
+      "no_orders": "未找到网格订单",
+      "status_active": "活跃",
+      "status_cancelled": "已取消",
+      "order_id": "订单 ID",
+      "side": "方向",
+      "ask": "卖",
+      "bid": "买",
+      "price": "价格",
+      "amount": "数量",
+      "rev_amount": "反向数量",
+      "compound": "复利",
+      "fee": "手续费",
+      "created_at": "创建时间",
+      "initial_investment": "投入",
+      "yes": "是",
+      "no": "否",
+      "page_prev": "上一页",
+      "page_next": "下一页",
+      "page_info": "第 {page} 页，共 {total} 页"
+    }
+  },
+  "limit": {
+    "title": "限价单",
+    "place_order": "创建限价单",
+    "order_form": {
+      "side": "方向",
+      "buy": "买入",
+      "sell": "卖出",
+      "price": "价格",
+      "amount": "数量",
+      "total": "总额",
+      "place_order": "下单"
+    }
+  },
+  "leaderboard": {
+    "title": "排行榜",
+    "subtitle": "表现最佳的网格策略",
+    "rank": "排名",
+    "trader": "交易者",
+    "pair": "交易对",
+    "profit": "利润",
+    "profit_rate": "收益率",
+    "volume": "交易量",
+    "copy_strategy": "复制策略",
+    "time_filter": {
+      "24h": "24小时",
+      "7d": "7天",
+      "30d": "30天",
+      "all": "全部"
+    }
+  },
+  "info": {
+    "title": "协议信息",
+    "overview": "概览",
+    "statistics": "统计",
+    "total_volume": "总交易量",
+    "total_tvl": "总锁仓量",
+    "total_grids": "创建的网格总数",
+    "total_trades": "总交易次数",
+    "total_profit": "产生的总利润",
+    "volume_chart": "交易量图表",
+    "tvl_chart": "锁仓量图表"
+  },
+  "wallet": {
+    "connect": "连接钱包",
+    "connecting": "连接中...",
+    "connected": "已连接",
+    "wrong_network": "网络错误",
+    "switch_network": "切换网络",
+    "balance": "余额"
+  },
+  "errors": {
+    "wallet_not_connected": "请先连接钱包",
+    "insufficient_balance": "余额不足",
+    "transaction_failed": "交易失败",
+    "network_error": "网络错误，请重试"
+  }
+}

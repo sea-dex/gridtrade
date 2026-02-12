@@ -1,0 +1,54 @@
+# golangci-lint configuration
+# https://golangci-lint.run/usage/configuration/
+
+run:
+  timeout: 5m
+  modules-download-mode: readonly
+
+linters:
+  enable:
+    - errcheck       # Check for unchecked errors
+    - govet          # Reports suspicious constructs (go vet)
+    - ineffassign    # Detects unused variable assignments
+    - staticcheck    # Comprehensive static analysis
+    - unused         # Checks for unused constants, variables, functions and types
+    - gosimple       # Simplification suggestions
+    - goconst        # Finds repeated strings that could be constants
+    - gofmt          # Checks whether code was gofmt-ed
+    - goimports      # Check import ordering
+    - misspell       # Finds commonly misspelled English words
+    - unconvert      # Remove unnecessary type conversions
+    - unparam        # Reports unused function parameters
+    - nakedret       # Finds naked returns in long functions
+    - prealloc       # Finds slice declarations that could be preallocated
+    - exportloopref  # Checks for pointers to enclosing loop variables
+    - bodyclose      # Checks whether HTTP response body is closed
+    - noctx          # Finds HTTP requests without context.Context
+    - gosec          # Security-related checks
+    - errorlint      # Find code that will cause problems with error wrapping
+
+linters-settings:
+  govet:
+    enable-all: true
+    disable:
+      - fieldalignment  # Too strict for most projects
+  gofmt:
+    simplify: true
+  goconst:
+    min-len: 3
+    min-occurrences: 3
+  nakedret:
+    max-func-lines: 30
+  misspell:
+    locale: US
+
+issues:
+  exclude-use-default: false
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  exclude-rules:
+    # Allow unused parameters in test files
+    - path: _test\.go
+      linters:
+        - unparam
+        - gosec

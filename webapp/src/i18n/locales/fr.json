@@ -1,0 +1,158 @@
+{
+  "common": {
+    "connect_wallet": "Connecter Portefeuille",
+    "disconnect": "Déconnecter",
+    "loading": "Chargement...",
+    "confirm": "Confirmer",
+    "cancel": "Annuler",
+    "submit": "Soumettre",
+    "success": "Succès",
+    "error": "Erreur",
+    "copy": "Copier",
+    "copied": "Copié!",
+    "view_on_explorer": "Voir sur l'Explorateur"
+  },
+  "nav": {
+    "home": "Accueil",
+    "grid_trading": "Grid",
+    "limit_order": "LimitOrder",
+    "leaderboard": "Classement",
+    "info": "Information",
+    "docs": "Documents"
+  },
+  "home": {
+    "title": "Protocole GridEx",
+    "subtitle": "Trading Grid Décentralisé",
+    "description": "Maximisez vos profits de trading avec des stratégies de grid automatisées on-chain",
+    "get_started": "Commencer",
+    "learn_more": "En Savoir Plus",
+    "features": {
+      "title": "Pourquoi GridEx?",
+      "automated": {
+        "title": "Trading Automatisé",
+        "description": "Configurez les ordres grid une fois et laissez le protocole gérer le reste"
+      },
+      "decentralized": {
+        "title": "Entièrement Décentralisé",
+        "description": "Tous les ordres sont exécutés on-chain sans intermédiaires centralisés"
+      },
+      "profitable": {
+        "title": "Profit de la Volatilité",
+        "description": "Le trading grid capture automatiquement les profits des fluctuations du marché"
+      },
+      "secure": {
+        "title": "Sécurisé et Audité",
+        "description": "Les contrats intelligents sont minutieusement audités pour une sécurité maximale"
+      }
+    },
+    "stats": {
+      "total_volume": "Volume Total",
+      "total_tvl": "TVL Total",
+      "total_grids": "Grids Actifs",
+      "total_users": "Utilisateurs Totaux"
+    }
+  },
+  "grid": {
+    "title": "Trading Grid",
+    "place_order": "Créer Ordre Grid",
+    "my_orders": "Mes Ordres",
+    "order_form": {
+      "trading_pair": "Paire de Trading",
+      "base_token": "Token de Base",
+      "quote_token": "Token de Cotation",
+      "price_range": "Plage de Prix",
+      "lower_price": "Prix Inférieur",
+      "upper_price": "Prix Supérieur",
+      "grid_count": "Nombre de Grids",
+      "ask_settings": "Param. de Vente",
+      "ask_price0": "Prix Vente Initial",
+      "ask_gap": "Écart de Vente",
+      "bid_settings": "Param. d'Achat",
+      "bid_price0": "Prix Achat Initial",
+      "bid_gap": "Écart d'Achat",
+      "ask_orders": "Ordres de Vente",
+      "bid_orders": "Ordres d'Achat",
+      "effective_counts": "Comptage effectif",
+      "amount_per_grid": "Montant par Grid",
+      "total_investment": "Investissement Total",
+      "total_base": "Total Token Base",
+      "total_quote": "Total Token Cotation",
+      "fee": "Frais",
+      "compound": "Intérêts Composés",
+      "compound_desc": "Réinvestir les profits dans le grid",
+      "place_grid": "Créer Ordre Grid",
+      "insufficient_balance": "Solde Insuffisant",
+      "approve_first": "Approuver le Token d'Abord"
+    },
+    "order_list": {
+      "grid_id": "ID Grid",
+      "pair": "Paire",
+      "status": "Statut",
+      "orders": "Ordres",
+      "profit": "Profit",
+      "actions": "Actions",
+      "withdraw": "Retirer",
+      "cancel": "Annuler",
+      "view_details": "Voir Détails",
+      "no_orders": "Aucun ordre grid trouvé",
+      "status_active": "Actif",
+      "status_cancelled": "Annulé"
+    }
+  },
+  "limit": {
+    "title": "Ordre Limite",
+    "place_order": "Créer Ordre Limite",
+    "order_form": {
+      "side": "Côté",
+      "buy": "Acheter",
+      "sell": "Vendre",
+      "price": "Prix",
+      "amount": "Montant",
+      "total": "Total",
+      "place_order": "Créer Ordre"
+    }
+  },
+  "leaderboard": {
+    "title": "Classement",
+    "subtitle": "Stratégies grid les plus performantes",
+    "rank": "Rang",
+    "trader": "Trader",
+    "pair": "Paire",
+    "profit": "Profit",
+    "profit_rate": "Taux de Profit",
+    "volume": "Volume",
+    "copy_strategy": "Copier Stratégie",
+    "time_filter": {
+      "24h": "24H",
+      "7d": "7 Jours",
+      "30d": "30 Jours",
+      "all": "Tout le Temps"
+    }
+  },
+  "info": {
+    "title": "Info du Protocole",
+    "overview": "Aperçu",
+    "statistics": "Statistiques",
+    "total_volume": "Volume Total de Trading",
+    "total_tvl": "Valeur Totale Verrouillée",
+    "total_grids": "Total de Grids Créés",
+    "total_trades": "Total de Trades",
+    "total_profit": "Profit Total Généré",
+    "volume_chart": "Graphique de Volume",
+    "tvl_chart": "Graphique de TVL"
+  },
+  "wallet": {
+    "connect": "Connecter Portefeuille",
+    "connecting": "Connexion...",
+    "connected": "Connecté",
+    "wrong_network": "Mauvais Réseau",
+    "switch_network": "Changer de Réseau",
+    "balance": "Solde"
+  },
+  "errors": {
+    "wallet_not_connected": "Veuillez d'abord connecter votre portefeuille",
+    "insufficient_balance": "Solde insuffisant",
+    "transaction_failed": "Transaction échouée",
+    "network_error": "Erreur réseau, veuillez réessayer"
+  }
+}

@@ -1,0 +1,186 @@
+{
+  "common": {
+    "connect_wallet": "Connect Wallet",
+    "disconnect": "Disconnect",
+    "loading": "Loading...",
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "submit": "Submit",
+    "success": "Success",
+    "error": "Error",
+    "copy": "Copy",
+    "copied": "Copied!",
+    "view_on_explorer": "View on Explorer"
+  },
+  "nav": {
+    "home": "Home",
+    "grid_trading": "Grid",
+    "limit_order": "LimitOrder",
+    "leaderboard": "Leaderboard",
+    "info": "Info",
+    "docs": "Docs"
+  },
+  "home": {
+    "title": "GridEx Protocol",
+    "subtitle": "Decentralized Grid Trading",
+    "description": "Maximize your trading profits with automated grid trading strategies on-chain",
+    "get_started": "Get Started",
+    "learn_more": "Learn More",
+    "features": {
+      "title": "Why GridEx?",
+      "automated": {
+        "title": "Automated Trading",
+        "description": "Set up grid orders once and let the protocol handle the rest"
+      },
+      "decentralized": {
+        "title": "Fully Decentralized",
+        "description": "All orders are executed on-chain with no centralized intermediaries"
+      },
+      "profitable": {
+        "title": "Profit from Volatility",
+        "description": "Grid trading captures profits from market fluctuations automatically"
+      },
+      "secure": {
+        "title": "Secure & Audited",
+        "description": "Smart contracts are thoroughly audited for maximum security"
+      }
+    },
+    "stats": {
+      "total_volume": "Total Volume",
+      "total_tvl": "Total TVL",
+      "total_grids": "Active Grids",
+      "total_users": "Total Users"
+    }
+  },
+  "grid": {
+    "title": "Grid Trading",
+    "place_order": "Place Grid Order",
+    "my_orders": "My Orders",
+    "order_form": {
+      "trading_pair": "Trading Pair",
+      "base_token": "Base Token",
+      "quote_token": "Quote Token",
+      "ask_settings": "Ask Settings",
+      "ask_price0": "Ask Price (lowest)",
+      "ask_gap": "Ask Gap",
+      "bid_settings": "Bid Settings",
+      "bid_price0": "Bid Price (highest)",
+      "bid_gap": "Bid Gap",
+      "effective_counts": "Effective order counts",
+      "base_balance": "Base Balance",
+      "quote_balance": "Quote Balance",
+      "total_base": "Total Base",
+      "total_quote": "Total Quote",
+      "grid_count": "Grid Count",
+      "ask_settings": "Ask Settings",
+      "ask_price0": "Ask Price",
+      "ask_gap": "Ask Gap",
+      "bid_settings": "Bid Settings",
+      "bid_price0": "Bid Price",
+      "bid_gap": "Bid Gap",
+      "ask_orders": "Ask Orders",
+      "bid_orders": "Bid Orders",
+      "effective_counts": "Effective counts",
+      "amount_per_grid": "Amount Per Grid",
+      "total_investment": "Total Investment",
+      "total_base": "Base Total",
+      "total_quote": "Quote Total",
+      "fee": "Fee",
+      "compound": "Compound Profits",
+      "compound_desc": "Reinvest profits back into the grid",
+      "place_grid": "Place Grid Order",
+      "insufficient_balance": "Insufficient Balance",
+      "approve_first": "Approve Token First",
+      "approving_base": "Approving Base Token...",
+      "approving_quote": "Approving Quote Token...",
+      "placing_order": "Placing Grid Order..."
+    },
+    "order_list": {
+      "grid_id": "Grid ID",
+      "pair": "Pair",
+      "status": "Status",
+      "orders": "Orders",
+      "profit": "Profit",
+      "actions": "Actions",
+      "withdraw": "Withdraw",
+      "cancel": "Cancel",
+      "view_details": "View Details",
+      "hide_details": "Hide Details",
+      "no_orders": "No grid orders found",
+      "status_active": "Active",
+      "status_cancelled": "Cancelled",
+      "order_id": "Order ID",
+      "side": "Side",
+      "ask": "Ask",
+      "bid": "Bid",
+      "price": "Price",
+      "amount": "Amount",
+      "rev_amount": "Rev Amount",
+      "compound": "Compound",
+      "fee": "Fee",
+      "created_at": "Created",
+      "initial_investment": "Investment",
+      "yes": "Yes",
+      "no": "No",
+      "page_prev": "Previous",
+      "page_next": "Next",
+      "page_info": "Page {page} of {total}"
+    }
+  },
+  "limit": {
+    "title": "Limit Order",
+    "place_order": "Place Limit Order",
+    "order_form": {
+      "side": "Side",
+      "buy": "Buy",
+      "sell": "Sell",
+      "price": "Price",
+      "amount": "Amount",
+      "total": "Total",
+      "place_order": "Place Order"
+    }
+  },
+  "leaderboard": {
+    "title": "Leaderboard",
+    "subtitle": "Top performing grid strategies",
+    "rank": "Rank",
+    "trader": "Trader",
+    "pair": "Pair",
+    "profit": "Profit",
+    "profit_rate": "Profit Rate",
+    "volume": "Volume",
+    "copy_strategy": "Copy Strategy",
+    "time_filter": {
+      "24h": "24H",
+      "7d": "7 Days",
+      "30d": "30 Days",
+      "all": "All Time"
+    }
+  },
+  "info": {
+    "title": "Protocol Info",
+    "overview": "Overview",
+    "statistics": "Statistics",
+    "total_volume": "Total Trading Volume",
+    "total_tvl": "Total Value Locked",
+    "total_grids": "Total Grids Created",
+    "total_trades": "Total Trades",
+    "total_profit": "Total Profit Generated",
+    "volume_chart": "Volume Chart",
+    "tvl_chart": "TVL Chart"
+  },
+  "wallet": {
+    "connect": "Connect Wallet",
+    "connecting": "Connecting...",
+    "connected": "Connected",
+    "wrong_network": "Wrong Network",
+    "switch_network": "Switch Network",
+    "balance": "Balance"
+  },
+  "errors": {
+    "wallet_not_connected": "Please connect your wallet first",
+    "insufficient_balance": "Insufficient balance",
+    "transaction_failed": "Transaction failed",
+    "network_error": "Network error, please try again"
+  }
+}

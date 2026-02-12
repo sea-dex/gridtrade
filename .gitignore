@@ -1,0 +1,20 @@
+# Screenshots
+screenshots/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+gridex/
+config.yaml
+Requirement.md
+
+# Indexer build artifacts
+indexer/bin/
+indexer/main
+tradebot/

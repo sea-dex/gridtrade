@@ -1,0 +1,27 @@
+chains:
+  - name: "bsc-testnet"
+    chain_id: 97
+    rpc_url: "${RPC_URL:-https://rpc.ankr.com/bsc_testnet_chapel}"
+    gridex_address: "0x5F7943e9424eF9370392570D06fFA630a5124e9A"
+    linear_strategy_address: "${LINEAR_STRATEGY_ADDRESS:-0x1cf9a206c9e416d39332530277D26090AC2692A0}"
+    start_block: ${START_BLOCK:-0}
+    block_batch_size: 100
+    poll_interval_ms: 2000
+    confirmations: 3
+    rpc_tpm: ${RPC_TPM:-5}  # max RPC requests per minute (0 = unlimited)
+
+database:
+  host: "${DB_HOST:-localhost}"
+  port: ${DB_PORT:-5432}
+  user: "${DB_USER:-postgres}"
+  password: "${DB_PASSWORD:-postgres}"
+  dbname: "${DB_NAME:-gridex}"
+  sslmode: "${DB_SSLMODE:-disable}"
+
+kafka:
+  brokers:
+    - "${KAFKA_BROKER:-localhost:9092}"
+  topic: "${KAFKA_TOPIC:-gridex-events}"
+
+log:
+  level: "${LOG_LEVEL:-info}"
