@@ -1,0 +1,32 @@
+# Build artifacts
+bin/
+*.exe
+*.test
+*.out
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Config with secrets (mount at runtime instead)
+config.yaml
+
+# Documentation
+README.md
+docs/
+
+# CI/CD
+.github/
+.golangci.yml
+Makefile
