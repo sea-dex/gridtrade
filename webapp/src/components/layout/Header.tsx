@@ -54,13 +54,18 @@ export function Header() {
       </div>
 
       {/* Main header — Kamino style: dark bg, no heavy borders, generous height */}
-      <div className="relative flex h-[60px] items-center px-5 md:px-6 bg-[#0b1221]/95 backdrop-blur-xl border-b border-[rgba(136,150,171,0.06)]">
+      <div className="relative flex h-15 items-center px-5 md:px-6 bg-[#0b1221]/95 backdrop-blur-xl border-b border-[rgba(136,150,171,0.06)]">
         {/* Logo — Kamino-style lowercase branding */}
         <Link href="/" className="flex items-center gap-2.5 shrink-0">
-          <div className="w-8 h-8 rounded-lg bg-(--accent) flex items-center justify-center">
-            <span className="text-[#0b1221] font-bold text-xs tracking-tight">GX</span>
-          </div>
-          <span className="font-semibold text-[20px] text-white hidden sm:block tracking-[-0.02em]">gridex</span>
+          <Image
+            src="/logo.svg"
+            alt="GridEx Logo"
+            width={32}
+            height={32}
+            className="w-8 h-8 transition-transform duration-700 ease-in-out hover:rotate-[360deg]"
+            unoptimized
+          />
+          <span className="font-semibold text-[18px] text-white hidden sm:block tracking-[-0.02em]">GridTrade</span>
         </Link>
 
         {/* Centered Navigation — desktop, Kamino style */}
@@ -89,7 +94,7 @@ export function Header() {
           {/* Notifications — Kamino style */}
           <button className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-[rgba(136,150,171,0.06)] text-[#5a6a80] hover:text-[#8896ab] transition-colors relative">
             <Bell size={18} strokeWidth={1.8} />
-            <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-(--accent) rounded-full" />
+            {/* <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-(--accent) rounded-full" /> */}
           </button>
 
           {/* Language */}

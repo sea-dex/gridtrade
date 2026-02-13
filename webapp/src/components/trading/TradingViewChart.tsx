@@ -107,7 +107,7 @@ export function inferPriceFormat(candles: Candle[]): { precision: number; minMov
   }
 
   // For very large prices with 0 decimals, still show at least 2
-  const precision = Math.min(MAX_PRECISION, Math.max(2, maxDecimals));
+  const precision = Math.min(MAX_PRECISION, Math.max(2, maxDecimals+1));
   const minMove = parseFloat((10 ** -precision).toFixed(precision));
   return { precision, minMove };
 }

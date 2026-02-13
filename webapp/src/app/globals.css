@@ -146,6 +146,59 @@ input[type="number"] {
   background-clip: text;
 }
 
+/* ─── Hero gradient text (animated) ─── */
+.hero-gradient-text {
+  background: linear-gradient(
+    135deg,
+    #ffffff 0%,
+    #c0cad8 25%,
+    #6366f1 50%,
+    #34d399 75%,
+    #ffffff 100%
+  );
+  background-size: 300% 300%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: heroGradientShift 8s ease-in-out infinite;
+}
+
+@keyframes heroGradientShift {
+  0%, 100% { background-position: 0% 50%; }
+  25%      { background-position: 100% 50%; }
+  50%      { background-position: 100% 0%; }
+  75%      { background-position: 0% 100%; }
+}
+
+/* ─── Hero CTA button glow ─── */
+.hero-cta-button {
+  position: relative;
+  overflow: hidden;
+}
+.hero-cta-button::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  background: linear-gradient(135deg, rgba(99,102,241,0.3), rgba(52,211,153,0.3), rgba(251,191,36,0.3));
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: -1;
+  filter: blur(8px);
+}
+.hero-cta-button:hover::before {
+  opacity: 1;
+}
+
+/* ─── Pulse animation for live indicator ─── */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.4; }
+}
+.animate-pulse {
+  animation: pulse 2s ease-in-out infinite;
+}
+
 /* ─── TradingView ─── */
 .tradingview-widget-container {
   height: 100%;
