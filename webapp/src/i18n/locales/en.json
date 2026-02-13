@@ -56,6 +56,8 @@
     "title": "Grid Trading",
     "place_order": "Place Grid Order",
     "my_orders": "My Orders",
+    "tab_my_grids": "My Grids",
+    "tab_all_grids": "All Grids",
     "order_form": {
       "trading_pair": "Trading Pair",
       "base_token": "Base Token",
@@ -124,7 +126,8 @@
       "no": "No",
       "page_prev": "Previous",
       "page_next": "Next",
-      "page_info": "Page {page} of {total}"
+      "page_info": "Page {page} of {total}",
+      "owner": "Owner"
     }
   },
   "limit": {

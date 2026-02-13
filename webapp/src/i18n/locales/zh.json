@@ -56,6 +56,8 @@
     "title": "网格交易",
     "place_order": "创建网格订单",
     "my_orders": "我的订单",
+    "tab_my_grids": "我的网格",
+    "tab_all_grids": "全部网格",
     "order_form": {
       "trading_pair": "交易对",
       "base_token": "基础代币",
@@ -124,7 +126,8 @@
       "no": "否",
       "page_prev": "上一页",
       "page_next": "下一页",
-      "page_info": "第 {page} 页，共 {total} 页"
+      "page_info": "第 {page} 页，共 {total} 页",
+      "owner": "拥有者"
     }
   },
   "limit": {

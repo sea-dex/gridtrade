@@ -2,12 +2,14 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
+import websocket from '@fastify/websocket';
 import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
 import { serializerCompiler, validatorCompiler, ZodTypeProvider } from 'fastify-type-provider-zod';
 
 import { env } from './config/env.js';
 import routes from './routes/index.js';
+import wsRoutes from './routes/ws.js';
 import { queryClient } from './db/index.js';
 import { logger, appLogger } from './utils/logger.js';
 
@@ -74,6 +76,9 @@ async function registerPlugins(): Promise<void> {
       deepLinking: true,
     },
   });
+
+  // WebSocket support
+  await fastify.register(websocket);
 }
 
 // Register routes
@@ -95,6 +100,9 @@ async function registerRoutes(): Promise<void> {
 
   // API routes
   await fastify.register(routes, { prefix: '/api/v1' });
+
+  // WebSocket route
+  await fastify.register(wsRoutes, { prefix: '/api/v1' });
 }
 
 // Graceful shutdown

@@ -12,15 +12,27 @@ import { formatNumber } from '@/lib/utils';
 import { Trash2, Download, ChevronDown, ChevronRight } from 'lucide-react';
 import type { GridWithOrders, GridOrder } from '@/types/grid';
 
+type OrderTab = 'my_grids' | 'all_grids';
+
 export function GridOrderList() {
   const { t } = useTranslation();
   const { address, chainId } = useAccount();
   const { writeContract, isPending } = useWriteContract();
   const [expandedGrids, setExpandedGrids] = useState<Set<number>>(new Set());
+  const [activeTab, setActiveTab] = useState<OrderTab>('my_grids');
 
-  const { grids, total, page, pageSize, isLoading, setPage } = useGridOrders({
+  // My grids: filtered by connected wallet owner
+  const myGridsResult = useGridOrders({
     owner: address?.toLowerCase(),
   });
+
+  // All grids: no owner filter
+  const allGridsResult = useGridOrders({});
+
+  const isMyGrids = activeTab === 'my_grids';
+  const { grids, total, page, pageSize, isLoading, setPage } = isMyGrids
+    ? myGridsResult
+    : allGridsResult;
 
   const toggleGrid = (gridId: number) => {
     setExpandedGrids((prev) => {
@@ -81,11 +93,41 @@ export function GridOrderList() {
 
   const totalPages = Math.ceil(total / pageSize);
 
-  if (!address) {
+  // Tab buttons component
+  const tabButtons = (
+    <div className="flex gap-1">
+      <button
+        type="button"
+        className={`px-3 py-1.5 text-[12px] font-medium rounded-(--radius-sm) transition-colors ${
+          activeTab === 'my_grids'
+            ? 'bg-(--accent-dim) text-(--accent) border border-(--accent)/20'
+            : 'text-(--text-disabled) hover:text-(--text-secondary) hover:bg-[rgba(136,150,171,0.05)]'
+        }`}
+        onClick={() => setActiveTab('my_grids')}
+      >
+        {t('grid.tab_my_grids')}
+      </button>
+      <button
+        type="button"
+        className={`px-3 py-1.5 text-[12px] font-medium rounded-(--radius-sm) transition-colors ${
+          activeTab === 'all_grids'
+            ? 'bg-(--accent-dim) text-(--accent) border border-(--accent)/20'
+            : 'text-(--text-disabled) hover:text-(--text-secondary) hover:bg-[rgba(136,150,171,0.05)]'
+        }`}
+        onClick={() => setActiveTab('all_grids')}
+      >
+        {t('grid.tab_all_grids')}
+      </button>
+    </div>
+  );
+
+  // When "My Grids" is active and wallet is not connected, show prompt
+  if (isMyGrids && !address) {
     return (
       <Card variant="bordered">
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>{t('grid.my_orders')}</CardTitle>
+          {tabButtons}
         </CardHeader>
         <CardContent>
           <div className="text-center py-10 text-(--text-disabled) text-sm">
@@ -98,8 +140,9 @@ export function GridOrderList() {
 
   return (
     <Card variant="bordered">
-      <CardHeader>
-        <CardTitle>{t('grid.my_orders')}</CardTitle>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle>{isMyGrids ? t('grid.my_orders') : t('grid.tab_all_grids')}</CardTitle>
+        {tabButtons}
       </CardHeader>
       <CardContent className="p-0">
         {isLoading ? (
@@ -118,6 +161,11 @@ export function GridOrderList() {
                     <th className="text-left py-2.5 px-5 text-[11px] font-medium text-(--text-disabled) uppercase tracking-wider">
                       {t('grid.order_list.grid_id')}
                     </th>
+                    {!isMyGrids && (
+                      <th className="text-left py-2.5 px-5 text-[11px] font-medium text-(--text-disabled) uppercase tracking-wider">
+                        {t('grid.order_list.owner')}
+                      </th>
+                    )}
                     <th className="text-left py-2.5 px-5 text-[11px] font-medium text-(--text-disabled) uppercase tracking-wider">
                       {t('grid.order_list.pair')}
                     </th>
@@ -133,9 +181,11 @@ export function GridOrderList() {
                     <th className="text-left py-2.5 px-5 text-[11px] font-medium text-(--text-disabled) uppercase tracking-wider">
                       {t('grid.order_list.status')}
                     </th>
-                    <th className="text-right py-2.5 px-5 text-[11px] font-medium text-(--text-disabled) uppercase tracking-wider">
-                      {t('grid.order_list.actions')}
-                    </th>
+                    {isMyGrids && (
+                      <th className="text-right py-2.5 px-5 text-[11px] font-medium text-(--text-disabled) uppercase tracking-wider">
+                        {t('grid.order_list.actions')}
+                      </th>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
@@ -149,6 +199,8 @@ export function GridOrderList() {
                       onCancel={handleCancel}
                       isPending={isPending}
                       getStatusBadge={getStatusBadge}
+                      showActions={isMyGrids}
+                      showOwner={!isMyGrids}
                       t={t}
                     />
                   ))}
@@ -200,6 +252,8 @@ function GridRow({
   onCancel,
   isPending,
   getStatusBadge,
+  showActions,
+  showOwner,
   t,
 }: {
   gridWithOrders: GridWithOrders;
@@ -209,9 +263,12 @@ function GridRow({
   onCancel: (gridId: number) => void;
   isPending: boolean;
   getStatusBadge: (status: number) => React.ReactNode;
+  showActions: boolean;
+  showOwner: boolean;
   t: (key: string) => string;
 }) {
   const { config, orders } = gridWithOrders;
+  const colSpan = 7 + (showOwner ? 1 : 0) + (showActions ? 1 : 0);
 
   return (
     <>
@@ -232,6 +289,15 @@ function GridRow({
         <td className="py-3 px-5">
           <span className="font-mono text-[13px] text-(--text-secondary)">#{config.grid_id}</span>
         </td>
+        {showOwner && (
+          <td className="py-3 px-5">
+            <span className="font-mono text-[11px] text-(--text-disabled)">
+              {config.owner
+                ? `${config.owner.slice(0, 6)}...${config.owner.slice(-4)}`
+                : '-'}
+            </span>
+          </td>
+        )}
         <td className="py-3 px-5">
           <span className="text-sm font-semibold text-(--text-primary)">
             {config.base_token}/{config.quote_token}
@@ -261,39 +327,41 @@ function GridRow({
           </span>
         </td>
         <td className="py-3 px-5">{getStatusBadge(config.status)}</td>
-        <td className="py-3 px-5">
-          <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-            {config.status === 1 && (
-              <>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onWithdraw(config.grid_id)}
-                  disabled={isPending}
-                >
-                  <Download size={14} />
-                  <span className="hidden sm:inline">{t('grid.order_list.withdraw')}</span>
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onCancel(config.grid_id)}
-                  disabled={isPending}
-                  className="text-(--red) hover:text-(--red) hover:bg-(--red-dim)"
-                >
-                  <Trash2 size={14} />
-                  <span className="hidden sm:inline">{t('grid.order_list.cancel')}</span>
-                </Button>
-              </>
-            )}
-          </div>
-        </td>
+        {showActions && (
+          <td className="py-3 px-5">
+            <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+              {config.status === 1 && (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onWithdraw(config.grid_id)}
+                    disabled={isPending}
+                  >
+                    <Download size={14} />
+                    <span className="hidden sm:inline">{t('grid.order_list.withdraw')}</span>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onCancel(config.grid_id)}
+                    disabled={isPending}
+                    className="text-(--red) hover:text-(--red) hover:bg-(--red-dim)"
+                  >
+                    <Trash2 size={14} />
+                    <span className="hidden sm:inline">{t('grid.order_list.cancel')}</span>
+                  </Button>
+                </>
+              )}
+            </div>
+          </td>
+        )}
       </tr>
 
       {/* Expanded order details */}
       {isExpanded && orders.length > 0 && (
         <tr>
-          <td colSpan={8} className="p-0">
+          <td colSpan={colSpan} className="p-0">
             <div className="bg-[rgba(136,150,171,0.03)] border-b border-(--border-subtle)">
               <div className="px-8 py-3">
                 <table className="w-full">
