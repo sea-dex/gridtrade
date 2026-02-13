@@ -43,7 +43,7 @@ export function Header() {
       <div className="bg-[#111a2e]/80 border-b border-[rgba(136,150,171,0.06)]">
         <div className="flex items-center justify-center gap-2 py-2 px-4 text-[13px] tracking-[-0.01em]">
           <span className="text-[#6b7a8d]">Start grid trading and earn up to</span>
-          <span className="font-semibold text-(--accent)">30% APY</span>
+          <span className="font-semibold text-(--accent)">300% APY</span>
           <Link href="/grid" className="inline-flex items-center gap-1.5 text-(--accent) hover:text-(--accent-muted) transition-colors font-medium">
             Start Now
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

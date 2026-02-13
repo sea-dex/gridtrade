@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useTranslation } from '@/hooks/useTranslation';
 import { Button } from '@/components/ui/Button';
 import { ParticleGrid } from '@/components/animations/ParticleGrid';
+import { GridTradingAnimation } from '@/components/animations/GridTradingAnimation';
 import {
   ScrollReveal,
   StaggerContainer,
@@ -145,6 +146,18 @@ export default function HomePage() {
                 </motion.div>
               </Link>
             </div>
+          </ScrollReveal>
+
+          {/* Grid Trading Animation */}
+          <ScrollReveal delay={0.8} distance={30}>
+            <motion.div
+              className="mt-12 w-full max-w-3xl mx-auto h-[280px] md:h-[340px]"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 1, duration: 0.8, ease: 'easeOut' }}
+            >
+              <GridTradingAnimation />
+            </motion.div>
           </ScrollReveal>
 
           {/* Scroll indicator */}

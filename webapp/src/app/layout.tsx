@@ -11,7 +11,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'GridEx - Decentralized Grid Trading Protocol',
+  title: 'GridTrade - Decentralized Grid Trading Protocol',
   description: 'Maximize your trading profits with automated grid trading strategies on-chain',
   keywords: ['grid trading', 'defi', 'decentralized', 'crypto', 'trading', 'blockchain'],
 };
