@@ -21,13 +21,13 @@
     "docs": "Docs"
   },
   "home": {
-    "title": "GridEx Protocol",
+    "title": "GridTrade Protocol",
     "subtitle": "Decentralized Grid Trading",
     "description": "Maximize your trading profits with automated grid trading strategies on-chain",
     "get_started": "Get Started",
     "learn_more": "Learn More",
     "features": {
-      "title": "Why GridEx?",
+      "title": "Why GridTrade?",
       "automated": {
         "title": "Automated Trading",
         "description": "Set up grid orders once and let the protocol handle the rest"

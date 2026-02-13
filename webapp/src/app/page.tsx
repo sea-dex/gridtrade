@@ -103,7 +103,7 @@ export default function HomePage() {
             >
               <span className="w-2 h-2 rounded-full bg-(--green) animate-pulse" />
               <span className="text-xs text-(--text-secondary) font-medium">
-                Live on Monad Testnet
+                Live on BNB Smart Chain
               </span>
             </motion.div>
           </ScrollReveal>
