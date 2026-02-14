@@ -75,7 +75,7 @@ export default function HomePage() {
       <section className="relative py-24 md:py-32 px-5 overflow-hidden min-h-[85vh] flex items-center">
         {/* Animated gradient orbs */}
         <motion.div
-          className="absolute top-1/4 left-1/4 w-[500px] h-[500px] rounded-full blur-[180px]"
+          className="absolute top-1/4 left-1/4 w-125 h-125 rounded-full blur-[180px]"
           style={{ background: 'radial-gradient(circle, rgba(99,102,241,0.12) 0%, transparent 70%)' }}
           animate={{
             x: [0, 50, -30, 0],
@@ -85,7 +85,7 @@ export default function HomePage() {
           transition={{ duration: 15, repeat: Infinity, ease: 'easeInOut' }}
         />
         <motion.div
-          className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] rounded-full blur-[160px]"
+          className="absolute bottom-1/4 right-1/4 w-100 h-100 rounded-full blur-[160px]"
           style={{ background: 'radial-gradient(circle, rgba(52,211,153,0.08) 0%, transparent 70%)' }}
           animate={{
             x: [0, -40, 30, 0],
@@ -151,7 +151,7 @@ export default function HomePage() {
           {/* Grid Trading Animation */}
           <ScrollReveal delay={0.8} distance={30}>
             <motion.div
-              className="mt-12 w-full max-w-3xl mx-auto h-[280px] md:h-[340px]"
+              className="mt-12 w-full max-w-3xl mx-auto h-70 md:h-85"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 1, duration: 0.8, ease: 'easeOut' }}
@@ -162,7 +162,7 @@ export default function HomePage() {
 
           {/* Scroll indicator */}
           <motion.div
-            className="absolute bottom-[-60px] left-1/2 -translate-x-1/2"
+            className="absolute -bottom-15 left-1/2 -translate-x-1/2"
             animate={{ y: [0, 8, 0] }}
             transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
           >
@@ -178,7 +178,7 @@ export default function HomePage() {
             {stats.map((stat, index) => (
               <StaggerItem key={index}>
                 <motion.div
-                  className="text-center p-6 rounded-(--radius-lg) bg-(--bg-surface)/60 backdrop-blur-sm border border-(--border-subtle) hover:border-(--border-default) transition-colors duration-300"
+                  className="text-center p-6 rounded-lg bg-(--bg-surface)/60 backdrop-blur-sm border border-(--border-subtle) hover:border-(--border-default) transition-colors duration-300"
                   whileHover={{ y: -4, transition: { duration: 0.2 } }}
                 >
                   <stat.icon className="w-6 h-6 mx-auto mb-3 text-(--accent)" strokeWidth={1.5} />
@@ -218,13 +218,13 @@ export default function HomePage() {
               <StaggerItem key={index}>
                 <GlowCard>
                   <motion.div
-                    className="p-6 rounded-(--radius-lg) bg-(--bg-surface)/60 backdrop-blur-sm border border-(--border-subtle) hover:border-(--border-default) transition-all duration-300 h-full"
+                    className="p-6 rounded-lg bg-(--bg-surface)/60 backdrop-blur-sm border border-(--border-subtle) hover:border-(--border-default) transition-all duration-300 h-full"
                     whileHover={{
                       boxShadow: `0 0 30px ${feature.accentDim}`,
                     }}
                   >
                     <motion.div
-                      className="w-12 h-12 rounded-(--radius-md) flex items-center justify-center mb-4"
+                      className="w-12 h-12 rounded-md flex items-center justify-center mb-4"
                       style={{ background: feature.accentDim }}
                       whileHover={{ rotate: 5, scale: 1.1 }}
                       transition={{ type: 'spring', stiffness: 300 }}
@@ -257,7 +257,7 @@ export default function HomePage() {
 
           <div className="relative">
             {/* Connecting line */}
-            <div className="hidden md:block absolute top-1/2 left-0 right-0 h-px bg-gradient-to-r from-transparent via-(--border-default) to-transparent -translate-y-1/2" />
+            <div className="hidden md:block absolute top-1/2 left-0 right-0 h-px bg-linear-to-r from-transparent via-(--border-default) to-transparent -translate-y-1/2" />
 
             <StaggerContainer className="grid md:grid-cols-3 gap-8" staggerDelay={0.2}>
               {[
@@ -307,7 +307,7 @@ export default function HomePage() {
         <div className="max-w-2xl mx-auto text-center">
           <ScrollReveal>
             <motion.div
-              className="p-12 rounded-(--radius-xl) bg-(--bg-surface)/60 backdrop-blur-sm border border-(--border-default) relative overflow-hidden"
+              className="p-12 rounded-xl bg-(--bg-surface)/60 backdrop-blur-sm border border-(--border-default) relative overflow-hidden"
               whileHover={{ borderColor: 'rgba(136, 150, 171, 0.22)' }}
               transition={{ duration: 0.3 }}
             >

@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion, useInView } from 'framer-motion';
 
 interface ScrollRevealProps {
@@ -169,6 +169,29 @@ export function CountUp({
 }: CountUpProps) {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true });
+  const [displayValue, setDisplayValue] = useState(0);
+
+  useEffect(() => {
+    if (!isInView) return;
+
+    const startTime = performance.now();
+    let animationFrame: number;
+
+    const animate = (currentTime: number) => {
+      const elapsed = (currentTime - startTime) / 1000;
+      const progress = Math.min(elapsed / duration, 1);
+      // Ease-out cubic for smooth deceleration
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setDisplayValue(Math.round(eased * end));
+
+      if (progress < 1) {
+        animationFrame = requestAnimationFrame(animate);
+      }
+    };
+
+    animationFrame = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animationFrame);
+  }, [isInView, end, duration]);
 
   return (
     <motion.span
@@ -178,7 +201,7 @@ export function CountUp({
       animate={isInView ? { opacity: 1 } : { opacity: 0 }}
       transition={{ duration: 0.3 }}
     >
-      {isInView ? `${prefix}${end.toLocaleString()}${suffix}` : `${prefix}0${suffix}`}
+      {`${prefix}${displayValue.toLocaleString()}${suffix}`}
     </motion.span>
   );
 }
@@ -196,7 +219,7 @@ export function GlowCard({ children, className = '' }: GlowCardProps) {
       transition={{ duration: 0.2, ease: 'easeOut' }}
     >
       {/* Glow effect on hover */}
-      <div className="absolute -inset-[1px] rounded-(--radius-lg) bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-sm" />
+      <div className="absolute -inset-px rounded-(--radius-lg) bg-linear-to-r from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-sm" />
       <div className="relative">{children}</div>
     </motion.div>
   );

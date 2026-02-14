@@ -154,5 +154,24 @@
     "insufficient_balance": "Saldo insuficiente",
     "transaction_failed": "Transação falhou",
     "network_error": "Erro de rede, por favor tente novamente"
+  },
+  "footer": {
+    "tagline": "Protocolo de trading em grade descentralizado na BNB Chain. Automatize suas estratégias de trading com contratos inteligentes on-chain.",
+    "product": "Produto",
+    "grid_trading": "Trading em Grade",
+    "limit_order": "Ordem Limitada",
+    "leaderboard": "Classificação",
+    "analytics": "Análises",
+    "resources": "Recursos",
+    "documentation": "Documentação",
+    "api_reference": "Referência API",
+    "smart_contracts": "Contratos Inteligentes",
+    "bug_bounty": "Recompensa por Bugs",
+    "community": "Comunidade",
+    "governance": "Governança",
+    "all_systems_operational": "Todos os sistemas operacionais",
+    "terms": "Termos",
+    "privacy": "Privacidade",
+    "contact": "Contato"
   }
 }

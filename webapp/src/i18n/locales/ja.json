@@ -154,5 +154,24 @@
     "insufficient_balance": "残高不足",
     "transaction_failed": "トランザクション失敗",
     "network_error": "ネットワークエラー、再試行してください"
+  },
+  "footer": {
+    "tagline": "BNBチェーン上の分散型グリッド取引プロトコル。オンチェーンスマートコントラクトで取引戦略を自動化。",
+    "product": "プロダクト",
+    "grid_trading": "グリッド取引",
+    "limit_order": "指値注文",
+    "leaderboard": "リーダーボード",
+    "analytics": "アナリティクス",
+    "resources": "リソース",
+    "documentation": "ドキュメント",
+    "api_reference": "APIリファレンス",
+    "smart_contracts": "スマートコントラクト",
+    "bug_bounty": "バグバウンティ",
+    "community": "コミュニティ",
+    "governance": "ガバナンス",
+    "all_systems_operational": "全システム正常稼働中",
+    "terms": "利用規約",
+    "privacy": "プライバシー",
+    "contact": "お問い合わせ"
   }
 }

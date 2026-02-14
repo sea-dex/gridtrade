@@ -76,13 +76,13 @@ export function GridOrderList() {
     switch (status) {
       case 1:
         return (
-          <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-medium bg-(--green-dim) text-(--green) border border-[rgba(52,211,153,0.15)] rounded-(--radius-sm)">
+          <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-medium bg-(--green-dim) text-(--green) border border-[rgba(52,211,153,0.15)] rounded-sm">
             {t('grid.order_list.status_active')}
           </span>
         );
       case 2:
         return (
-          <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-medium bg-[rgba(136,150,171,0.06)] text-(--text-disabled) border border-(--border-subtle) rounded-(--radius-sm)">
+          <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-medium bg-[rgba(136,150,171,0.06)] text-(--text-disabled) border border-(--border-subtle) rounded-sm">
             {t('grid.order_list.status_cancelled')}
           </span>
         );
@@ -98,7 +98,7 @@ export function GridOrderList() {
     <div className="flex gap-1">
       <button
         type="button"
-        className={`px-3 py-1.5 text-[12px] font-medium rounded-(--radius-sm) transition-colors ${
+        className={`px-3 py-1.5 text-[12px] font-medium rounded-sm transition-colors ${
           activeTab === 'my_grids'
             ? 'bg-(--accent-dim) text-(--accent) border border-(--accent)/20'
             : 'text-(--text-disabled) hover:text-(--text-secondary) hover:bg-[rgba(136,150,171,0.05)]'
@@ -109,7 +109,7 @@ export function GridOrderList() {
       </button>
       <button
         type="button"
-        className={`px-3 py-1.5 text-[12px] font-medium rounded-(--radius-sm) transition-colors ${
+        className={`px-3 py-1.5 text-[12px] font-medium rounded-sm transition-colors ${
           activeTab === 'all_grids'
             ? 'bg-(--accent-dim) text-(--accent) border border-(--accent)/20'
             : 'text-(--text-disabled) hover:text-(--text-secondary) hover:bg-[rgba(136,150,171,0.05)]'
@@ -453,11 +453,11 @@ function OrderRow({
       </td>
       <td className="py-1.5 px-3">
         {order.status === 0 ? (
-          <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium bg-(--green-dim) text-(--green) border border-[rgba(52,211,153,0.15)] rounded-(--radius-sm)">
+          <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium bg-(--green-dim) text-(--green) border border-[rgba(52,211,153,0.15)] rounded-sm">
             {t('grid.order_list.status_active')}
           </span>
         ) : (
-          <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium bg-[rgba(136,150,171,0.06)] text-(--text-disabled) border border-(--border-subtle) rounded-(--radius-sm)">
+          <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium bg-[rgba(136,150,171,0.06)] text-(--text-disabled) border border-(--border-subtle) rounded-sm">
             {t('grid.order_list.status_cancelled')}
           </span>
         )}

@@ -140,7 +140,10 @@
       "price": "价格",
       "amount": "数量",
       "total": "总额",
-      "place_order": "下单"
+      "place_order": "创建限价单",
+      "approving_base": "正在授权 Base 代币...",
+      "approving_quote": "正在授权 Quote 代币...",
+      "placing_order": "正在创建限价单..."
     }
   },
   "leaderboard": {
@@ -185,5 +188,24 @@
     "insufficient_balance": "余额不足",
     "transaction_failed": "交易失败",
     "network_error": "网络错误，请重试"
+  },
+  "footer": {
+    "tagline": "BNB Chain 上的去中心化网格交易协议。通过链上智能合约自动化您的交易策略。",
+    "product": "产品",
+    "grid_trading": "网格交易",
+    "limit_order": "限价单",
+    "leaderboard": "排行榜",
+    "analytics": "数据分析",
+    "resources": "资源",
+    "documentation": "文档",
+    "api_reference": "API 参考",
+    "smart_contracts": "智能合约",
+    "bug_bounty": "漏洞赏金",
+    "community": "社区",
+    "governance": "治理",
+    "all_systems_operational": "所有系统运行正常",
+    "terms": "条款",
+    "privacy": "隐私",
+    "contact": "联系"
   }
 }

@@ -154,5 +154,24 @@
     "insufficient_balance": "잔액 부족",
     "transaction_failed": "거래 실패",
     "network_error": "네트워크 오류, 다시 시도하세요"
+  },
+  "footer": {
+    "tagline": "BNB 체인의 탈중앙화 그리드 트레이딩 프로토콜. 온체인 스마트 컨트랙트로 거래 전략을 자동화하세요.",
+    "product": "제품",
+    "grid_trading": "그리드 트레이딩",
+    "limit_order": "지정가 주문",
+    "leaderboard": "리더보드",
+    "analytics": "분석",
+    "resources": "리소스",
+    "documentation": "문서",
+    "api_reference": "API 레퍼런스",
+    "smart_contracts": "스마트 컨트랙트",
+    "bug_bounty": "버그 바운티",
+    "community": "커뮤니티",
+    "governance": "거버넌스",
+    "all_systems_operational": "모든 시스템 정상 운영 중",
+    "terms": "이용약관",
+    "privacy": "개인정보",
+    "contact": "문의"
   }
 }

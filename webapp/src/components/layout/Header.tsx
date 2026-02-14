@@ -62,7 +62,7 @@ export function Header() {
             alt="GridEx Logo"
             width={32}
             height={32}
-            className="w-8 h-8 transition-transform duration-700 ease-in-out hover:rotate-[360deg]"
+            className="w-8 h-8 transition-transform duration-700 ease-in-out hover:rotate-360"
             unoptimized
           />
           <span className="font-semibold text-[18px] text-white hidden sm:block tracking-[-0.02em]">GridTrade</span>
@@ -206,7 +206,7 @@ export function Header() {
                           onClick={openAccountModal}
                           className="flex items-center gap-2.5 h-10 px-4 rounded-xl bg-transparent border border-[rgba(136,150,171,0.14)] hover:border-[rgba(136,150,171,0.25)] transition-colors"
                         >
-                          <div className="w-5 h-5 rounded-full bg-gradient-to-br from-white to-[#8896ab]" />
+                          <div className="w-5 h-5 rounded-full bg-linear-to-br from-white to-[#8896ab]" />
                           <span className="text-[14px] font-medium text-white tracking-[-0.01em]">
                             {account.displayName}
                           </span>
@@ -238,7 +238,7 @@ export function Header() {
             onClick={closeMobileMenu}
           />
           {/* Drawer */}
-          <div className="fixed top-[calc(60px+41px)] left-0 right-0 z-50 md:hidden animate-slide-down">
+          <div className="fixed top-25.25 left-0 right-0 z-50 md:hidden animate-slide-down">
             <nav className="bg-[#111a2e] border-b border-[rgba(136,150,171,0.08)] px-5 py-4 flex flex-col gap-1">
               {navItems.map((item) => {
                 const isActive = pathname === item.href;

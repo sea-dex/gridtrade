@@ -154,5 +154,24 @@
     "insufficient_balance": "Solde insuffisant",
     "transaction_failed": "Transaction échouée",
     "network_error": "Erreur réseau, veuillez réessayer"
+  },
+  "footer": {
+    "tagline": "Protocole de trading en grille décentralisé sur BNB Chain. Automatisez vos stratégies de trading avec des contrats intelligents on-chain.",
+    "product": "Produit",
+    "grid_trading": "Trading en Grille",
+    "limit_order": "Ordre Limité",
+    "leaderboard": "Classement",
+    "analytics": "Analytique",
+    "resources": "Ressources",
+    "documentation": "Documentation",
+    "api_reference": "Référence API",
+    "smart_contracts": "Contrats Intelligents",
+    "bug_bounty": "Prime aux Bugs",
+    "community": "Communauté",
+    "governance": "Gouvernance",
+    "all_systems_operational": "Tous les systèmes opérationnels",
+    "terms": "Conditions",
+    "privacy": "Confidentialité",
+    "contact": "Contact"
   }
 }

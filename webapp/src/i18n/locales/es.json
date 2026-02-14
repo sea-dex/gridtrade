@@ -154,5 +154,24 @@
     "insufficient_balance": "Saldo insuficiente",
     "transaction_failed": "Transacción fallida",
     "network_error": "Error de red, por favor intenta de nuevo"
+  },
+  "footer": {
+    "tagline": "Protocolo de trading en cuadrícula descentralizado en BNB Chain. Automatiza tus estrategias de trading con contratos inteligentes on-chain.",
+    "product": "Producto",
+    "grid_trading": "Trading en Cuadrícula",
+    "limit_order": "Orden Limitada",
+    "leaderboard": "Clasificación",
+    "analytics": "Analíticas",
+    "resources": "Recursos",
+    "documentation": "Documentación",
+    "api_reference": "Referencia API",
+    "smart_contracts": "Contratos Inteligentes",
+    "bug_bounty": "Recompensa por Bugs",
+    "community": "Comunidad",
+    "governance": "Gobernanza",
+    "all_systems_operational": "Todos los sistemas operativos",
+    "terms": "Términos",
+    "privacy": "Privacidad",
+    "contact": "Contacto"
   }
 }

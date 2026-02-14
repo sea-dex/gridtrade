@@ -31,11 +31,11 @@ export interface TokenInfo {
 const bscTestnetTokens: TokenInfo[] = [
   // ── Quote tokens ──────────────────────────────────────────────────────
   {
-    address: '0x337610d27c682E347C9cD60BD4b3b107C9d34dDd',
-    symbol: 'USDT',
-    name: 'Tether USD (Testnet)',
+    address: '0x64544969ed7EBf5f083679233325356EbE738930',
+    symbol: 'USDC',
+    name: 'USD Coin (Testnet)',
     decimals: 18,
-    logo: 'https://assets.coingecko.com/coins/images/325/standard/Tether.png',
+    logo: 'https://assets.coingecko.com/coins/images/6319/standard/usdc.png',
     priority: 1<<20,
     isQuote: true,
     tags: ['stablecoin'],
@@ -51,11 +51,11 @@ const bscTestnetTokens: TokenInfo[] = [
     tags: ['native'],
   },
   {
-    address: '0x64544969ed7EBf5f083679233325356EbE738930',
-    symbol: 'USDC',
-    name: 'USD Coin (Testnet)',
+    address: '0x337610d27c682E347C9cD60BD4b3b107C9d34dDd',
+    symbol: 'USDT',
+    name: 'Tether USD (Testnet)',
     decimals: 18,
-    logo: 'https://assets.coingecko.com/coins/images/6319/standard/usdc.png',
+    logo: 'https://assets.coingecko.com/coins/images/325/standard/Tether.png',
     priority: 1000000,
     isQuote: true,
     tags: ['stablecoin'],

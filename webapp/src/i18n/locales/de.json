@@ -154,5 +154,24 @@
     "insufficient_balance": "Unzureichendes Guthaben",
     "transaction_failed": "Transaktion fehlgeschlagen",
     "network_error": "Netzwerkfehler, bitte erneut versuchen"
+  },
+  "footer": {
+    "tagline": "Dezentrales Grid-Trading-Protokoll auf der BNB Chain. Automatisieren Sie Ihre Handelsstrategien mit On-Chain Smart Contracts.",
+    "product": "Produkt",
+    "grid_trading": "Grid-Trading",
+    "limit_order": "Limit-Order",
+    "leaderboard": "Rangliste",
+    "analytics": "Analytik",
+    "resources": "Ressourcen",
+    "documentation": "Dokumentation",
+    "api_reference": "API-Referenz",
+    "smart_contracts": "Smart Contracts",
+    "bug_bounty": "Bug Bounty",
+    "community": "Community",
+    "governance": "Governance",
+    "all_systems_operational": "Alle Systeme betriebsbereit",
+    "terms": "AGB",
+    "privacy": "Datenschutz",
+    "contact": "Kontakt"
   }
 }

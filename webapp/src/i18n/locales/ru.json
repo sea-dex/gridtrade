@@ -154,5 +154,24 @@
     "insufficient_balance": "Недостаточный баланс",
     "transaction_failed": "Транзакция не удалась",
     "network_error": "Ошибка сети, попробуйте снова"
+  },
+  "footer": {
+    "tagline": "Децентрализованный протокол сеточной торговли на BNB Chain. Автоматизируйте торговые стратегии с помощью смарт-контрактов на блокчейне.",
+    "product": "Продукт",
+    "grid_trading": "Сеточная Торговля",
+    "limit_order": "Лимитный Ордер",
+    "leaderboard": "Рейтинг",
+    "analytics": "Аналитика",
+    "resources": "Ресурсы",
+    "documentation": "Документация",
+    "api_reference": "Справочник API",
+    "smart_contracts": "Смарт-контракты",
+    "bug_bounty": "Баг Баунти",
+    "community": "Сообщество",
+    "governance": "Управление",
+    "all_systems_operational": "Все системы работают нормально",
+    "terms": "Условия",
+    "privacy": "Конфиденциальность",
+    "contact": "Контакт"
   }
 }
