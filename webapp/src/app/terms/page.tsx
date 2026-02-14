@@ -275,10 +275,10 @@ export default function TermsPage() {
                     <p>
                       If you have any questions about these Terms, please contact us at{' '}
                       <a
-                        href="mailto:contact@gridtrade.io"
+                        href="mailto:seaprotocol@outlook.com"
                         className="text-(--accent) hover:underline"
                       >
-                        contact@gridtrade.io
+                        seaprotocol@outlook.com
                       </a>.
                     </p>
                   </div>

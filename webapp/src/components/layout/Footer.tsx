@@ -195,7 +195,7 @@ export function Footer() {
               {t('footer.privacy')}
             </Link>
             <a
-              href="mailto:contact@gridtrade.io"
+              href="mailto:seaprotocol@outlook.com"
               className="text-[12px] text-[#3d4d63] hover:text-[#5a6a80] transition-colors inline-flex items-center gap-1"
             >
               <Mail size={11} />
