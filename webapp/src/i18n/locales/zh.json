@@ -183,6 +183,15 @@
     "switch_network": "切换网络",
     "balance": "余额"
   },
+  "tx_dialog": {
+    "order_success": "下单成功！",
+    "close": "关闭",
+    "approve_base": "授权 {{symbol}}",
+    "approve_quote": "授权 {{symbol}}",
+    "place_order": "提交订单",
+    "confirming": "确认交易中…",
+    "waiting_wallet": "等待钱包确认…"
+  },
   "errors": {
     "wallet_not_connected": "请先连接钱包",
     "insufficient_balance": "余额不足",

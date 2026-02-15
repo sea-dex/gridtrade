@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState, useEffect, useCallback } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import type { PriceLine } from '@/types/grid';
 import { useStore } from '@/store/useStore';
 import { KlinePanel } from '@/components/trading/KlinePanel';
@@ -8,16 +9,38 @@ import { GridOrderForm } from '@/components/trading/GridOrderForm';
 import { GridOrderList } from '@/components/trading/GridOrderList';
 import type { TokenItem } from '@/hooks/useTokens';
 
-/**
- * Wrapper that uses selectedChainId as a React key so the entire page
- * remounts (resetting all local token state) when the chain switches.
- */
 export default function GridTradingPage() {
+  return (
+    <Suspense>
+      <GridTradingPageWithParams />
+    </Suspense>
+  );
+}
+
+function GridTradingPageWithParams() {
   const selectedChainId = useStore((s) => s.selectedChainId);
+  const setSelectedChainId = useStore((s) => s.setSelectedChainId);
+  const searchParams = useSearchParams();
+
+  // Sync chainId from URL on mount
+  useEffect(() => {
+    const chainIdParam = searchParams.get('chainId');
+    if (chainIdParam) {
+      const parsed = Number(chainIdParam);
+      if (!isNaN(parsed) && parsed !== selectedChainId) {
+        setSelectedChainId(parsed);
+      }
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   return <GridTradingPageInner key={selectedChainId} />;
 }
 
 function GridTradingPageInner() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const selectedChainId = useStore((s) => s.selectedChainId);
+
   const [baseToken, setBaseToken] = useState<{
     address: `0x${string}`;
     symbol: string;
@@ -32,12 +55,28 @@ function GridTradingPageInner() {
 
   const [priceLines, setPriceLines] = useState<PriceLine[]>([]);
 
+  // Read initial base/quote from URL params
+  const urlBase = searchParams.get('base');
+  const urlQuote = searchParams.get('quote');
+
+  const updateUrl = useCallback(
+    (base?: string, quote?: string) => {
+      const params = new URLSearchParams();
+      params.set('chainId', String(selectedChainId));
+      if (base) params.set('base', base);
+      if (quote) params.set('quote', quote);
+      router.replace(`/grid?${params.toString()}`, { scroll: false });
+    },
+    [selectedChainId, router]
+  );
+
   const handleBaseTokenChange = (token: TokenItem) => {
     setBaseToken({
       address: token.address as `0x${string}`,
       symbol: token.symbol,
       decimals: token.decimals,
     });
+    updateUrl(token.address, quoteToken?.address);
   };
 
   const handleQuoteTokenChange = (token: TokenItem) => {
@@ -46,6 +85,7 @@ function GridTradingPageInner() {
       symbol: token.symbol,
       decimals: token.decimals,
     });
+    updateUrl(baseToken?.address, token.address);
   };
 
   return (
@@ -60,6 +100,8 @@ function GridTradingPageInner() {
               onQuoteTokenChange={handleQuoteTokenChange}
               chartHeight={500}
               priceLines={priceLines}
+              initialBaseAddress={urlBase}
+              initialQuoteAddress={urlQuote}
             />
           </div>
 

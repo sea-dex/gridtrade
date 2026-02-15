@@ -44,6 +44,10 @@ interface KlinePanelProps {
   initialBaseToken?: TokenItem | null;
   /** Initial quote token (optional) */
   initialQuoteToken?: TokenItem | null;
+  /** Initial base token address from URL (optional) */
+  initialBaseAddress?: string | null;
+  /** Initial quote token address from URL (optional) */
+  initialQuoteAddress?: string | null;
 }
 
 /**
@@ -62,6 +66,8 @@ function KlinePanelInner({
   priceLines = [],
   initialBaseToken,
   initialQuoteToken,
+  initialBaseAddress,
+  initialQuoteAddress,
 }: KlinePanelProps) {
   const { theme } = useStore();
   const { tokens: baseTokens, isLoading: baseLoading } = useBaseTokens();
@@ -69,6 +75,36 @@ function KlinePanelInner({
 
   const [baseToken, setBaseToken] = useState<TokenItem | null>(initialBaseToken ?? null);
   const [quoteToken, setQuoteToken] = useState<TokenItem | null>(initialQuoteToken ?? null);
+
+  // Resolve URL address params to tokens once token lists are loaded
+  const urlResolvedRef = useRef(false);
+  useEffect(() => {
+    if (urlResolvedRef.current) return;
+    if (baseTokens.length === 0 && quoteTokens.length === 0) return;
+
+    let resolved = false;
+    if (initialBaseAddress && baseTokens.length > 0) {
+      const found = baseTokens.find(
+        (t) => t.address.toLowerCase() === initialBaseAddress.toLowerCase()
+      );
+      if (found) {
+        setBaseToken(found);
+        resolved = true;
+      }
+    }
+    if (initialQuoteAddress && quoteTokens.length > 0) {
+      const found = quoteTokens.find(
+        (t) => t.address.toLowerCase() === initialQuoteAddress.toLowerCase()
+      );
+      if (found) {
+        setQuoteToken(found);
+        resolved = true;
+      }
+    }
+    if (resolved || (!initialBaseAddress && !initialQuoteAddress)) {
+      urlResolvedRef.current = true;
+    }
+  }, [baseTokens, quoteTokens, initialBaseAddress, initialQuoteAddress]);
   const [baseDialogOpen, setBaseDialogOpen] = useState(false);
   const [interval, setInterval] = useState<KlineInterval>('1h');
 

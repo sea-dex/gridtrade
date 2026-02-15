@@ -19,7 +19,7 @@ export function GridOrderList() {
   const { address, chainId } = useAccount();
   const { writeContract, isPending } = useWriteContract();
   const [expandedGrids, setExpandedGrids] = useState<Set<number>>(new Set());
-  const [activeTab, setActiveTab] = useState<OrderTab>('my_grids');
+  const [activeTab, setActiveTab] = useState<OrderTab>(address ? 'my_grids' : 'all_grids');
 
   // My grids: filtered by connected wallet owner
   const myGridsResult = useGridOrders({

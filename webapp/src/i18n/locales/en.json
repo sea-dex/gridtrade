@@ -174,6 +174,15 @@
     "switch_network": "Switch Network",
     "balance": "Balance"
   },
+  "tx_dialog": {
+    "order_success": "Order placed successfully!",
+    "close": "Close",
+    "approve_base": "Approve {{symbol}}",
+    "approve_quote": "Approve {{symbol}}",
+    "place_order": "Place Order",
+    "confirming": "Confirming transaction…",
+    "waiting_wallet": "Waiting for wallet confirmation…"
+  },
   "errors": {
     "wallet_not_connected": "Please connect your wallet first",
     "insufficient_balance": "Insufficient balance",

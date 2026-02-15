@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import BigNumber from 'bignumber.js';
 import {
   useAccount,
@@ -8,7 +8,6 @@ import {
   usePublicClient,
   useReadContract,
   useWriteContract,
-  useWaitForTransactionReceipt,
 } from 'wagmi';
 import { useConnectModal } from '@rainbow-me/rainbowkit';
 import { parseUnits, encodeAbiParameters, formatUnits, zeroAddress } from 'viem';
@@ -22,6 +21,7 @@ import { ERC20_ABI } from '@/config/abi/ERC20';
 import { GRIDEX_ABI } from '@/config/abi/GridEx';
 import { GRIDEX_ADDRESSES, LINEAR_STRATEGY_ADDRESSES } from '@/config/chains';
 import { cn } from '@/lib/utils';
+import { TransactionStatusDialog, type TxStep } from '@/components/trading/TransactionStatusDialog';
 import type { PriceLine } from '@/types/grid';
 
 function formatAmount(value: bigint, decimals: number, maxFractionDigits = 6): string {
@@ -109,14 +109,26 @@ export function GridOrderForm({ baseToken, quoteToken, onPriceLinesChange }: Gri
   const publicClient = usePublicClient({ chainId });
   const { writeContractAsync, isPending } = useWriteContract();
 
-  const [placeHash, setPlaceHash] = useState<`0x${string}` | undefined>(undefined);
-  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash: placeHash });
-
   const [submitStage, setSubmitStage] = useState<
     'idle' | 'approving_base' | 'approving_quote' | 'placing'
   >('idle');
 
+  // Transaction status dialog state
+  const [txDialogOpen, setTxDialogOpen] = useState(false);
+  const [txSteps, setTxSteps] = useState<TxStep[]>([]);
+  const [txError, setTxError] = useState<string | null>(null);
+
+  const updateStep = useCallback(
+    (index: number, patch: Partial<TxStep>) =>
+      setTxSteps((prev) => prev.map((s, i) => (i === index ? { ...s, ...patch } : s))),
+    [],
+  );
+
   const { fees, defaultFee, isLoading: isFeesLoading } = useFees();
+
+  // For native tokens (zeroAddress), don't pass token parameter to get native balance
+  const baseTokenAddress = baseToken?.address === zeroAddress ? undefined : baseToken?.address;
+  const quoteTokenAddress = quoteToken?.address === zeroAddress ? undefined : quoteToken?.address;
 
   const {
     data: baseBalance,
@@ -125,8 +137,8 @@ export function GridOrderForm({ baseToken, quoteToken, onPriceLinesChange }: Gri
   } = useBalance({
     address,
     chainId,
-    token: baseToken?.address,
-    query: { enabled: !!address && !!chainId && !!baseToken?.address },
+    token: baseTokenAddress,
+    query: { enabled: !!address && !!chainId && !!baseToken },
   });
 
   const {
@@ -136,8 +148,8 @@ export function GridOrderForm({ baseToken, quoteToken, onPriceLinesChange }: Gri
   } = useBalance({
     address,
     chainId,
-    token: quoteToken?.address,
-    query: { enabled: !!address && !!chainId && !!quoteToken?.address },
+    token: quoteTokenAddress,
+    query: { enabled: !!address && !!chainId && !!quoteToken },
   });
 
   const [formData, setFormData] = useState(() => ({
@@ -297,11 +309,43 @@ export function GridOrderForm({ baseToken, quoteToken, onPriceLinesChange }: Gri
     // Currently only supports at most one native side.
     if (baseIsNative && quoteIsNative) return;
 
+    // Build initial steps list
+    const needsBase = needsBaseApproval && (baseAllowance as bigint | undefined ?? 0n) < totals.baseTotal;
+    const needsQuote = needsQuoteApproval && (quoteAllowance as bigint | undefined ?? 0n) < totals.quoteTotal;
+
+    const initialSteps: TxStep[] = [];
+    const stepIndexMap = { approveBase: -1, approveQuote: -1, place: -1 };
+
+    if (needsBase) {
+      stepIndexMap.approveBase = initialSteps.length;
+      initialSteps.push({
+        label: t('tx_dialog.approve_base').replace('{{symbol}}', baseToken.symbol),
+        status: 'pending',
+      });
+    }
+    if (needsQuote) {
+      stepIndexMap.approveQuote = initialSteps.length;
+      initialSteps.push({
+        label: t('tx_dialog.approve_quote').replace('{{symbol}}', quoteToken.symbol),
+        status: 'pending',
+      });
+    }
+    stepIndexMap.place = initialSteps.length;
+    initialSteps.push({
+      label: t('tx_dialog.place_order'),
+      status: 'pending',
+    });
+
+    setTxSteps(initialSteps);
+    setTxError(null);
+    setTxDialogOpen(true);
+
     const approveIfNeeded = async (
       tokenAddress: `0x${string}`,
       requiredAmount: bigint,
       currentAllowance: bigint,
       stage: 'approving_base' | 'approving_quote',
+      stepIdx: number,
     ) => {
       if (!publicClient) throw new Error('Missing public client');
       if (tokenAddress === zeroAddress) return;
@@ -309,6 +353,7 @@ export function GridOrderForm({ baseToken, quoteToken, onPriceLinesChange }: Gri
       if (currentAllowance >= requiredAmount) return;
 
       setSubmitStage(stage);
+      updateStep(stepIdx, { status: 'active' });
 
       // Some tokens (e.g. USDT) require setting allowance to 0 before increasing.
       if (currentAllowance > 0n) {
@@ -318,6 +363,7 @@ export function GridOrderForm({ baseToken, quoteToken, onPriceLinesChange }: Gri
           functionName: 'approve',
           args: [gridexAddress, 0n],
         });
+        updateStep(stepIdx, { hash: hash0 });
         await publicClient.waitForTransactionReceipt({ hash: hash0 });
       }
 
@@ -327,49 +373,57 @@ export function GridOrderForm({ baseToken, quoteToken, onPriceLinesChange }: Gri
         functionName: 'approve',
         args: [gridexAddress, requiredAmount],
       });
+      updateStep(stepIdx, { hash: hash1 });
       await publicClient.waitForTransactionReceipt({ hash: hash1 });
+      updateStep(stepIdx, { status: 'done' });
     };
 
     try {
-      setPlaceHash(undefined);
+      if (stepIndexMap.approveBase >= 0) {
+        await approveIfNeeded(
+          baseToken.address,
+          totals.baseTotal,
+          (baseAllowance as bigint | undefined) ?? 0n,
+          'approving_base',
+          stepIndexMap.approveBase,
+        );
+      }
 
-      // Ensure approvals (must be confirmed before placing)
-      await approveIfNeeded(
-        baseToken.address,
-        totals.baseTotal,
-        (baseAllowance as bigint | undefined) ?? 0n,
-        'approving_base',
-      );
-
-      await approveIfNeeded(
-        quoteToken.address,
-        totals.quoteTotal,
-        (quoteAllowance as bigint | undefined) ?? 0n,
-        'approving_quote',
-      );
+      if (stepIndexMap.approveQuote >= 0) {
+        await approveIfNeeded(
+          quoteToken.address,
+          totals.quoteTotal,
+          (quoteAllowance as bigint | undefined) ?? 0n,
+          'approving_quote',
+          stepIndexMap.approveQuote,
+        );
+      }
 
       setSubmitStage('placing');
+      updateStep(stepIndexMap.place, { status: 'active' });
 
       const askPrice0 = priceToBigInt(formData.askPrice0);
       const askGap = priceToBigInt(formData.askGap);
       const bidPrice0 = priceToBigInt(formData.bidPrice0);
-      const bidGap = priceToBigInt(formData.bidGap);
+      const bidGapPositive = priceToBigInt(formData.bidGap);
+      // Contract expects bid gap as negative (prices decrease for each subsequent bid order)
+      const bidGap = bidGapPositive > 0n ? -bidGapPositive : bidGapPositive;
 
       console.info('ask price:', askPrice0)
       console.info('ask gap:', askGap)
       console.info('bid price:', bidPrice0)
-      console.info('ask price:', askPrice0)
-      
+      console.info('bid gap:', bidGap)
+
       const linearStrategy = LINEAR_STRATEGY_ADDRESSES[chainId];
       if (!linearStrategy) return;
 
       const askData = encodeAbiParameters(
-        [{ type: 'uint256' }, { type: 'uint256' }],
+        [{ type: 'uint256' }, { type: 'int256' }],
         [askPrice0, askGap],
       );
 
       const bidData = encodeAbiParameters(
-        [{ type: 'uint256' }, { type: 'uint256' }],
+        [{ type: 'uint256' }, { type: 'int256' }],
         [bidPrice0, bidGap],
       );
 
@@ -393,7 +447,7 @@ export function GridOrderForm({ baseToken, quoteToken, onPriceLinesChange }: Gri
           : 0n;
 
       const txHash =
-        value > 0n
+        (baseIsNative || quoteIsNative)
           ? await writeContractAsync({
               address: gridexAddress,
               abi: GRIDEX_ABI,
@@ -408,15 +462,28 @@ export function GridOrderForm({ baseToken, quoteToken, onPriceLinesChange }: Gri
               args: [baseToken.address, quoteToken.address, param],
             });
 
-      setPlaceHash(txHash);
-    } catch (error) {
-      console.error('Error placing grid order:', error);
+      updateStep(stepIndexMap.place, { hash: txHash, status: 'active' });
+
+      // Wait for the place-order tx to be confirmed
+      if (publicClient) {
+        await publicClient.waitForTransactionReceipt({ hash: txHash });
+      }
+      updateStep(stepIndexMap.place, { status: 'done' });
+    } catch (err: unknown) {
+      console.error('Error placing grid order:', err);
+      const message =
+        err instanceof Error ? err.message : 'Transaction failed';
+      setTxError(message);
+      // Mark the currently active step as error
+      setTxSteps((prev) =>
+        prev.map((s) => (s.status === 'active' ? { ...s, status: 'error' } : s)),
+      );
     } finally {
       setSubmitStage('idle');
     }
   };
 
-  const isLoading = isPending || isConfirming || submitStage !== 'idle';
+  const isLoading = isPending || submitStage !== 'idle';
 
   return (
     <Card variant="bordered">
@@ -630,26 +697,27 @@ export function GridOrderForm({ baseToken, quoteToken, onPriceLinesChange }: Gri
             size="lg"
             onClick={handleSubmit}
             isLoading={isLoading}
-            disabled={!baseToken || !quoteToken || isLoading}
+            disabled={
+              !baseToken ||
+              !quoteToken ||
+              isLoading ||
+              !formData.amountPerGrid ||
+              (totals.baseTotal === 0n && totals.quoteTotal === 0n)
+            }
           >
-            {isLoading
-              ? submitStage === 'approving_base'
-                ? t('grid.order_form.approving_base')
-                : submitStage === 'approving_quote'
-                  ? t('grid.order_form.approving_quote')
-                  : submitStage === 'placing'
-                    ? t('grid.order_form.placing_order')
-                    : t('common.loading')
-              : t('grid.order_form.place_grid')}
+            {t('grid.order_form.place_grid')}
           </Button>
         )}
-
-        {isSuccess && (
-          <div className="px-3.5 py-2.5 bg-(--green-dim) border border-[rgba(52,211,153,0.15)] rounded-md text-[13px] text-(--green)">
-            {t('common.success')}! Transaction confirmed.
-          </div>
-        )}
       </CardContent>
+
+      <TransactionStatusDialog
+        open={txDialogOpen}
+        onClose={() => setTxDialogOpen(false)}
+        title={t('grid.order_form.place_grid')}
+        steps={txSteps}
+        error={txError}
+        chainId={chainId}
+      />
     </Card>
   );
 }
