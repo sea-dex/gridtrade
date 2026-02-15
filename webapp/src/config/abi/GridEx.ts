@@ -1,220 +1,1417 @@
 export const GRIDEX_ABI = [
-  // Events
   {
-    type: 'event',
-    name: 'GridOrderCreated',
-    inputs: [
-      { name: 'maker', type: 'address', indexed: true },
-      { name: 'pairId', type: 'uint64', indexed: true },
-      { name: 'baseAmount', type: 'uint128', indexed: false },
-      { name: 'gridId', type: 'uint128', indexed: false },
-      { name: 'startAskOrderId', type: 'uint256', indexed: false },
-      { name: 'startBidOrderId', type: 'uint256', indexed: false },
-      { name: 'askOrderCount', type: 'uint32', indexed: false },
-      { name: 'bidOrderCount', type: 'uint32', indexed: false },
-      { name: 'fee', type: 'uint32', indexed: false },
-      { name: 'compound', type: 'bool', indexed: false },
-      { name: 'oneshot', type: 'bool', indexed: false },
-    ],
-  },
-  {
-    type: 'event',
-    name: 'FilledOrder',
-    inputs: [
-      { name: 'taker', type: 'address', indexed: true },
-      { name: 'gridOrderId', type: 'uint256', indexed: true },
-      { name: 'filledAmt', type: 'uint128', indexed: false },
-      { name: 'filledVol', type: 'uint128', indexed: false },
-      { name: 'orderAmt', type: 'uint128', indexed: false },
-      { name: 'orderRevAmt', type: 'uint128', indexed: false },
-      { name: 'isAsk', type: 'bool', indexed: false },
-    ],
-  },
-  {
-    type: 'event',
-    name: 'WithdrawProfit',
-    inputs: [
-      { name: 'gridId', type: 'uint128', indexed: true },
-      { name: 'quote', type: 'address', indexed: false },
-      { name: 'to', type: 'address', indexed: false },
-      { name: 'amt', type: 'uint256', indexed: false },
-    ],
-  },
-  // Read functions
-  {
-    type: 'function',
-    name: 'getGridOrder',
-    stateMutability: 'view',
-    inputs: [{ name: 'id', type: 'uint256' }],
-    outputs: [
+    "type": "constructor",
+    "inputs": [
       {
-        name: 'order',
-        type: 'tuple',
-        components: [
-          { name: 'isAsk', type: 'bool' },
-          { name: 'compound', type: 'bool' },
-          { name: 'oneshot', type: 'bool' },
-          { name: 'fee', type: 'uint32' },
-          { name: 'status', type: 'uint32' },
-          { name: 'gridId', type: 'uint128' },
-          { name: 'orderId', type: 'uint128' },
-          { name: 'amount', type: 'uint128' },
-          { name: 'revAmount', type: 'uint128' },
-          { name: 'baseAmt', type: 'uint128' },
-          { name: 'price', type: 'uint256' },
-          { name: 'revPrice', type: 'uint256' },
-          { name: 'pairId', type: 'uint64' },
-        ],
+        "name": "_owner",
+        "type": "address",
+        "internalType": "address"
       },
-    ],
-  },
-  {
-    type: 'function',
-    name: 'getGridOrders',
-    stateMutability: 'view',
-    inputs: [{ name: 'idList', type: 'uint256[]' }],
-    outputs: [
       {
-        name: '',
-        type: 'tuple[]',
-        components: [
-          { name: 'isAsk', type: 'bool' },
-          { name: 'compound', type: 'bool' },
-          { name: 'oneshot', type: 'bool' },
-          { name: 'fee', type: 'uint32' },
-          { name: 'status', type: 'uint32' },
-          { name: 'gridId', type: 'uint128' },
-          { name: 'orderId', type: 'uint128' },
-          { name: 'amount', type: 'uint128' },
-          { name: 'revAmount', type: 'uint128' },
-          { name: 'baseAmt', type: 'uint128' },
-          { name: 'price', type: 'uint256' },
-          { name: 'revPrice', type: 'uint256' },
-          { name: 'pairId', type: 'uint64' },
-        ],
+        "name": "_vault",
+        "type": "address",
+        "internalType": "address"
       },
-    ],
-  },
-  {
-    type: 'function',
-    name: 'getGridProfits',
-    stateMutability: 'view',
-    inputs: [{ name: 'gridId', type: 'uint96' }],
-    outputs: [{ name: '', type: 'uint256' }],
-  },
-  {
-    type: 'function',
-    name: 'getGridConfig',
-    stateMutability: 'view',
-    inputs: [{ name: 'gridId', type: 'uint96' }],
-    outputs: [
       {
-        name: '',
-        type: 'tuple',
-        components: [
-          { name: 'owner', type: 'address' },
-          { name: 'askStrategy', type: 'address' },
-          { name: 'bidStrategy', type: 'address' },
-          { name: 'profits', type: 'uint128' },
-          { name: 'baseAmt', type: 'uint128' },
-          { name: 'startAskOrderId', type: 'uint128' },
-          { name: 'startBidOrderId', type: 'uint128' },
-          { name: 'gridId', type: 'uint128' },
-          { name: 'pairId', type: 'uint64' },
-          { name: 'askOrderCount', type: 'uint32' },
-          { name: 'bidOrderCount', type: 'uint32' },
-          { name: 'fee', type: 'uint32' },
-          { name: 'compound', type: 'bool' },
-          { name: 'oneshot', type: 'bool' },
-          { name: 'status', type: 'uint32' },
-        ],
-      },
+        "name": "_adminFacet",
+        "type": "address",
+        "internalType": "address"
+      }
     ],
+    "stateMutability": "nonpayable"
   },
-  // Write functions
   {
-    type: 'function',
-    name: 'placeGridOrders',
-    stateMutability: 'nonpayable',
-    inputs: [
-      { name: 'base', type: 'address' },
-      { name: 'quote', type: 'address' },
+    "type": "fallback",
+    "stateMutability": "payable"
+  },
+  {
+    "type": "receive",
+    "stateMutability": "payable"
+  },
+  {
+    "type": "function",
+    "name": "cancelGrid",
+    "inputs": [
       {
-        name: 'param',
-        type: 'tuple',
-        components: [
-          { name: 'askStrategy', type: 'address' },
-          { name: 'bidStrategy', type: 'address' },
-          { name: 'askData', type: 'bytes' },
-          { name: 'bidData', type: 'bytes' },
-          { name: 'askOrderCount', type: 'uint32' },
-          { name: 'bidOrderCount', type: 'uint32' },
-          { name: 'fee', type: 'uint32' },
-          { name: 'compound', type: 'bool' },
-          { name: 'oneshot', type: 'bool' },
-          { name: 'baseAmount', type: 'uint128' },
-        ],
+        "name": "",
+        "type": "address",
+        "internalType": "address"
       },
-    ],
-    outputs: [],
-  },
-  {
-    type: 'function',
-    name: 'placeETHGridOrders',
-    stateMutability: 'payable',
-    inputs: [
-      { name: 'base', type: 'address' },
-      { name: 'quote', type: 'address' },
       {
-        name: 'param',
-        type: 'tuple',
-        components: [
-          { name: 'askStrategy', type: 'address' },
-          { name: 'bidStrategy', type: 'address' },
-          { name: 'askData', type: 'bytes' },
-          { name: 'bidData', type: 'bytes' },
-          { name: 'askOrderCount', type: 'uint32' },
-          { name: 'bidOrderCount', type: 'uint32' },
-          { name: 'fee', type: 'uint32' },
-          { name: 'compound', type: 'bool' },
-          { name: 'oneshot', type: 'bool' },
-          { name: 'baseAmount', type: 'uint128' },
-        ],
+        "name": "",
+        "type": "uint128",
+        "internalType": "uint128"
       },
+      {
+        "name": "",
+        "type": "uint32",
+        "internalType": "uint32"
+      }
     ],
-    outputs: [],
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
-    type: 'function',
-    name: 'cancelGrid',
-    stateMutability: 'nonpayable',
-    inputs: [
-      { name: 'recipient', type: 'address' },
-      { name: 'gridId', type: 'uint128' },
-      { name: 'flag', type: 'uint32' },
+    "type": "function",
+    "name": "cancelGridOrders",
+    "inputs": [
+      {
+        "name": "",
+        "type": "uint128",
+        "internalType": "uint128"
+      },
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      },
+      {
+        "name": "",
+        "type": "uint32",
+        "internalType": "uint32"
+      }
     ],
-    outputs: [],
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
-    type: 'function',
-    name: 'withdrawGridProfits',
-    stateMutability: 'nonpayable',
-    inputs: [
-      { name: 'gridId', type: 'uint128' },
-      { name: 'amt', type: 'uint256' },
-      { name: 'to', type: 'address' },
-      { name: 'flag', type: 'uint32' },
+    "type": "function",
+    "name": "cancelGridOrders",
+    "inputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "",
+        "type": "uint32",
+        "internalType": "uint32"
+      },
+      {
+        "name": "",
+        "type": "uint32",
+        "internalType": "uint32"
+      }
     ],
-    outputs: [],
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
-    type: 'function',
-    name: 'modifyGridFee',
-    stateMutability: 'nonpayable',
-    inputs: [
-      { name: 'gridId', type: 'uint128' },
-      { name: 'fee', type: 'uint32' },
+    "type": "function",
+    "name": "fillAskOrder",
+    "inputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "",
+        "type": "uint128",
+        "internalType": "uint128"
+      },
+      {
+        "name": "",
+        "type": "uint128",
+        "internalType": "uint128"
+      },
+      {
+        "name": "",
+        "type": "bytes",
+        "internalType": "bytes"
+      },
+      {
+        "name": "",
+        "type": "uint32",
+        "internalType": "uint32"
+      }
     ],
-    outputs: [],
+    "outputs": [],
+    "stateMutability": "payable"
   },
+  {
+    "type": "function",
+    "name": "fillAskOrders",
+    "inputs": [
+      {
+        "name": "",
+        "type": "uint64",
+        "internalType": "uint64"
+      },
+      {
+        "name": "",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      },
+      {
+        "name": "",
+        "type": "uint128[]",
+        "internalType": "uint128[]"
+      },
+      {
+        "name": "",
+        "type": "uint128",
+        "internalType": "uint128"
+      },
+      {
+        "name": "",
+        "type": "uint128",
+        "internalType": "uint128"
+      },
+      {
+        "name": "",
+        "type": "bytes",
+        "internalType": "bytes"
+      },
+      {
+        "name": "",
+        "type": "uint32",
+        "internalType": "uint32"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "payable"
+  },
+  {
+    "type": "function",
+    "name": "fillBidOrder",
+    "inputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "",
+        "type": "uint128",
+        "internalType": "uint128"
+      },
+      {
+        "name": "",
+        "type": "uint128",
+        "internalType": "uint128"
+      },
+      {
+        "name": "",
+        "type": "bytes",
+        "internalType": "bytes"
+      },
+      {
+        "name": "",
+        "type": "uint32",
+        "internalType": "uint32"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "payable"
+  },
+  {
+    "type": "function",
+    "name": "fillBidOrders",
+    "inputs": [
+      {
+        "name": "",
+        "type": "uint64",
+        "internalType": "uint64"
+      },
+      {
+        "name": "",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      },
+      {
+        "name": "",
+        "type": "uint128[]",
+        "internalType": "uint128[]"
+      },
+      {
+        "name": "",
+        "type": "uint128",
+        "internalType": "uint128"
+      },
+      {
+        "name": "",
+        "type": "uint128",
+        "internalType": "uint128"
+      },
+      {
+        "name": "",
+        "type": "bytes",
+        "internalType": "bytes"
+      },
+      {
+        "name": "",
+        "type": "uint32",
+        "internalType": "uint32"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "payable"
+  },
+  {
+    "type": "function",
+    "name": "placeETHGridOrders",
+    "inputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "Currency"
+      },
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "Currency"
+      },
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct IGridOrder.GridOrderParam",
+        "components": [
+          {
+            "name": "askStrategy",
+            "type": "address",
+            "internalType": "contract IGridStrategy"
+          },
+          {
+            "name": "bidStrategy",
+            "type": "address",
+            "internalType": "contract IGridStrategy"
+          },
+          {
+            "name": "askData",
+            "type": "bytes",
+            "internalType": "bytes"
+          },
+          {
+            "name": "bidData",
+            "type": "bytes",
+            "internalType": "bytes"
+          },
+          {
+            "name": "askOrderCount",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "bidOrderCount",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "fee",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "compound",
+            "type": "bool",
+            "internalType": "bool"
+          },
+          {
+            "name": "oneshot",
+            "type": "bool",
+            "internalType": "bool"
+          },
+          {
+            "name": "baseAmount",
+            "type": "uint128",
+            "internalType": "uint128"
+          }
+        ]
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "payable"
+  },
+  {
+    "type": "function",
+    "name": "placeGridOrders",
+    "inputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "Currency"
+      },
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "Currency"
+      },
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct IGridOrder.GridOrderParam",
+        "components": [
+          {
+            "name": "askStrategy",
+            "type": "address",
+            "internalType": "contract IGridStrategy"
+          },
+          {
+            "name": "bidStrategy",
+            "type": "address",
+            "internalType": "contract IGridStrategy"
+          },
+          {
+            "name": "askData",
+            "type": "bytes",
+            "internalType": "bytes"
+          },
+          {
+            "name": "bidData",
+            "type": "bytes",
+            "internalType": "bytes"
+          },
+          {
+            "name": "askOrderCount",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "bidOrderCount",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "fee",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "compound",
+            "type": "bool",
+            "internalType": "bool"
+          },
+          {
+            "name": "oneshot",
+            "type": "bool",
+            "internalType": "bool"
+          },
+          {
+            "name": "baseAmount",
+            "type": "uint128",
+            "internalType": "uint128"
+          }
+        ]
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "withdrawGridProfits",
+    "inputs": [
+      {
+        "name": "",
+        "type": "uint128",
+        "internalType": "uint128"
+      },
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "",
+        "type": "uint32",
+        "internalType": "uint32"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "error",
+    "name": "EnforcedPause",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "FacetNotFound",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidAddress",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "ReentrancyGuardReentrantCall",
+    "inputs": []
+  },
+  {
+    "type": "event",
+    "name": "CancelGridOrder",
+    "inputs": [
+      {
+        "name": "owner",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "orderId",
+        "type": "uint128",
+        "indexed": true,
+        "internalType": "uint128"
+      },
+      {
+        "name": "gridId",
+        "type": "uint128",
+        "indexed": true,
+        "internalType": "uint128"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "CancelWholeGrid",
+    "inputs": [
+      {
+        "name": "owner",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "gridId",
+        "type": "uint128",
+        "indexed": true,
+        "internalType": "uint128"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "CollectProtocol",
+    "inputs": [
+      {
+        "name": "sender",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "recipient",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "FilledOrder",
+    "inputs": [
+      {
+        "name": "taker",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "gridOrderId",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "baseAmt",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "quoteVol",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "orderAmt",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "orderRevAmt",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "isAsk",
+        "type": "bool",
+        "indexed": false,
+        "internalType": "bool"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "GridFeeChanged",
+    "inputs": [
+      {
+        "name": "sender",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "gridId",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "fee",
+        "type": "uint32",
+        "indexed": false,
+        "internalType": "uint32"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "GridOrderCreated",
+    "inputs": [
+      {
+        "name": "owner",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "pairId",
+        "type": "uint64",
+        "indexed": false,
+        "internalType": "uint64"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "gridId",
+        "type": "uint128",
+        "indexed": false,
+        "internalType": "uint128"
+      },
+      {
+        "name": "askOrderId",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "bidOrderId",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "asks",
+        "type": "uint32",
+        "indexed": false,
+        "internalType": "uint32"
+      },
+      {
+        "name": "bids",
+        "type": "uint32",
+        "indexed": false,
+        "internalType": "uint32"
+      },
+      {
+        "name": "fee",
+        "type": "uint32",
+        "indexed": false,
+        "internalType": "uint32"
+      },
+      {
+        "name": "compound",
+        "type": "bool",
+        "indexed": false,
+        "internalType": "bool"
+      },
+      {
+        "name": "oneshot",
+        "type": "bool",
+        "indexed": false,
+        "internalType": "bool"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "OneshotProtocolFeeChanged",
+    "inputs": [
+      {
+        "name": "sender",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "oldFeeBps",
+        "type": "uint32",
+        "indexed": false,
+        "internalType": "uint32"
+      },
+      {
+        "name": "newFeeBps",
+        "type": "uint32",
+        "indexed": false,
+        "internalType": "uint32"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "PairCreated",
+    "inputs": [
+      {
+        "name": "base",
+        "type": "address",
+        "indexed": true,
+        "internalType": "Currency"
+      },
+      {
+        "name": "quote",
+        "type": "address",
+        "indexed": true,
+        "internalType": "Currency"
+      },
+      {
+        "name": "pairId",
+        "type": "uint64",
+        "indexed": false,
+        "internalType": "uint64"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "QuotableTokenUpdated",
+    "inputs": [
+      {
+        "name": "quote",
+        "type": "address",
+        "indexed": false,
+        "internalType": "Currency"
+      },
+      {
+        "name": "priority",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "RefundFailed",
+    "inputs": [
+      {
+        "name": "to",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "StrategyWhitelistUpdated",
+    "inputs": [
+      {
+        "name": "sender",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "strategy",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "whitelisted",
+        "type": "bool",
+        "indexed": false,
+        "internalType": "bool"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "WithdrawProfit",
+    "inputs": [
+      {
+        "name": "gridId",
+        "type": "uint128",
+        "indexed": false,
+        "internalType": "uint128"
+      },
+      {
+        "name": "quote",
+        "type": "address",
+        "indexed": false,
+        "internalType": "Currency"
+      },
+      {
+        "name": "to",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "amt",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "error",
+    "name": "CallbackInsufficientInput",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "ETHTransferFailed",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "ExceedMaxAmount",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "FillReversedOneShotOrder",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InsufficientETH",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidGridFee",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidGridId",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidParam",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidQuote",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NotEnough",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NotEnoughToFill",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NotWETH",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "OrderCanceled",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "PairIdMismatch",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "StrategyNotWhitelisted",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "TokenOrderInvalid",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "ZeroBaseAmt",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "ZeroGridOrderCount",
+    "inputs": []
+  },
+  {
+    "type": "function",
+    "name": "WETH",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "facetAddress",
+    "inputs": [
+      {
+        "name": "selector",
+        "type": "bytes4",
+        "internalType": "bytes4"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getGridConfig",
+    "inputs": [
+      {
+        "name": "gridId",
+        "type": "uint96",
+        "internalType": "uint96"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct IGridOrder.GridConfig",
+        "components": [
+          {
+            "name": "owner",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "askStrategy",
+            "type": "address",
+            "internalType": "contract IGridStrategy"
+          },
+          {
+            "name": "bidStrategy",
+            "type": "address",
+            "internalType": "contract IGridStrategy"
+          },
+          {
+            "name": "profits",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "baseAmt",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "startAskOrderId",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "startBidOrderId",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "gridId",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "pairId",
+            "type": "uint64",
+            "internalType": "uint64"
+          },
+          {
+            "name": "askOrderCount",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "bidOrderCount",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "fee",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "compound",
+            "type": "bool",
+            "internalType": "bool"
+          },
+          {
+            "name": "oneshot",
+            "type": "bool",
+            "internalType": "bool"
+          },
+          {
+            "name": "status",
+            "type": "uint32",
+            "internalType": "uint32"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getGridOrder",
+    "inputs": [
+      {
+        "name": "id",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct IGridOrder.OrderInfo",
+        "components": [
+          {
+            "name": "isAsk",
+            "type": "bool",
+            "internalType": "bool"
+          },
+          {
+            "name": "compound",
+            "type": "bool",
+            "internalType": "bool"
+          },
+          {
+            "name": "oneshot",
+            "type": "bool",
+            "internalType": "bool"
+          },
+          {
+            "name": "fee",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "status",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "gridId",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "orderId",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "amount",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "revAmount",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "baseAmt",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "price",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "revPrice",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "pairId",
+            "type": "uint64",
+            "internalType": "uint64"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getGridOrders",
+    "inputs": [
+      {
+        "name": "idList",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple[]",
+        "internalType": "struct IGridOrder.OrderInfo[]",
+        "components": [
+          {
+            "name": "isAsk",
+            "type": "bool",
+            "internalType": "bool"
+          },
+          {
+            "name": "compound",
+            "type": "bool",
+            "internalType": "bool"
+          },
+          {
+            "name": "oneshot",
+            "type": "bool",
+            "internalType": "bool"
+          },
+          {
+            "name": "fee",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "status",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "gridId",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "orderId",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "amount",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "revAmount",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "baseAmt",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "price",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "revPrice",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "pairId",
+            "type": "uint64",
+            "internalType": "uint64"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getGridProfits",
+    "inputs": [
+      {
+        "name": "gridId",
+        "type": "uint96",
+        "internalType": "uint96"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getOneshotProtocolFeeBps",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint32",
+        "internalType": "uint32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getPairById",
+    "inputs": [
+      {
+        "name": "pairId",
+        "type": "uint64",
+        "internalType": "uint64"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "base",
+        "type": "address",
+        "internalType": "Currency"
+      },
+      {
+        "name": "quote",
+        "type": "address",
+        "internalType": "Currency"
+      },
+      {
+        "name": "id",
+        "type": "uint64",
+        "internalType": "uint64"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getPairIdByTokens",
+    "inputs": [
+      {
+        "name": "base",
+        "type": "address",
+        "internalType": "Currency"
+      },
+      {
+        "name": "quote",
+        "type": "address",
+        "internalType": "Currency"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint64",
+        "internalType": "uint64"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getPairTokens",
+    "inputs": [
+      {
+        "name": "pairId",
+        "type": "uint64",
+        "internalType": "uint64"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "base",
+        "type": "address",
+        "internalType": "Currency"
+      },
+      {
+        "name": "quote",
+        "type": "address",
+        "internalType": "Currency"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "isStrategyWhitelisted",
+    "inputs": [
+      {
+        "name": "strategy",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "owner",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "paused",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "vault",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "error",
+    "name": "InvalidPairId",
+    "inputs": []
+  },
+  {
+    "type": "function",
+    "name": "modifyGridFee",
+    "inputs": [
+      {
+        "name": "gridId",
+        "type": "uint128",
+        "internalType": "uint128"
+      },
+      {
+        "name": "fee",
+        "type": "uint32",
+        "internalType": "uint32"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "error",
+    "name": "CannotModifyOneshotFee",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NoProfits",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NotGridOwner",
+    "inputs": []
+  }
 ] as const;
+
+export type GridExAbi = typeof GRIDEX_ABI;

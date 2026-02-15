@@ -1,0 +1,119 @@
+[
+  {
+    "type": "constructor",
+    "inputs": [
+      { "name": "_gridEx", "type": "address", "internalType": "address" }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "GRID_EX",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "address", "internalType": "address" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "PRICE_MULTIPLIER",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "createGridStrategy",
+    "inputs": [
+      { "name": "isAsk", "type": "bool", "internalType": "bool" },
+      { "name": "gridId", "type": "uint128", "internalType": "uint128" },
+      { "name": "data", "type": "bytes", "internalType": "bytes" }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "getPrice",
+    "inputs": [
+      { "name": "isAsk", "type": "bool", "internalType": "bool" },
+      { "name": "gridId", "type": "uint128", "internalType": "uint128" },
+      { "name": "idx", "type": "uint128", "internalType": "uint128" }
+    ],
+    "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getReversePrice",
+    "inputs": [
+      { "name": "isAsk", "type": "bool", "internalType": "bool" },
+      { "name": "gridId", "type": "uint128", "internalType": "uint128" },
+      { "name": "idx", "type": "uint128", "internalType": "uint128" }
+    ],
+    "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "strategies",
+    "inputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+    "outputs": [
+      { "name": "basePrice", "type": "uint256", "internalType": "uint256" },
+      { "name": "gap", "type": "int256", "internalType": "int256" }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "validateParams",
+    "inputs": [
+      { "name": "isAsk", "type": "bool", "internalType": "bool" },
+      { "name": "amt", "type": "uint128", "internalType": "uint128" },
+      { "name": "data", "type": "bytes", "internalType": "bytes" },
+      { "name": "count", "type": "uint32", "internalType": "uint32" }
+    ],
+    "outputs": [],
+    "stateMutability": "pure"
+  },
+  {
+    "type": "event",
+    "name": "LinearStrategyCreated",
+    "inputs": [
+      {
+        "name": "isAsk",
+        "type": "bool",
+        "indexed": false,
+        "internalType": "bool"
+      },
+      {
+        "name": "gridId",
+        "type": "uint128",
+        "indexed": false,
+        "internalType": "uint128"
+      },
+      {
+        "name": "price0",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "gap",
+        "type": "int256",
+        "indexed": false,
+        "internalType": "int256"
+      }
+    ],
+    "anonymous": false
+  },
+  { "type": "error", "name": "LinearAskGapNonPositive", "inputs": [] },
+  { "type": "error", "name": "LinearAskGapTooLarge", "inputs": [] },
+  { "type": "error", "name": "LinearAskPriceOverflow", "inputs": [] },
+  { "type": "error", "name": "LinearAskZeroQuote", "inputs": [] },
+  { "type": "error", "name": "LinearBidGapNonNegative", "inputs": [] },
+  { "type": "error", "name": "LinearBidInvalidLastPrice", "inputs": [] },
+  { "type": "error", "name": "LinearBidPriceOverflow", "inputs": [] },
+  { "type": "error", "name": "LinearBidZeroQuote", "inputs": [] },
+  { "type": "error", "name": "LinearInvalidCount", "inputs": [] },
+  { "type": "error", "name": "LinearInvalidPriceOrGap", "inputs": [] }
+]

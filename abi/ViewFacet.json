@@ -1,0 +1,232 @@
+[
+  {
+    "type": "function",
+    "name": "WETH",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "address", "internalType": "address" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "facetAddress",
+    "inputs": [
+      { "name": "selector", "type": "bytes4", "internalType": "bytes4" }
+    ],
+    "outputs": [{ "name": "", "type": "address", "internalType": "address" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getGridConfig",
+    "inputs": [
+      { "name": "gridId", "type": "uint96", "internalType": "uint96" }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct IGridOrder.GridConfig",
+        "components": [
+          { "name": "owner", "type": "address", "internalType": "address" },
+          {
+            "name": "askStrategy",
+            "type": "address",
+            "internalType": "contract IGridStrategy"
+          },
+          {
+            "name": "bidStrategy",
+            "type": "address",
+            "internalType": "contract IGridStrategy"
+          },
+          { "name": "profits", "type": "uint128", "internalType": "uint128" },
+          { "name": "baseAmt", "type": "uint128", "internalType": "uint128" },
+          {
+            "name": "startAskOrderId",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "startBidOrderId",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          { "name": "gridId", "type": "uint128", "internalType": "uint128" },
+          { "name": "pairId", "type": "uint64", "internalType": "uint64" },
+          {
+            "name": "askOrderCount",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "bidOrderCount",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          { "name": "fee", "type": "uint32", "internalType": "uint32" },
+          { "name": "compound", "type": "bool", "internalType": "bool" },
+          { "name": "oneshot", "type": "bool", "internalType": "bool" },
+          { "name": "status", "type": "uint32", "internalType": "uint32" }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getGridOrder",
+    "inputs": [{ "name": "id", "type": "uint256", "internalType": "uint256" }],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct IGridOrder.OrderInfo",
+        "components": [
+          { "name": "isAsk", "type": "bool", "internalType": "bool" },
+          { "name": "compound", "type": "bool", "internalType": "bool" },
+          { "name": "oneshot", "type": "bool", "internalType": "bool" },
+          { "name": "fee", "type": "uint32", "internalType": "uint32" },
+          { "name": "status", "type": "uint32", "internalType": "uint32" },
+          { "name": "gridId", "type": "uint128", "internalType": "uint128" },
+          { "name": "orderId", "type": "uint128", "internalType": "uint128" },
+          { "name": "amount", "type": "uint128", "internalType": "uint128" },
+          {
+            "name": "revAmount",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          { "name": "baseAmt", "type": "uint128", "internalType": "uint128" },
+          { "name": "price", "type": "uint256", "internalType": "uint256" },
+          {
+            "name": "revPrice",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          { "name": "pairId", "type": "uint64", "internalType": "uint64" }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getGridOrders",
+    "inputs": [
+      { "name": "idList", "type": "uint256[]", "internalType": "uint256[]" }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple[]",
+        "internalType": "struct IGridOrder.OrderInfo[]",
+        "components": [
+          { "name": "isAsk", "type": "bool", "internalType": "bool" },
+          { "name": "compound", "type": "bool", "internalType": "bool" },
+          { "name": "oneshot", "type": "bool", "internalType": "bool" },
+          { "name": "fee", "type": "uint32", "internalType": "uint32" },
+          { "name": "status", "type": "uint32", "internalType": "uint32" },
+          { "name": "gridId", "type": "uint128", "internalType": "uint128" },
+          { "name": "orderId", "type": "uint128", "internalType": "uint128" },
+          { "name": "amount", "type": "uint128", "internalType": "uint128" },
+          {
+            "name": "revAmount",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          { "name": "baseAmt", "type": "uint128", "internalType": "uint128" },
+          { "name": "price", "type": "uint256", "internalType": "uint256" },
+          {
+            "name": "revPrice",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          { "name": "pairId", "type": "uint64", "internalType": "uint64" }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getGridProfits",
+    "inputs": [
+      { "name": "gridId", "type": "uint96", "internalType": "uint96" }
+    ],
+    "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getOneshotProtocolFeeBps",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "uint32", "internalType": "uint32" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getPairById",
+    "inputs": [
+      { "name": "pairId", "type": "uint64", "internalType": "uint64" }
+    ],
+    "outputs": [
+      { "name": "base", "type": "address", "internalType": "Currency" },
+      { "name": "quote", "type": "address", "internalType": "Currency" },
+      { "name": "id", "type": "uint64", "internalType": "uint64" }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getPairIdByTokens",
+    "inputs": [
+      { "name": "base", "type": "address", "internalType": "Currency" },
+      { "name": "quote", "type": "address", "internalType": "Currency" }
+    ],
+    "outputs": [{ "name": "", "type": "uint64", "internalType": "uint64" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getPairTokens",
+    "inputs": [
+      { "name": "pairId", "type": "uint64", "internalType": "uint64" }
+    ],
+    "outputs": [
+      { "name": "base", "type": "address", "internalType": "Currency" },
+      { "name": "quote", "type": "address", "internalType": "Currency" }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "isStrategyWhitelisted",
+    "inputs": [
+      { "name": "strategy", "type": "address", "internalType": "address" }
+    ],
+    "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "owner",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "address", "internalType": "address" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "paused",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "vault",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "address", "internalType": "address" }],
+    "stateMutability": "view"
+  },
+  { "type": "error", "name": "InvalidGridId", "inputs": [] },
+  { "type": "error", "name": "InvalidPairId", "inputs": [] },
+  { "type": "error", "name": "OrderCanceled", "inputs": [] }
+]
