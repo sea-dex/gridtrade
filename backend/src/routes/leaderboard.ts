@@ -34,13 +34,15 @@ const leaderboardRoutes: FastifyPluginAsync = async (fastify) => {
       },
     },
     async (request, _reply) => {
-      const { chain_id, period, pair, limit } = request.query;
+      const { chain_id, period, pair, limit, sort_by, order } = request.query;
 
       return await getLeaderboard({
         chainId: chain_id,
         period,
         pair,
         limit,
+        sortBy: sort_by,
+        order,
       });
     }
   );

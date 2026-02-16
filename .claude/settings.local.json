@@ -3,7 +3,10 @@
     "allow": [
       "WebFetch(domain:web3.okx.com)",
       "mcp__ide__getDiagnostics",
-      "Bash(npm run dev)"
+      "Bash(npm run dev)",
+      "Bash(go build:*)",
+      "Bash(npx tsc:*)",
+      "Bash(go vet:*)"
     ]
   }
 }

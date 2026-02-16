@@ -394,6 +394,115 @@ func UpsertProtocolStats(ctx context.Context, tx pgx.Tx, chainID int64, date str
 	return nil
 }
 
+// LeaderboardPeriod defines a leaderboard time period and its SQL interval.
+type LeaderboardPeriod struct {
+	Name     string // '24h', '7d', '30d', 'all'
+	Interval string // '24 hours', '7 days', '30 days', '' (unused for 'all')
+}
+
+// AllLeaderboardPeriods lists the four supported leaderboard periods.
+var AllLeaderboardPeriods = []LeaderboardPeriod{
+	{Name: "24h", Interval: "24 hours"},
+	{Name: "7d", Interval: "7 days"},
+	{Name: "30d", Interval: "30 days"},
+	{Name: "all", Interval: ""},
+}
+
+// UpdateLeaderboard refreshes the leaderboard table for all periods.
+// For each period it aggregates data from grids, orders, and order_fills,
+// then upserts one row per active grid into the leaderboard table.
+func UpdateLeaderboard(ctx context.Context, tx pgx.Tx, chainID int64, blockNumber uint64) error {
+	for _, p := range AllLeaderboardPeriods {
+		if err := updateLeaderboardPeriod(ctx, tx, chainID, p, blockNumber); err != nil {
+			return fmt.Errorf("update leaderboard period %s: %w", p.Name, err)
+		}
+	}
+	return nil
+}
+
+// updateLeaderboardPeriod upserts leaderboard rows for a single period.
+func updateLeaderboardPeriod(ctx context.Context, tx pgx.Tx, chainID int64, p LeaderboardPeriod, blockNumber uint64) error {
+	// Build the time filter for order_fills. For 'all' we use no filter.
+	var timeFilter string
+	if p.Name == "all" {
+		timeFilter = "TRUE" // no time restriction
+	} else {
+		timeFilter = fmt.Sprintf("of.timestamp >= NOW() - INTERVAL '%s'", p.Interval)
+	}
+
+	query := fmt.Sprintf(`
+INSERT INTO leaderboard (chain_id, grid_id, trader, pair, profit, profit_rate, volume, trades, tvl, apr, period, rank, update_block)
+SELECT
+  g.chain_id,
+  g.grid_id,
+  g.owner AS trader,
+  g.base_token || '/' || g.quote_token AS pair,
+  g.profits AS profit,
+  -- profit_rate = profits / initial_investment * 100
+  CASE WHEN inv.total_invested > 0
+    THEN (g.profits::NUMERIC / inv.total_invested * 100)::REAL
+    ELSE 0
+  END AS profit_rate,
+  COALESCE(fills.volume, '0') AS volume,
+  COALESCE(fills.trades, 0) AS trades,
+  COALESCE(tvl_sub.tvl, '0') AS tvl,
+  -- apr = profit_rate * 365 / days_active
+  CASE WHEN inv.total_invested > 0 AND EXTRACT(EPOCH FROM NOW() - g.created_at) > 86400
+    THEN (g.profits::NUMERIC / inv.total_invested * 365.0 / (EXTRACT(EPOCH FROM NOW() - g.created_at) / 86400) * 100)::REAL
+    ELSE 0
+  END AS apr,
+  $2 AS period,
+  ROW_NUMBER() OVER (ORDER BY g.profits::NUMERIC DESC) AS rank,
+  $3 AS update_block
+FROM grids g
+-- initial_investment: initial_quote_amount + initial_base_amount * bid_price0 / 1e36
+LEFT JOIN LATERAL (
+  SELECT CASE
+    WHEN g.bid_price0 != '' AND g.bid_price0 != '0'
+      THEN g.initial_quote_amount::NUMERIC + (g.initial_base_amount::NUMERIC * g.bid_price0::NUMERIC / 1e36)
+    ELSE g.initial_quote_amount::NUMERIC
+  END AS total_invested
+) inv ON TRUE
+-- volume and trades for this grid in the given period
+LEFT JOIN LATERAL (
+  SELECT
+    SUM(of.filled_volume::NUMERIC)::TEXT AS volume,
+    COUNT(*)::INTEGER AS trades
+  FROM order_fills of
+  JOIN orders o ON of.chain_id = o.chain_id AND of.order_id = o.order_id
+  WHERE o.chain_id = g.chain_id AND o.grid_id = g.grid_id
+    AND %s
+) fills ON TRUE
+-- TVL: sum of quote amounts in active orders belonging to this grid
+LEFT JOIN LATERAL (
+  SELECT COALESCE(SUM(
+    CASE WHEN o.is_ask THEN o.rev_amount::NUMERIC ELSE o.amount::NUMERIC END
+  ), 0)::TEXT AS tvl
+  FROM orders o
+  WHERE o.chain_id = g.chain_id AND o.grid_id = g.grid_id AND o.status = 0
+) tvl_sub ON TRUE
+WHERE g.chain_id = $1 AND g.status = 1
+ON CONFLICT (chain_id, period, grid_id) DO UPDATE SET
+  trader = EXCLUDED.trader,
+  pair = EXCLUDED.pair,
+  profit = EXCLUDED.profit,
+  profit_rate = EXCLUDED.profit_rate,
+  volume = EXCLUDED.volume,
+  trades = EXCLUDED.trades,
+  tvl = EXCLUDED.tvl,
+  apr = EXCLUDED.apr,
+  rank = EXCLUDED.rank,
+  update_block = EXCLUDED.update_block,
+  updated_at = NOW()
+`, timeFilter)
+
+	_, err := tx.Exec(ctx, query, chainID, p.Name, int64(blockNumber))
+	if err != nil {
+		return fmt.Errorf("exec leaderboard upsert: %w", err)
+	}
+	return nil
+}
+
 // UpdatePairVolumes updates pairs.volume_24h and trades_24h by aggregating
 // order_fills from the last 24 hours, and upserts pair_daily_stats for today.
 func UpdatePairVolumes(ctx context.Context, tx pgx.Tx, chainID int64, date string, blockNumber uint64) error {

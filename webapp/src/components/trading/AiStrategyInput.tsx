@@ -99,9 +99,8 @@ export function AiStrategyInput({
           className={cn(
             'w-full rounded-md border bg-(--bg-inset) pl-9 pr-3.5 py-2.5',
             'text-sm text-(--text-primary) placeholder-(--text-disabled)',
-            'border-(--border-default) transition-colors duration-150',
+            'border-(--accent-muted) transition-colors duration-150',
             'focus:border-(--accent-muted) focus:outline-none',
-            'hover:border-(--border-strong)',
             'disabled:opacity-50 disabled:cursor-not-allowed',
             'resize-none',
           )}

@@ -160,12 +160,15 @@ export const leaderboard = pgTable('leaderboard', {
   profitRate: real('profit_rate').notNull().default(0),
   volume: varchar('volume', { length: 78 }).notNull().default('0'),
   trades: integer('trades').notNull().default(0),
+  tvl: varchar('tvl', { length: 78 }).notNull().default('0'),
+  apr: real('apr').notNull().default(0),
   period: varchar('period', { length: 10 }).notNull(), // '24h', '7d', '30d', 'all'
   rank: integer('rank').notNull(),
   createBlock: bigint('create_block', { mode: 'number' }).notNull().default(0),
   updateBlock: bigint('update_block', { mode: 'number' }).notNull().default(0),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 }, (t) => [
+  uniqueIndex('leaderboard_chain_period_grid_uq').on(t.chainId, t.period, t.gridId),
   index('leaderboard_chain_id_period_rank_idx').on(t.chainId, t.period, t.rank),
   index('leaderboard_chain_id_trader_idx').on(t.chainId, t.trader),
   index('leaderboard_chain_id_period_pair_idx').on(t.chainId, t.period, t.pair),

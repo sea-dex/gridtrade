@@ -6,6 +6,8 @@ import { useStore } from '@/store/useStore';
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 export type TimeFilter = '24h' | '7d' | '30d' | 'all';
+export type SortField = 'profit' | 'volume' | 'apr' | 'tvl' | 'profit_rate' | 'trades';
+export type SortOrder = 'asc' | 'desc';
 
 export interface LeaderboardEntry {
   rank: number;
@@ -16,6 +18,8 @@ export interface LeaderboardEntry {
   profitRate: number;
   volume: number;
   trades: number;
+  tvl: number;
+  apr: number;
 }
 
 interface ApiLeaderboardEntry {
@@ -27,6 +31,8 @@ interface ApiLeaderboardEntry {
   profit_rate: number;
   volume: string;
   trades: number;
+  tvl: string;
+  apr: number;
 }
 
 interface ApiLeaderboardResponse {
@@ -62,7 +68,12 @@ function fromWei(value: string, decimals: number = 18): number {
   }
 }
 
-export function useLeaderboard(period: TimeFilter = '7d', limit: number = 50) {
+export function useLeaderboard(
+  period: TimeFilter = '7d',
+  limit: number = 50,
+  sortBy: SortField = 'profit',
+  sortOrder: SortOrder = 'desc',
+) {
   const selectedChainId = useStore((s) => s.selectedChainId);
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [total, setTotal] = useState(0);
@@ -77,6 +88,8 @@ export function useLeaderboard(period: TimeFilter = '7d', limit: number = 50) {
         chain_id: String(selectedChainId),
         period,
         limit: String(limit),
+        sort_by: sortBy,
+        order: sortOrder,
       });
       const res = await fetch(`${API_BASE}/leaderboard/?${params}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -91,6 +104,8 @@ export function useLeaderboard(period: TimeFilter = '7d', limit: number = 50) {
         profitRate: e.profit_rate,
         volume: fromWei(e.volume),
         trades: e.trades,
+        tvl: fromWei(e.tvl),
+        apr: e.apr,
       }));
 
       setEntries(mapped);
@@ -102,7 +117,7 @@ export function useLeaderboard(period: TimeFilter = '7d', limit: number = 50) {
     } finally {
       setIsLoading(false);
     }
-  }, [selectedChainId, period, limit]);
+  }, [selectedChainId, period, limit, sortBy, sortOrder]);
 
   useEffect(() => {
     fetchLeaderboard();

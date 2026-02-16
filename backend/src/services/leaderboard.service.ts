@@ -1,4 +1,4 @@
-import { eq, and, desc, sql } from 'drizzle-orm';
+import { eq, and, desc, asc, sql } from 'drizzle-orm';
 import { db, leaderboard } from '../db/index.js';
 import type {
   LeaderboardEntry,
@@ -12,26 +12,40 @@ export interface GetLeaderboardParams {
   period: string;
   pair?: string;
   limit: number;
+  sortBy: string;
+  order: string;
 }
 
 export async function getLeaderboard(params: GetLeaderboardParams): Promise<LeaderboardResponse> {
-  const { chainId, period, pair, limit } = params;
+  const { chainId, period, pair, limit, sortBy, order: sortOrder } = params;
 
   // Build where conditions
   const conditions = [
     eq(leaderboard.chainId, chainId),
     eq(leaderboard.period, period),
   ];
-  
+
   if (pair) {
     conditions.push(eq(leaderboard.pair, pair));
   }
+
+  // Map sort_by to the appropriate order expression
+  const dirFn = sortOrder === 'asc' ? asc : desc;
+  const sortColumnMap: Record<string, ReturnType<typeof sql>> = {
+    profit: sql`${leaderboard.profit}::numeric`,
+    volume: sql`${leaderboard.volume}::numeric`,
+    tvl: sql`${leaderboard.tvl}::numeric`,
+    profit_rate: sql`${leaderboard.profitRate}`,
+    apr: sql`${leaderboard.apr}`,
+    trades: sql`${leaderboard.trades}`,
+  };
+  const sortExpr = sortColumnMap[sortBy] ?? sql`${leaderboard.profit}::numeric`;
 
   const results = await db
     .select()
     .from(leaderboard)
     .where(and(...conditions))
-    .orderBy(leaderboard.rank)
+    .orderBy(dirFn(sortExpr))
     .limit(limit);
 
   const entries: LeaderboardEntry[] = results.map((e) => ({
@@ -43,6 +57,8 @@ export async function getLeaderboard(params: GetLeaderboardParams): Promise<Lead
     profit_rate: e.profitRate,
     volume: e.volume,
     trades: e.trades,
+    tvl: e.tvl,
+    apr: e.apr,
   }));
 
   return {
