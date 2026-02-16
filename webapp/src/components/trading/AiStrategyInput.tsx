@@ -97,7 +97,7 @@ export function AiStrategyInput({
           disabled={isLoading}
           rows={4}
           className={cn(
-            'w-full rounded-(--radius-md) border bg-(--bg-inset) pl-9 pr-3.5 py-2.5',
+            'w-full rounded-md border bg-(--bg-inset) pl-9 pr-3.5 py-2.5',
             'text-sm text-(--text-primary) placeholder-(--text-disabled)',
             'border-(--border-default) transition-colors duration-150',
             'focus:border-(--accent-muted) focus:outline-none',
@@ -111,7 +111,7 @@ export function AiStrategyInput({
             onClick={handleSubmit}
             disabled={!canSubmit}
             className={cn(
-              'flex items-center gap-1.5 px-3 py-1.5 rounded-(--radius-md) text-sm font-medium transition-all duration-150',
+              'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-150',
               canSubmit
                 ? 'bg-(--accent) text-(--bg-base) hover:opacity-90 active:scale-[0.97]'
                 : 'bg-(--bg-elevated) text-(--text-disabled) cursor-not-allowed border border-(--border-default)',
@@ -134,7 +134,7 @@ export function AiStrategyInput({
 
       {/* Error */}
       {error && (
-        <div className="flex items-center gap-2 px-3 py-2 rounded-(--radius-md) bg-red-500/10 border border-red-500/20 text-sm text-(--red)">
+        <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-red-500/10 border border-red-500/20 text-sm text-(--red)">
           <AlertCircle size={14} className="shrink-0" />
           <span>{t('ai.error')}</span>
         </div>
@@ -144,7 +144,7 @@ export function AiStrategyInput({
       {questions && questions.length > 0 && (
         <div
           ref={!analysis ? analysisRef : undefined}
-          className="px-4 py-3 rounded-(--radius-md) border border-amber-500/30 bg-amber-500/5 animate-in fade-in slide-in-from-top-2 duration-300"
+          className="px-4 py-3 rounded-md border border-amber-500/30 bg-amber-500/5 animate-in fade-in slide-in-from-top-2 duration-300"
         >
           <div className="flex items-center gap-1.5 mb-2">
             <HelpCircle size={12} className="text-amber-500" />
@@ -175,7 +175,7 @@ export function AiStrategyInput({
       {analysis && !questions && (
         <div
           ref={analysisRef}
-          className="px-4 py-3 rounded-(--radius-md) border border-(--accent-muted)/30 bg-(--accent)/5 animate-in fade-in slide-in-from-top-2 duration-300"
+          className="px-4 py-3 rounded-md border border-(--accent-muted)/30 bg-(--accent)/5 animate-in fade-in slide-in-from-top-2 duration-300"
         >
           <div className="flex items-center gap-1.5 mb-1.5">
             <Sparkles size={12} className="text-(--accent)" />
