@@ -198,6 +198,16 @@
     "transaction_failed": "交易失败",
     "network_error": "网络错误，请重试"
   },
+  "ai": {
+    "input_placeholder": "描述你的网格策略，例如：BTC/USDT 在 60000-70000 之间做网格，每格100U",
+    "generate": "生成",
+    "generating": "生成中...",
+    "analysis_title": "AI 策略分析",
+    "error": "生成策略失败，请重试。",
+    "powered_by": "由 AI 驱动",
+    "clarify_title": "需要更多信息",
+    "clarify_hint": "请在上方补充所需信息后重新生成。"
+  },
   "footer": {
     "tagline": "BNB Chain 上的去中心化网格交易协议。通过链上智能合约自动化您的交易策略。",
     "product": "产品",

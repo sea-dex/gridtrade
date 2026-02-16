@@ -32,6 +32,11 @@ const envSchema = z.object({
   // Examples: https://api1.binance.com, https://api2.binance.com, https://api3.binance.com
   BINANCE_API_BASE: z.string().optional(),
 
+  // LLM Configuration (optional – for AI-powered grid strategy generation)
+  LLM_API_KEY: z.string().optional(),
+  LLM_API_BASE: z.string().default('https://api.openai.com/v1'),
+  LLM_MODEL: z.string().default('gpt-4o-mini'),
+
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
 });
 

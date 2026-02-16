@@ -36,6 +36,8 @@ interface KlinePanelProps {
   onBaseTokenChange?: (token: TokenItem) => void;
   /** Callback when quote token changes */
   onQuoteTokenChange?: (token: TokenItem) => void;
+  /** Callback when the current price derived from kline data changes */
+  onCurrentPriceChange?: (price: number | null) => void;
   /** Chart height in px */
   chartHeight?: number;
   /** Horizontal price lines */
@@ -62,6 +64,7 @@ export function KlinePanel(props: KlinePanelProps) {
 function KlinePanelInner({
   onBaseTokenChange,
   onQuoteTokenChange,
+  onCurrentPriceChange,
   chartHeight = 500,
   priceLines = [],
   initialBaseToken,
@@ -202,6 +205,11 @@ function KlinePanelInner({
   const priceChange = currentPrice !== null && prevClose !== null
     ? ((currentPrice - prevClose) / prevClose) * 100
     : null;
+
+  // Notify parent when current price changes
+  useEffect(() => {
+    onCurrentPriceChange?.(currentPrice);
+  }, [currentPrice, onCurrentPriceChange]);
 
   // Auto-detect price display precision from candle data
   // Auto-detect price display precision from candle data

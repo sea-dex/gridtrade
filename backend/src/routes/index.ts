@@ -6,6 +6,7 @@ import leaderboardRoutes from './leaderboard.js';
 import klineRoutes from './kline.js';
 import tokensRoutes from './tokens.js';
 import feesRoutes from './fees.js';
+import aiRoutes from './ai.js';
 
 const routes: FastifyPluginAsync = async (fastify) => {
   // Register all API routes
@@ -16,6 +17,7 @@ const routes: FastifyPluginAsync = async (fastify) => {
   await fastify.register(klineRoutes, { prefix: '/kline' });
   await fastify.register(tokensRoutes, { prefix: '/tokens' });
   await fastify.register(feesRoutes, { prefix: '/fees' });
+  await fastify.register(aiRoutes, { prefix: '/ai' });
 };
 
 export default routes;

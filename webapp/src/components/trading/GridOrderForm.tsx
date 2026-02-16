@@ -35,6 +35,17 @@ function formatAmount(value: bigint, decimals: number, maxFractionDigits = 6): s
 const PRICE_MULTIPLIER = 10n ** 36n;
 const PRICE_MULTIPLIER_BN = new BigNumber(10).pow(36);
 
+export interface ExternalGridFormData {
+  askPrice0?: string;
+  bidPrice0?: string;
+  askGap?: string;
+  bidGap?: string;
+  askOrderCount?: string;
+  bidOrderCount?: string;
+  amountPerGrid?: string;
+  compound?: boolean;
+}
+
 interface GridOrderFormProps {
   baseToken?: {
     address: `0x${string}`;
@@ -47,6 +58,7 @@ interface GridOrderFormProps {
     decimals: number;
   };
   onPriceLinesChange?: (lines: PriceLine[]) => void;
+  externalFormData?: ExternalGridFormData;
 }
 
 /**
@@ -99,7 +111,7 @@ function calcGridAmount(
   return [baseAmt * BigInt(askCount), quoteAmt];
 }
 
-export function GridOrderForm({ baseToken, quoteToken, onPriceLinesChange }: GridOrderFormProps) {
+export function GridOrderForm({ baseToken, quoteToken, onPriceLinesChange, externalFormData }: GridOrderFormProps) {
   const { t } = useTranslation();
   const { address, chainId } = useAccount();
   const { openConnectModal } = useConnectModal();
@@ -173,6 +185,23 @@ export function GridOrderForm({ baseToken, quoteToken, onPriceLinesChange }: Gri
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
+
+  // Merge external form data (e.g. from AI strategy generator) into local state
+  useEffect(() => {
+    if (!externalFormData) return;
+    setFormData((prev) => {
+      const next = { ...prev };
+      if (externalFormData.askPrice0 !== undefined) next.askPrice0 = externalFormData.askPrice0;
+      if (externalFormData.bidPrice0 !== undefined) next.bidPrice0 = externalFormData.bidPrice0;
+      if (externalFormData.askGap !== undefined) next.askGap = externalFormData.askGap;
+      if (externalFormData.bidGap !== undefined) next.bidGap = externalFormData.bidGap;
+      if (externalFormData.askOrderCount !== undefined) next.askOrderCount = externalFormData.askOrderCount;
+      if (externalFormData.bidOrderCount !== undefined) next.bidOrderCount = externalFormData.bidOrderCount;
+      if (externalFormData.amountPerGrid !== undefined) next.amountPerGrid = externalFormData.amountPerGrid;
+      if (externalFormData.compound !== undefined) next.compound = externalFormData.compound;
+      return next;
+    });
+  }, [externalFormData]);
 
   // Derive effective order counts:
   // Per contract requirement: if price is 0 OR gap is 0 → order count becomes 0

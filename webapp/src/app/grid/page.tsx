@@ -6,8 +6,11 @@ import type { PriceLine } from '@/types/grid';
 import { useStore } from '@/store/useStore';
 import { KlinePanel } from '@/components/trading/KlinePanel';
 import { GridOrderForm } from '@/components/trading/GridOrderForm';
+import type { ExternalGridFormData } from '@/components/trading/GridOrderForm';
 import { GridOrderList } from '@/components/trading/GridOrderList';
+import { AiStrategyInput } from '@/components/trading/AiStrategyInput';
 import type { TokenItem } from '@/hooks/useTokens';
+import type { AiStrategyResult } from '@/hooks/useAiStrategy';
 
 export default function GridTradingPage() {
   return (
@@ -54,6 +57,12 @@ function GridTradingPageInner() {
   } | undefined>(undefined);
 
   const [priceLines, setPriceLines] = useState<PriceLine[]>([]);
+  const [currentPrice, setCurrentPrice] = useState<number | null>(null);
+  const [externalFormData, setExternalFormData] = useState<ExternalGridFormData | undefined>(undefined);
+
+  const handleStrategyGenerated = useCallback((strategy: AiStrategyResult) => {
+    setExternalFormData({ ...strategy });
+  }, []);
 
   // Read initial base/quote from URL params
   const urlBase = searchParams.get('base');
@@ -93,15 +102,22 @@ function GridTradingPageInner() {
       <div className="max-w-7xl mx-auto">
         {/* Top Section: Chart + Order Form */}
         <div className="grid lg:grid-cols-3 gap-5 mb-5">
-          {/* Chart – no title, base/quote selectors below */}
+          {/* Chart + AI Input */}
           <div className="lg:col-span-2">
             <KlinePanel
               onBaseTokenChange={handleBaseTokenChange}
               onQuoteTokenChange={handleQuoteTokenChange}
+              onCurrentPriceChange={setCurrentPrice}
               chartHeight={500}
               priceLines={priceLines}
               initialBaseAddress={urlBase}
               initialQuoteAddress={urlQuote}
+            />
+            <AiStrategyInput
+              baseToken={baseToken}
+              quoteToken={quoteToken}
+              currentPrice={currentPrice}
+              onStrategyGenerated={handleStrategyGenerated}
             />
           </div>
 
@@ -111,6 +127,7 @@ function GridTradingPageInner() {
               baseToken={baseToken}
               quoteToken={quoteToken}
               onPriceLinesChange={setPriceLines}
+              externalFormData={externalFormData}
             />
           </div>
         </div>

@@ -6,3 +6,4 @@ export * from './kline.service.js';
 export * from './binance.service.js';
 export * from './moralis.service.js';
 export * from './subgraph.service.js';
+export * from './ai.service.js';

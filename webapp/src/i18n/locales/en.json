@@ -189,6 +189,16 @@
     "transaction_failed": "Transaction failed",
     "network_error": "Network error, please try again"
   },
+  "ai": {
+    "input_placeholder": "Describe your grid strategy, e.g.: Set up a grid for BTC/USDT between 60000-70000 with 100U per grid",
+    "generate": "Generate",
+    "generating": "Generating...",
+    "analysis_title": "AI Strategy Analysis",
+    "error": "Failed to generate strategy. Please try again.",
+    "powered_by": "Powered by AI",
+    "clarify_title": "More Info Needed",
+    "clarify_hint": "Please refine your prompt above with the requested details and try again."
+  },
   "footer": {
     "tagline": "Decentralized grid trading protocol on BNB Chain. Automate your trading strategies with on-chain smart contracts.",
     "product": "Product",

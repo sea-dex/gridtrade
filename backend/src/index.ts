@@ -65,6 +65,7 @@ async function registerPlugins(): Promise<void> {
         { name: 'Kline', description: 'K-line (candlestick) data for tokens' },
         { name: 'Tokens', description: 'Base and quote token lists' },
         { name: 'Fees', description: 'Available fee tiers for grid orders' },
+        { name: 'AI', description: 'AI-powered grid strategy generation' },
       ],
     },
   });

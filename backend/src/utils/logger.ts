@@ -73,3 +73,6 @@ export const seedLogger = logger.child({ module: 'seed' });
 
 /** Application bootstrap / lifecycle */
 export const appLogger = logger.child({ module: 'app' });
+
+/** AI strategy service */
+export const aiLogger = logger.child({ module: 'ai' });
