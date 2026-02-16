@@ -74,6 +74,7 @@ export const orderFills = pgTable('order_fills', {
   filledAmount: varchar('filled_amount', { length: 78 }).notNull(),
   filledVolume: varchar('filled_volume', { length: 78 }).notNull(),
   isAsk: boolean('is_ask').notNull(),
+  pairId: integer('pair_id').notNull().default(0),
   timestamp: timestamp('timestamp').notNull(),
   createBlock: bigint('create_block', { mode: 'number' }).notNull().default(0),
   updateBlock: bigint('update_block', { mode: 'number' }).notNull().default(0),
@@ -82,6 +83,7 @@ export const orderFills = pgTable('order_fills', {
   index('order_fills_chain_id_order_id_idx').on(t.chainId, t.orderId),
   index('order_fills_chain_id_tx_hash_idx').on(t.chainId, t.txHash),
   index('order_fills_chain_id_taker_idx').on(t.chainId, t.taker),
+  index('order_fills_chain_id_pair_id_idx').on(t.chainId, t.pairId),
 ]);
 
 // Tokens table
@@ -169,6 +171,33 @@ export const leaderboard = pgTable('leaderboard', {
   index('leaderboard_chain_id_period_pair_idx').on(t.chainId, t.period, t.pair),
 ]);
 
+// Indexer state table — tracks the last scanned block per chain.
+// Managed by the Go indexer; included here so that db:push does NOT drop it.
+export const indexerState = pgTable('indexer_state', {
+  id: serial('id').primaryKey(),
+  chainId: integer('chain_id').notNull(),
+  lastBlock: bigint('last_block', { mode: 'number' }).notNull().default(0),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+}, (t) => [
+  uniqueIndex('indexer_state_chain_id_uq').on(t.chainId),
+]);
+
+// Pair daily stats table
+export const pairDailyStats = pgTable('pair_daily_stats', {
+  id: serial('id').primaryKey(),
+  chainId: integer('chain_id').notNull(),
+  pairId: integer('pair_id').notNull(),
+  date: varchar('date', { length: 10 }).notNull(),
+  volume: varchar('volume', { length: 78 }).notNull().default('0'),
+  trades: integer('trades').notNull().default(0),
+  createBlock: bigint('create_block', { mode: 'number' }).notNull().default(0),
+  updateBlock: bigint('update_block', { mode: 'number' }).notNull().default(0),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+}, (t) => [
+  uniqueIndex('pair_daily_stats_chain_pair_date_uq').on(t.chainId, t.pairId, t.date),
+  index('pair_daily_stats_chain_id_date_idx').on(t.chainId, t.date),
+]);
+
 // Type exports
 export type Grid = typeof grids.$inferSelect;
 export type NewGrid = typeof grids.$inferInsert;
@@ -184,3 +213,7 @@ export type ProtocolStat = typeof protocolStats.$inferSelect;
 export type NewProtocolStat = typeof protocolStats.$inferInsert;
 export type LeaderboardEntry = typeof leaderboard.$inferSelect;
 export type NewLeaderboardEntry = typeof leaderboard.$inferInsert;
+export type IndexerState = typeof indexerState.$inferSelect;
+export type NewIndexerState = typeof indexerState.$inferInsert;
+export type PairDailyStat = typeof pairDailyStats.$inferSelect;
+export type NewPairDailyStat = typeof pairDailyStats.$inferInsert;

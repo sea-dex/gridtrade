@@ -148,12 +148,12 @@ func InsertOrder(ctx context.Context, tx pgx.Tx, chainID int64, orderID string,
 
 // InsertOrderFill inserts an order fill record within a transaction.
 func InsertOrderFill(ctx context.Context, tx pgx.Tx, chainID int64,
-	txHash, taker, orderID, filledAmount, filledVolume string, isAsk bool, ts time.Time,
+	txHash, taker, orderID, filledAmount, filledVolume string, isAsk bool, pairID int, ts time.Time,
 	blockNumber uint64) error {
 	_, err := tx.Exec(ctx, `
-		INSERT INTO order_fills (chain_id, tx_hash, taker, order_id, filled_amount, filled_volume, is_ask, timestamp, create_block, update_block)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $9)
-	`, chainID, txHash, taker, orderID, filledAmount, filledVolume, isAsk, ts, int64(blockNumber))
+		INSERT INTO order_fills (chain_id, tx_hash, taker, order_id, filled_amount, filled_volume, is_ask, pair_id, timestamp, create_block, update_block)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10)
+	`, chainID, txHash, taker, orderID, filledAmount, filledVolume, isAsk, pairID, ts, int64(blockNumber))
 	if err != nil {
 		return fmt.Errorf("insert order fill: %w", err)
 	}
@@ -258,6 +258,36 @@ func DecrementPairActiveGrids(ctx context.Context, tx pgx.Tx, chainID int64, pai
 	return nil
 }
 
+// TokenRow represents a token record from the database.
+type TokenRow struct {
+	Address  string
+	Symbol   string
+	Name     string
+	Decimals int
+}
+
+// GetTokensByChain returns all known tokens for a chain.
+// Used to pre-populate the in-memory token cache on startup, avoiding
+// redundant RPC calls for tokens we've already fetched.
+func (r *Repository) GetTokensByChain(ctx context.Context, chainID int64) ([]TokenRow, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT address, symbol, name, decimals FROM tokens WHERE chain_id = $1`, chainID)
+	if err != nil {
+		return nil, fmt.Errorf("get tokens by chain: %w", err)
+	}
+	defer rows.Close()
+
+	var tokens []TokenRow
+	for rows.Next() {
+		var t TokenRow
+		if err := rows.Scan(&t.Address, &t.Symbol, &t.Name, &t.Decimals); err != nil {
+			return nil, fmt.Errorf("scan token row: %w", err)
+		}
+		tokens = append(tokens, t)
+	}
+	return tokens, rows.Err()
+}
+
 // GetGridPairID returns the pair_id for a given grid.
 func GetGridPairID(ctx context.Context, tx pgx.Tx, chainID int64, gridID int64) (int, error) {
 	var pairID int
@@ -268,4 +298,157 @@ func GetGridPairID(ctx context.Context, tx pgx.Tx, chainID int64, gridID int64) 
 		return 0, fmt.Errorf("get grid pair_id: %w", err)
 	}
 	return pairID, nil
+}
+
+// ProtocolStats holds aggregated protocol statistics.
+type ProtocolStats struct {
+	TotalVolume string // SUM of filled_volume from order_fills (quote token amounts)
+	TotalTVL    string // SUM of quote token amounts in active orders
+	TotalGrids  int    // total number of grids
+	ActiveGrids int    // number of active grids (status=1)
+	TotalTrades int    // total number of order fills
+	TotalProfit string // SUM of profits from all grids
+	ActiveUsers int    // distinct grid owners
+}
+
+// ComputeProtocolStats aggregates protocol-level statistics from existing tables.
+func ComputeProtocolStats(ctx context.Context, tx pgx.Tx, chainID int64) (*ProtocolStats, error) {
+	stats := &ProtocolStats{}
+
+	// Total volume: SUM of filled_volume (quote token amounts) from order_fills
+	err := tx.QueryRow(ctx, `
+		SELECT COALESCE(SUM(filled_volume::NUMERIC), 0)::TEXT
+		FROM order_fills WHERE chain_id = $1
+	`, chainID).Scan(&stats.TotalVolume)
+	if err != nil {
+		return nil, fmt.Errorf("compute total volume: %w", err)
+	}
+
+	// Total TVL: SUM of quote token amounts from active orders (status=0).
+	// For ask orders: rev_amount is quote; for bid orders: amount is quote.
+	err = tx.QueryRow(ctx, `
+		SELECT COALESCE(SUM(
+			CASE WHEN is_ask THEN rev_amount::NUMERIC ELSE amount::NUMERIC END
+		), 0)::TEXT
+		FROM orders WHERE chain_id = $1 AND status = 0
+	`, chainID).Scan(&stats.TotalTVL)
+	if err != nil {
+		return nil, fmt.Errorf("compute total tvl: %w", err)
+	}
+
+	// Total grids and active grids
+	err = tx.QueryRow(ctx, `
+		SELECT COUNT(*), COUNT(*) FILTER (WHERE status = 1)
+		FROM grids WHERE chain_id = $1
+	`, chainID).Scan(&stats.TotalGrids, &stats.ActiveGrids)
+	if err != nil {
+		return nil, fmt.Errorf("compute grid counts: %w", err)
+	}
+
+	// Total trades
+	err = tx.QueryRow(ctx, `
+		SELECT COUNT(*) FROM order_fills WHERE chain_id = $1
+	`, chainID).Scan(&stats.TotalTrades)
+	if err != nil {
+		return nil, fmt.Errorf("compute total trades: %w", err)
+	}
+
+	// Total profit: SUM of profits from all grids
+	err = tx.QueryRow(ctx, `
+		SELECT COALESCE(SUM(profits::NUMERIC), 0)::TEXT
+		FROM grids WHERE chain_id = $1
+	`, chainID).Scan(&stats.TotalProfit)
+	if err != nil {
+		return nil, fmt.Errorf("compute total profit: %w", err)
+	}
+
+	// Active users: distinct grid owners
+	err = tx.QueryRow(ctx, `
+		SELECT COUNT(DISTINCT owner) FROM grids WHERE chain_id = $1
+	`, chainID).Scan(&stats.ActiveUsers)
+	if err != nil {
+		return nil, fmt.Errorf("compute active users: %w", err)
+	}
+
+	return stats, nil
+}
+
+// UpsertProtocolStats writes aggregated stats to the protocol_stats table.
+func UpsertProtocolStats(ctx context.Context, tx pgx.Tx, chainID int64, date string, stats *ProtocolStats, blockNumber uint64) error {
+	_, err := tx.Exec(ctx, `
+		INSERT INTO protocol_stats (chain_id, date, total_volume, total_tvl, total_grids, total_trades, total_profit, active_users, create_block, update_block)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $9)
+		ON CONFLICT (chain_id, date) DO UPDATE SET
+			total_volume = EXCLUDED.total_volume,
+			total_tvl = EXCLUDED.total_tvl,
+			total_grids = EXCLUDED.total_grids,
+			total_trades = EXCLUDED.total_trades,
+			total_profit = EXCLUDED.total_profit,
+			active_users = EXCLUDED.active_users,
+			update_block = EXCLUDED.update_block
+	`, chainID, date, stats.TotalVolume, stats.TotalTVL, stats.TotalGrids,
+		stats.TotalTrades, stats.TotalProfit, stats.ActiveUsers, int64(blockNumber))
+	if err != nil {
+		return fmt.Errorf("upsert protocol stats: %w", err)
+	}
+	return nil
+}
+
+// UpdatePairVolumes updates pairs.volume_24h and trades_24h by aggregating
+// order_fills from the last 24 hours, and upserts pair_daily_stats for today.
+func UpdatePairVolumes(ctx context.Context, tx pgx.Tx, chainID int64, date string, blockNumber uint64) error {
+	// Update pairs.volume_24h and trades_24h from order_fills in last 24 hours
+	_, err := tx.Exec(ctx, `
+		UPDATE pairs p SET
+			volume_24h = COALESCE(s.vol, '0'),
+			trades_24h = COALESCE(s.cnt, 0),
+			update_block = $2,
+			updated_at = NOW()
+		FROM (
+			SELECT pair_id,
+				SUM(filled_volume::NUMERIC)::TEXT AS vol,
+				COUNT(*)::INTEGER AS cnt
+			FROM order_fills
+			WHERE chain_id = $1 AND timestamp >= NOW() - INTERVAL '24 hours'
+			GROUP BY pair_id
+		) s
+		WHERE p.chain_id = $1 AND p.pair_id = s.pair_id
+	`, chainID, int64(blockNumber))
+	if err != nil {
+		return fmt.Errorf("update pair volumes 24h: %w", err)
+	}
+
+	// Zero out pairs that had no fills in the last 24 hours
+	_, err = tx.Exec(ctx, `
+		UPDATE pairs SET volume_24h = '0', trades_24h = 0, update_block = $2, updated_at = NOW()
+		WHERE chain_id = $1 AND pair_id NOT IN (
+			SELECT DISTINCT pair_id FROM order_fills
+			WHERE chain_id = $1 AND timestamp >= NOW() - INTERVAL '24 hours'
+		) AND (volume_24h != '0' OR trades_24h != 0)
+	`, chainID, int64(blockNumber))
+	if err != nil {
+		return fmt.Errorf("zero stale pair volumes: %w", err)
+	}
+
+	// Upsert pair_daily_stats for today
+	_, err = tx.Exec(ctx, `
+		INSERT INTO pair_daily_stats (chain_id, pair_id, date, volume, trades, create_block, update_block)
+		SELECT $1, pair_id,
+			$2::TEXT,
+			SUM(filled_volume::NUMERIC)::TEXT,
+			COUNT(*)::INTEGER,
+			$3, $3
+		FROM order_fills
+		WHERE chain_id = $1 AND timestamp::DATE = ($2)::DATE
+		GROUP BY pair_id
+		ON CONFLICT (chain_id, pair_id, date) DO UPDATE SET
+			volume = EXCLUDED.volume,
+			trades = EXCLUDED.trades,
+			update_block = EXCLUDED.update_block
+	`, chainID, date, int64(blockNumber))
+	if err != nil {
+		return fmt.Errorf("upsert pair daily stats: %w", err)
+	}
+
+	return nil
 }

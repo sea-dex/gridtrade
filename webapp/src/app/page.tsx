@@ -2,6 +2,8 @@
 
 import Link from 'next/link';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useStats } from '@/hooks/useStats';
+import { formatBigNumber } from '@/lib/formatBigNumber';
 import { Button } from '@/components/ui/Button';
 import { ParticleGrid } from '@/components/animations/ParticleGrid';
 import { GridTradingAnimation } from '@/components/animations/GridTradingAnimation';
@@ -27,6 +29,7 @@ import {
 
 export default function HomePage() {
   const { t } = useTranslation();
+  const { stats: protocolStats, isLoading } = useStats();
 
   const features = [
     {
@@ -60,10 +63,26 @@ export default function HomePage() {
   ];
 
   const stats = [
-    { labelKey: 'home.stats.total_volume', value: '$12.5M', icon: BarChart3 },
-    { labelKey: 'home.stats.total_tvl', value: '$3.2M', icon: DollarSign },
-    { labelKey: 'home.stats.total_grids', value: '1,234', icon: LayoutGrid },
-    { labelKey: 'home.stats.total_users', value: '5,678', icon: Users },
+    {
+      labelKey: 'home.stats.total_volume',
+      value: isLoading || !protocolStats ? '--' : `$${formatBigNumber(protocolStats.total_volume)}`,
+      icon: BarChart3,
+    },
+    {
+      labelKey: 'home.stats.total_tvl',
+      value: isLoading || !protocolStats ? '--' : `$${formatBigNumber(protocolStats.total_tvl)}`,
+      icon: DollarSign,
+    },
+    {
+      labelKey: 'home.stats.total_grids',
+      value: isLoading || !protocolStats ? '--' : protocolStats.total_grids.toLocaleString(),
+      icon: LayoutGrid,
+    },
+    {
+      labelKey: 'home.stats.total_users',
+      value: isLoading || !protocolStats ? '--' : protocolStats.active_users.toLocaleString(),
+      icon: Users,
+    },
   ];
 
   return (

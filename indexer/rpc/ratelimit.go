@@ -3,7 +3,10 @@ package rpc
 
 import (
 	"context"
+	"log/slog"
 	"math/big"
+	"strings"
+	"time"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
@@ -80,11 +83,47 @@ func (r *RateLimitedClient) TransactionReceipt(ctx context.Context, txHash commo
 
 // CallContract executes a message call transaction, which is directly executed
 // in the VM of the node, but never mined into the blockchain.
+// It retries with exponential backoff on HTTP 429 (Too Many Requests) errors.
 func (r *RateLimitedClient) CallContract(ctx context.Context, msg ethereum.CallMsg, blockNumber *big.Int) ([]byte, error) {
-	if err := r.wait(ctx); err != nil {
-		return nil, err
+	const maxRetries = 5
+	backoff := 15 * time.Second // start with 15s for very tight rate limits (e.g. 5 req/min)
+
+	for attempt := 0; ; attempt++ {
+		if err := r.wait(ctx); err != nil {
+			return nil, err
+		}
+
+		result, err := r.client.CallContract(ctx, msg, blockNumber)
+		if err == nil {
+			return result, nil
+		}
+
+		if !is429Error(err) || attempt >= maxRetries {
+			return nil, err
+		}
+
+		slog.Warn("RPC 429 rate limited, backing off",
+			"attempt", attempt+1,
+			"backoff", backoff,
+			"error", err)
+
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(backoff):
+		}
+
+		backoff = backoff * 2 // exponential backoff
 	}
-	return r.client.CallContract(ctx, msg, blockNumber)
+}
+
+// is429Error checks whether an error indicates an HTTP 429 Too Many Requests response.
+func is429Error(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "429") && strings.Contains(msg, "too many")
 }
 
 // Close closes the underlying ethclient connection.

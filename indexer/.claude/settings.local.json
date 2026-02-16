@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx drizzle-kit generate:*)",
+      "Bash(npm run db:push:*)",
+      "Bash(npx tsc:*)",
+      "Bash(node_modules/.bin/tsc:*)",
+      "Bash(/Volumes/T9/product/2026/grid/gridtrade/webapp/node_modules/.bin/tsc:*)"
+    ]
+  }
+}

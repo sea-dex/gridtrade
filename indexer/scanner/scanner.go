@@ -114,6 +114,13 @@ func New(
 
 // Run starts the scanning loop. It blocks until ctx is cancelled.
 func (s *Scanner) Run(ctx context.Context) error {
+	// Pre-populate token cache from DB to avoid redundant RPC calls on restart.
+	// This is critical for rate-limited RPC endpoints (e.g. Tatum free tier: 5 req/min)
+	// since GetTokenInfo makes 3 RPC calls per token (name, symbol, decimals).
+	if err := s.loadTokenCache(ctx); err != nil {
+		s.logger.Warn("failed to pre-populate token cache from DB (will fetch from chain)", "error", err)
+	}
+
 	// Determine start block
 	lastBlock, err := s.repo.GetLastBlock(ctx, s.cfg.ChainID)
 	if err != nil {
@@ -394,6 +401,17 @@ func (s *Scanner) processLogs(ctx context.Context, logs []types.Log, endBlock ui
 			return err
 		}
 
+		// Compute and upsert protocol stats
+		if err := s.updateProtocolStats(ctx, tx, endBlock); err != nil {
+			s.logger.Warn("failed to update protocol stats", "error", err)
+			// Non-fatal: don't block indexing if stats update fails
+		}
+
+		// Update per-pair volume_24h, trades_24h, and pair_daily_stats
+		if err := s.updatePairStats(ctx, tx, endBlock); err != nil {
+			s.logger.Warn("failed to update pair stats", "error", err)
+		}
+
 		// Send Kafka messages after successful DB operations but before commit
 		// Note: If Kafka send fails, the transaction will be rolled back
 		if len(kafkaMsgs) > 0 {
@@ -404,6 +422,23 @@ func (s *Scanner) processLogs(ctx context.Context, logs []types.Log, endBlock ui
 
 		return nil
 	})
+}
+
+// updateProtocolStats computes aggregate stats and upserts them into protocol_stats.
+func (s *Scanner) updateProtocolStats(ctx context.Context, tx pgx.Tx, blockNumber uint64) error {
+	stats, err := db.ComputeProtocolStats(ctx, tx, s.cfg.ChainID)
+	if err != nil {
+		return err
+	}
+
+	today := time.Now().UTC().Format("2006-01-02")
+	return db.UpsertProtocolStats(ctx, tx, s.cfg.ChainID, today, stats, blockNumber)
+}
+
+// updatePairStats updates pairs.volume_24h/trades_24h and upserts pair_daily_stats.
+func (s *Scanner) updatePairStats(ctx context.Context, tx pgx.Tx, blockNumber uint64) error {
+	today := time.Now().UTC().Format("2006-01-02")
+	return db.UpdatePairVolumes(ctx, tx, s.cfg.ChainID, today, blockNumber)
 }
 
 // processLog processes a single event log and returns Kafka messages to send.
@@ -452,6 +487,29 @@ func (s *Scanner) getOrFetchToken(ctx context.Context, tx pgx.Tx, addr common.Ad
 	}
 
 	return info, nil
+}
+
+// loadTokenCache pre-populates the in-memory token cache from the database.
+// This avoids expensive on-chain RPC calls (3 per token) for tokens that have
+// already been indexed, which is critical for rate-limited endpoints.
+func (s *Scanner) loadTokenCache(ctx context.Context) error {
+	rows, err := s.repo.GetTokensByChain(ctx, s.cfg.ChainID)
+	if err != nil {
+		return err
+	}
+
+	for _, row := range rows {
+		addr := common.HexToAddress(row.Address)
+		s.tokenCache[addr] = &contracts.TokenInfo{
+			Address:  addr,
+			Name:     row.Name,
+			Symbol:   row.Symbol,
+			Decimals: uint8(row.Decimals),
+		}
+	}
+
+	s.logger.Info("pre-populated token cache from DB", "count", len(rows))
+	return nil
 }
 
 func (s *Scanner) makeBaseMsg(log types.Log, eventType kafka.EventType) *kafka.Message {

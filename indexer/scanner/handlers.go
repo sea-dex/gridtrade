@@ -242,7 +242,7 @@ func (s *Scanner) handleGridOrderCreated(ctx context.Context, tx pgx.Tx, log typ
 		orderMsgs, err := s.computeAndInsertOrder(ctx, tx, log, gridOrderID, gridID,
 			int(event.PairID), true, event.Compound, event.Oneshot, int(event.Fee),
 			event.Amount, stratInfo, i,
-			initialBaseAmountStr, initialQuoteAmountStr)
+		)
 		if err != nil {
 			return nil, fmt.Errorf("insert ask order %d: %w", i, err)
 		}
@@ -257,7 +257,7 @@ func (s *Scanner) handleGridOrderCreated(ctx context.Context, tx pgx.Tx, log typ
 		orderMsgs, err := s.computeAndInsertOrder(ctx, tx, log, gridOrderID, gridID,
 			int(event.PairID), false, event.Compound, event.Oneshot, int(event.Fee),
 			event.Amount, stratInfo, i,
-			initialBaseAmountStr, initialQuoteAmountStr)
+		)
 		if err != nil {
 			return nil, fmt.Errorf("insert bid order %d: %w", i, err)
 		}
@@ -278,12 +278,14 @@ func (s *Scanner) handleGridOrderCreated(ctx context.Context, tx pgx.Tx, log typ
 //   - revAmount is 0 for newly created orders
 func (s *Scanner) computeAndInsertOrder(ctx context.Context, tx pgx.Tx, log types.Log,
 	gridOrderID *big.Int, gridID int64, pairID int, isAsk, compound, oneshot bool,
-	fee int, baseAmt *big.Int, strat *linearStrategyInfo, orderIndex uint32,
-	initialBaseAmount, initialQuoteAmount string) ([]*kafka.Message, error) {
+	fee int, baseAmt *big.Int, strat *linearStrategyInfo, orderIndex uint32) ([]*kafka.Message, error) {
 
 	idx := big.NewInt(int64(orderIndex))
 
-	var price, revPrice, amount *big.Int
+	var (
+		price, revPrice, amount               *big.Int
+		initialBaseAmount, initialQuoteAmount string
+	)
 	revAmount := big.NewInt(0)
 
 	if isAsk {
@@ -303,6 +305,8 @@ func (s *Scanner) computeAndInsertOrder(ctx context.Context, tx pgx.Tx, log type
 
 		// Ask order amount = baseAmt (base token)
 		amount = new(big.Int).Set(baseAmt)
+		initialBaseAmount = amount.String()
+		initialQuoteAmount = "0"
 	} else {
 		// Bid order: price = bidPrice0 + bidGap * i
 		bidPrice0 := strat.BidPrice0
@@ -315,11 +319,13 @@ func (s *Scanner) computeAndInsertOrder(ctx context.Context, tx pgx.Tx, log type
 		}
 		price = new(big.Int).Add(bidPrice0, new(big.Int).Mul(bidGap, idx))
 
-		// revPrice for bid = price + bidGap (the price when order flips to ask)
-		revPrice = new(big.Int).Add(price, bidGap)
+		// revPrice for bid = price + bidGap (the price when order flips to ask), bidGap is negtive
+		revPrice = new(big.Int).Sub(price, bidGap)
 
 		// Bid order amount = calcQuoteAmount(baseAmt, price) (quote token)
 		amount = calcQuoteAmount(baseAmt, price)
+		initialBaseAmount = "0"
+		initialQuoteAmount = amount.String()
 	}
 
 	orderIDStr := gridOrderID.String()
@@ -368,6 +374,12 @@ func (s *Scanner) handleFilledOrder(ctx context.Context, tx pgx.Tx, log types.Lo
 
 	orderIDStr := event.GridOrderID.String()
 
+	// Get pair_id for this grid
+	pairID, err := db.GetGridPairID(ctx, tx, s.cfg.ChainID, gridID.Int64())
+	if err != nil {
+		return nil, fmt.Errorf("get pair_id for filled order: %w", err)
+	}
+
 	// Get block timestamp
 	block, err := s.client.BlockByNumber(ctx, new(big.Int).SetUint64(log.BlockNumber))
 	if err != nil {
@@ -383,7 +395,7 @@ func (s *Scanner) handleFilledOrder(ctx context.Context, tx pgx.Tx, log types.Lo
 	if err := db.InsertOrderFill(ctx, tx, s.cfg.ChainID,
 		log.TxHash.Hex(), strings.ToLower(event.Taker.Hex()),
 		orderIDStr, event.BaseAmt.String(), event.QuoteVol.String(),
-		event.IsAsk, ts, log.BlockNumber); err != nil {
+		event.IsAsk, pairID, ts, log.BlockNumber); err != nil {
 		return nil, err
 	}
 

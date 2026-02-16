@@ -1,9 +1,11 @@
 'use client';
 
 import { useTranslation } from '@/hooks/useTranslation';
+import { useStats } from '@/hooks/useStats';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { SimpleBarChart } from '@/components/ui/SimpleBarChart';
 import { formatNumber } from '@/lib/utils';
+import { formatBigNumber } from '@/lib/formatBigNumber';
 import {
   BarChart3,
   DollarSign,
@@ -13,82 +15,77 @@ import {
   Users,
 } from 'lucide-react';
 
-const PROTOCOL_STATS = {
-  totalVolume: 12500000,
-  totalTVL: 3200000,
-  totalGrids: 1234,
-  totalTrades: 45678,
-  totalProfit: 890000,
-  activeUsers: 5678,
-};
-
-const VOLUME_DATA = [
-  { date: '2024-01', volume: 850000 },
-  { date: '2024-02', volume: 1200000 },
-  { date: '2024-03', volume: 980000 },
-  { date: '2024-04', volume: 1500000 },
-  { date: '2024-05', volume: 1800000 },
-  { date: '2024-06', volume: 2100000 },
-  { date: '2024-07', volume: 2400000 },
-];
-
-const TVL_DATA = [
-  { date: '2024-01', tvl: 500000 },
-  { date: '2024-02', tvl: 750000 },
-  { date: '2024-03', tvl: 1000000 },
-  { date: '2024-04', tvl: 1500000 },
-  { date: '2024-05', tvl: 2000000 },
-  { date: '2024-06', tvl: 2800000 },
-  { date: '2024-07', tvl: 3200000 },
-];
-
 export default function InfoPage() {
   const { t } = useTranslation();
+  const { stats: protocolStats, volumeHistory, tvlHistory, isLoading } = useStats();
+
+  // Convert volume_history string values to numbers for the chart
+  const volumeChartData = volumeHistory.map((d) => ({
+    date: d.date,
+    volume: parseFloat(d.volume) || 0,
+  }));
+
+  // Convert tvl_history string values to numbers for the chart
+  const tvlChartData = tvlHistory.map((d) => ({
+    date: d.date,
+    tvl: parseFloat(d.tvl) || 0,
+  }));
 
   const stats = [
     {
       label: t('info.total_volume'),
-      value: `$${formatNumber(PROTOCOL_STATS.totalVolume)}`,
+      value: isLoading || !protocolStats ? '--' : `$${formatBigNumber(protocolStats.total_volume)}`,
       icon: BarChart3,
       accent: 'var(--accent)',
       accentDim: 'var(--accent-dim)',
     },
     {
       label: t('info.total_tvl'),
-      value: `$${formatNumber(PROTOCOL_STATS.totalTVL)}`,
+      value: isLoading || !protocolStats ? '--' : `$${formatBigNumber(protocolStats.total_tvl)}`,
       icon: DollarSign,
       accent: 'var(--green)',
       accentDim: 'var(--green-dim)',
     },
     {
       label: t('info.total_grids'),
-      value: formatNumber(PROTOCOL_STATS.totalGrids, 0),
+      value: isLoading || !protocolStats ? '--' : formatNumber(protocolStats.total_grids, 0),
       icon: LayoutGrid,
       accent: '#a78bfa',
       accentDim: 'rgba(167,139,250,0.10)',
     },
     {
       label: t('info.total_trades'),
-      value: formatNumber(PROTOCOL_STATS.totalTrades, 0),
+      value: isLoading || !protocolStats ? '--' : formatNumber(protocolStats.total_trades, 0),
       icon: Activity,
       accent: 'var(--amber)',
       accentDim: 'var(--amber-dim)',
     },
     {
       label: t('info.total_profit'),
-      value: `$${formatNumber(PROTOCOL_STATS.totalProfit)}`,
+      value: isLoading || !protocolStats ? '--' : `$${formatBigNumber(protocolStats.total_profit)}`,
       icon: TrendingUp,
       accent: 'var(--green)',
       accentDim: 'var(--green-dim)',
     },
     {
       label: 'Active Users',
-      value: formatNumber(PROTOCOL_STATS.activeUsers, 0),
+      value: isLoading || !protocolStats ? '--' : formatNumber(protocolStats.active_users, 0),
       icon: Users,
       accent: '#f472b6',
       accentDim: 'rgba(244,114,182,0.10)',
     },
   ];
+
+  // Calculate growth percentages for chart footers
+  const volumeGrowth = volumeChartData.length >= 2
+    ? ((volumeChartData[volumeChartData.length - 1].volume - volumeChartData[0].volume) /
+        (volumeChartData[0].volume || 1) * 100).toFixed(1)
+    : '0.0';
+
+  const tvlGrowth = tvlChartData.length >= 2
+    ? ((tvlChartData[tvlChartData.length - 1].tvl - tvlChartData[0].tvl) /
+        (tvlChartData[0].tvl || 1) * 100).toFixed(1)
+    : '0.0';
 
   return (
     <div className="p-5">
@@ -128,13 +125,21 @@ export default function InfoPage() {
               <CardTitle>{t('info.volume_chart')}</CardTitle>
             </CardHeader>
             <CardContent>
-              <SimpleBarChart data={VOLUME_DATA} dataKey="volume" color="bg-(--accent)" />
-              <div className="mt-3 flex items-center justify-between text-[13px]">
-                <span className="text-(--text-disabled)">Monthly Trading Volume</span>
-                <span className="text-(--accent) font-medium">
-                  +{((VOLUME_DATA[VOLUME_DATA.length - 1].volume - VOLUME_DATA[0].volume) / VOLUME_DATA[0].volume * 100).toFixed(1)}%
-                </span>
-              </div>
+              {isLoading || volumeChartData.length === 0 ? (
+                <div className="flex items-center justify-center h-44 text-(--text-disabled) text-sm">
+                  {isLoading ? 'Loading...' : 'No data'}
+                </div>
+              ) : (
+                <>
+                  <SimpleBarChart data={volumeChartData} dataKey="volume" color="bg-(--accent)" />
+                  <div className="mt-3 flex items-center justify-between text-[13px]">
+                    <span className="text-(--text-disabled)">Trading Volume</span>
+                    <span className="text-(--accent) font-medium">
+                      +{volumeGrowth}%
+                    </span>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
 
@@ -143,13 +148,21 @@ export default function InfoPage() {
               <CardTitle>{t('info.tvl_chart')}</CardTitle>
             </CardHeader>
             <CardContent>
-              <SimpleBarChart data={TVL_DATA} dataKey="tvl" color="bg-(--green)" />
-              <div className="mt-3 flex items-center justify-between text-[13px]">
-                <span className="text-(--text-disabled)">Total Value Locked</span>
-                <span className="text-(--green) font-medium">
-                  +{((TVL_DATA[TVL_DATA.length - 1].tvl - TVL_DATA[0].tvl) / TVL_DATA[0].tvl * 100).toFixed(1)}%
-                </span>
-              </div>
+              {isLoading || tvlChartData.length === 0 ? (
+                <div className="flex items-center justify-center h-44 text-(--text-disabled) text-sm">
+                  {isLoading ? 'Loading...' : 'No data'}
+                </div>
+              ) : (
+                <>
+                  <SimpleBarChart data={tvlChartData} dataKey="tvl" color="bg-(--green)" />
+                  <div className="mt-3 flex items-center justify-between text-[13px]">
+                    <span className="text-(--text-disabled)">Total Value Locked</span>
+                    <span className="text-(--green) font-medium">
+                      +{tvlGrowth}%
+                    </span>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
         </div>
