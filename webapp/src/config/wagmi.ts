@@ -5,7 +5,7 @@ import { connectorsForWallets } from '@rainbow-me/rainbowkit';
 import {
   metaMaskWallet,
   walletConnectWallet,
-  coinbaseWallet,
+  baseAccount,
   injectedWallet,
 } from '@rainbow-me/rainbowkit/wallets';
 import { mainnet, bsc, base, bscTestnet } from 'wagmi/chains';
@@ -18,11 +18,11 @@ const connectors = connectorsForWallets(
   [
     {
       groupName: 'Popular',
-      wallets: [metaMaskWallet, walletConnectWallet, coinbaseWallet, injectedWallet],
+      wallets: [metaMaskWallet, walletConnectWallet, baseAccount, injectedWallet],
     },
   ],
   {
-    appName: 'GridEx',
+    appName: 'GridTrade',
     projectId,
   },
 );
@@ -32,7 +32,7 @@ export const wagmiConfig = createConfig({
   chains: SUPPORTED_CHAINS,
   transports: {
     [mainnet.id]: http(),
-    [bsc.id]: http(),
+    [bsc.id]: http('https://bsc-dataseed1.binance.org'),
     [base.id]: http(),
     [bscTestnet.id]: http(),
   },
