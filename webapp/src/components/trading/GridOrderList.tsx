@@ -24,10 +24,13 @@ export function GridOrderList() {
   // My grids: filtered by connected wallet owner
   const myGridsResult = useGridOrders({
     owner: address?.toLowerCase(),
+    refreshInterval: 10_000,
   });
 
   // All grids: no owner filter
-  const allGridsResult = useGridOrders({});
+  const allGridsResult = useGridOrders({
+    refreshInterval: 10_000,
+  });
 
   const isMyGrids = activeTab === 'my_grids';
   const { grids, total, page, pageSize, isLoading, setPage } = isMyGrids

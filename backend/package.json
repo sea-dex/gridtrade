@@ -5,9 +5,10 @@
   "main": "dist/index.js",
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "dotenv -e .env.local -- tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
+    "start:prod": "dotenv -e .env.production.local -- node dist/index.js",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
     "format": "prettier --write \"src/**/*.ts\"",
@@ -16,10 +17,14 @@
     "test": "vitest",
     "test:coverage": "vitest --coverage",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
-    "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio",
-    "db:seed": "tsx src/db/seed.ts"
+    "db:migrate": "dotenv -e .env.local -- drizzle-kit migrate",
+    "db:push": "dotenv -e .env.local -- drizzle-kit push",
+    "db:studio": "dotenv -e .env.local -- drizzle-kit studio",
+    "db:seed": "dotenv -e .env.local -- tsx src/db/seed.ts",
+    "db:migrate:prod": "dotenv -e .env.production.local -- drizzle-kit migrate",
+    "db:push:prod": "dotenv -e .env.production.local -- drizzle-kit push",
+    "db:studio:prod": "dotenv -e .env.production.local -- drizzle-kit studio",
+    "db:seed:prod": "dotenv -e .env.production.local -- tsx src/db/seed.ts"
   },
   "keywords": [
     "gridex",
@@ -57,6 +62,7 @@
     "@types/ws": "^8.18.1",
     "@typescript-eslint/eslint-plugin": "^8.22.0",
     "@typescript-eslint/parser": "^8.22.0",
+    "dotenv-cli": "^11.0.0",
     "drizzle-kit": "^0.30.2",
     "eslint": "^9.19.0",
     "eslint-config-prettier": "^10.0.1",

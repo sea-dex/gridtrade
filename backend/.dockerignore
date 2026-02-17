@@ -1,25 +1,18 @@
 # Dependencies
 node_modules/
 
-# Build output
+# Build output (rebuilt in Docker)
 dist/
 
-# Environment files
+# Environment files (mounted at runtime)
 .env
 .env.local
 .env.*.local
 .env.production
 
-# Database
-data/
-*.db
-*.sqlite
-
 # Logs
 logs/
 *.log
-npm-debug.log*
-pnpm-debug.log*
 
 # IDE
 .idea/
@@ -31,11 +24,16 @@ pnpm-debug.log*
 .DS_Store
 Thumbs.db
 
-# Test coverage
+# Test & coverage
 coverage/
+src/__tests__/
 
-# Drizzle
-drizzle/meta/
+# Git
+.git/
+.gitignore
+
+# Docs
+README.md
 
 # Misc
 *.tgz

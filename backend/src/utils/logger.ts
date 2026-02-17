@@ -5,6 +5,11 @@
  * is consistent whether it comes from a Fastify request handler or from a
  * standalone service / utility / seed script.
  *
+ * In production the logger writes JSON lines to both stdout and a rotating
+ * log file under `./logs/` (the directory is expected to exist – the
+ * Dockerfile creates it and it can be bind-mounted from the host for
+ * persistence).
+ *
  * Usage:
  *   import { logger } from '../utils/logger.js';
  *
@@ -19,6 +24,8 @@
  */
 
 import pino from 'pino';
+import path from 'path';
+import fs from 'fs';
 
 // ---------------------------------------------------------------------------
 // Resolve log level & transport from environment
@@ -27,26 +34,70 @@ import pino from 'pino';
 const LOG_LEVEL = process.env.LOG_LEVEL ?? 'info';
 const NODE_ENV = process.env.NODE_ENV ?? 'development';
 
+// Log directory – relative to the project root (two levels up from this file
+// in the compiled output: dist/utils/logger.js → ../../logs).
+const LOG_DIR = process.env.LOG_DIR ?? path.resolve(process.cwd(), 'logs');
+
+/**
+ * Ensure the log directory exists (sync – runs once at startup before any
+ * request is served).
+ */
+function ensureLogDir(): void {
+  if (!fs.existsSync(LOG_DIR)) {
+    fs.mkdirSync(LOG_DIR, { recursive: true });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Build pino transport targets
+// ---------------------------------------------------------------------------
+
+function buildTransport(): pino.TransportMultiOptions | pino.TransportSingleOptions | undefined {
+  if (NODE_ENV === 'development') {
+    // Pretty-print to stdout in development
+    return {
+      target: 'pino-pretty',
+      options: {
+        translateTime: 'HH:MM:ss Z',
+        ignore: 'pid,hostname',
+      },
+    };
+  }
+
+  // Production: write structured JSON to both stdout and a log file
+  ensureLogDir();
+
+  const logFile = path.join(LOG_DIR, 'app.log');
+
+  return {
+    targets: [
+      // stdout – for docker logs / container runtime
+      {
+        target: 'pino/file',
+        options: { destination: 1 }, // fd 1 = stdout
+        level: LOG_LEVEL as pino.Level,
+      },
+      // file – persisted on the host via bind-mount
+      {
+        target: 'pino/file',
+        options: { destination: logFile, mkdir: true },
+        level: LOG_LEVEL as pino.Level,
+      },
+    ],
+  };
+}
+
 /**
  * Root application logger.
  *
  * In development mode, output is piped through `pino-pretty` for
- * human-readable formatting.  In production, raw JSON is emitted for
- * structured log aggregation.
+ * human-readable formatting.  In production, raw JSON is emitted to both
+ * stdout and `./logs/app.log` for structured log aggregation and local
+ * persistence.
  */
 export const logger = pino({
   level: LOG_LEVEL,
-  ...(NODE_ENV === 'development'
-    ? {
-        transport: {
-          target: 'pino-pretty',
-          options: {
-            translateTime: 'HH:MM:ss Z',
-            ignore: 'pid,hostname',
-          },
-        },
-      }
-    : {}),
+  transport: buildTransport(),
 });
 
 // ---------------------------------------------------------------------------

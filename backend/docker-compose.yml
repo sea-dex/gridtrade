@@ -1,0 +1,32 @@
+# ──────────────────────────────────────────────────────────────
+# GridEx Backend – Docker Compose
+# ──────────────────────────────────────────────────────────────
+# Usage:
+#   docker compose up -d --build
+#   docker compose logs -f backend
+#   docker compose down
+# ──────────────────────────────────────────────────────────────
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gridex-backend
+    restart: unless-stopped
+    ports:
+      - "5001:5001"
+    volumes:
+      # Mount env file (read-only) – secrets stay on the host, never in the image
+      - ./.env.production.local:/app/.env.production.local:ro
+      # Mount logs directory – persists log files on the host
+      - ./logs:/app/logs
+    environment:
+      - NODE_ENV=production
+      - TZ=Asia/Shanghai
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

@@ -122,7 +122,7 @@ const bscMainnetTokens: TokenInfo[] = [
     name: 'USD Coin',
     decimals: 18,
     logo: 'https://assets.coingecko.com/coins/images/6319/standard/usdc.png',
-    priority: (1<<20)-100,
+    priority: 1<<18,
     isQuote: true,
     tags: ['stablecoin'],
   },

@@ -1,7 +1,27 @@
 import { z } from 'zod';
 import dotenv from 'dotenv';
+import path from 'path';
+import fs from 'fs';
 
-dotenv.config();
+// Load env files in priority order (later files override earlier ones).
+// When launched via `dotenv -e .env.local` the variables are already in
+// process.env, so this acts as a fallback for direct `tsx src/index.ts` usage.
+const root = path.resolve(import.meta.dirname, '../../');
+const nodeEnv = process.env.NODE_ENV || 'development';
+
+const envFiles = [
+  '.env',                        // base defaults (tracked)
+  `.env.${nodeEnv}`,             // environment-specific non-secrets (tracked)
+  '.env.local',                  // local overrides & secrets (gitignored)
+  `.env.${nodeEnv}.local`,       // environment-specific secrets (gitignored)
+];
+
+for (const file of envFiles) {
+  const filePath = path.resolve(root, file);
+  if (fs.existsSync(filePath)) {
+    dotenv.config({ path: filePath, override: true });
+  }
+}
 
 const envSchema = z.object({
   PORT: z.string().default('3001').transform(Number),

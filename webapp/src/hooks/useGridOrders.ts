@@ -11,6 +11,8 @@ interface UseGridOrdersParams {
   status?: number;
   page?: number;
   pageSize?: number;
+  /** Auto-refresh interval in milliseconds. Set to 0 or undefined to disable. Default: 0. */
+  refreshInterval?: number;
 }
 
 interface UseGridOrdersResult {
@@ -68,6 +70,16 @@ export function useGridOrders(params: UseGridOrdersParams = {}): UseGridOrdersRe
   useEffect(() => {
     fetchGridsWithOrders();
   }, [fetchGridsWithOrders]);
+
+  // Auto-refresh polling
+  useEffect(() => {
+    const interval = params.refreshInterval;
+    if (!interval || interval <= 0) return;
+    const id = setInterval(() => {
+      fetchGridsWithOrders();
+    }, interval);
+    return () => clearInterval(id);
+  }, [params.refreshInterval, fetchGridsWithOrders]);
 
   return {
     grids,
