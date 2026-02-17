@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { Locale, defaultLocale } from '@/i18n';
+import { DEFAULT_CHAIN } from '@/config/chains';
 
 interface Token {
   address: `0x${string}`;
@@ -47,7 +48,7 @@ export const useStore = create<AppState>()(
       setLocale: (locale) => set({ locale }),
 
       // Selected chain (default to BSC Testnet)
-      selectedChainId: 97,
+      selectedChainId: DEFAULT_CHAIN.id,
       setSelectedChainId: (chainId) => set({ selectedChainId: chainId }),
 
       // Trading pair

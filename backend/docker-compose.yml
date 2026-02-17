@@ -24,6 +24,9 @@ services:
     environment:
       - NODE_ENV=production
       - TZ=Asia/Shanghai
+    # Allow the container to reach services on the host via host.docker.internal
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/health"]
       interval: 30s
