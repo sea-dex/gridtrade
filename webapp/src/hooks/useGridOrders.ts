@@ -32,11 +32,15 @@ export function useGridOrders(params: UseGridOrdersParams = {}): UseGridOrdersRe
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(params.page ?? 1);
   const [pageSize] = useState(params.pageSize ?? 20);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchGridsWithOrders = useCallback(async () => {
-    setIsLoading(true);
+    // Only show loading spinner on initial load, not on refresh
+    if (isInitialLoad) {
+      setIsLoading(true);
+    }
     setError(null);
     try {
       const searchParams = new URLSearchParams({
@@ -58,6 +62,7 @@ export function useGridOrders(params: UseGridOrdersParams = {}): UseGridOrdersRe
 
       setGrids(data.grids);
       setTotal(data.total);
+      setIsInitialLoad(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch grids');
       setGrids([]);
@@ -65,7 +70,7 @@ export function useGridOrders(params: UseGridOrdersParams = {}): UseGridOrdersRe
     } finally {
       setIsLoading(false);
     }
-  }, [selectedChainId, page, pageSize, params.owner, params.status]);
+  }, [selectedChainId, page, pageSize, params.owner, params.status, isInitialLoad]);
 
   useEffect(() => {
     fetchGridsWithOrders();
