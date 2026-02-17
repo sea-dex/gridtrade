@@ -55,3 +55,31 @@ export interface GridWithOrdersListResponse {
   page: number;
   page_size: number;
 }
+
+/** Flat order with grid-level info from GET /orders/with-grid-info */
+export interface OrderWithGridInfo {
+  order_id: string;
+  grid_id: number;
+  pair_id: number;
+  is_ask: boolean;
+  compound: boolean;
+  fee: number;
+  status: number;
+  amount: string;
+  rev_amount: string;
+  price: string;
+  rev_price: string;
+  owner: string;
+  base_token: string;
+  quote_token: string;
+  profits: string;
+  grid_status: number;
+}
+
+/** Response from GET /orders/with-grid-info */
+export interface OrderWithGridInfoListResponse {
+  orders: OrderWithGridInfo[];
+  total: number;
+  page: number;
+  page_size: number;
+}

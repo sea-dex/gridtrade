@@ -1,16 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useAccount, useWriteContract } from 'wagmi';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useGridOrders } from '@/hooks/useGridOrders';
+import { useOrdersWithGridInfo } from '@/hooks/useOrdersWithGridInfo';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { GRIDEX_ABI } from '@/config/abi/GridEx';
 import { GRIDEX_ADDRESSES } from '@/config/chains';
 import { formatNumber } from '@/lib/utils';
 import { Trash2, Download, ChevronDown, ChevronRight } from 'lucide-react';
-import type { GridWithOrders, GridOrder } from '@/types/grid';
+import type { GridWithOrders, GridOrder, OrderWithGridInfo } from '@/types/grid';
 
 type OrderTab = 'my_grids' | 'all_grids';
 
@@ -18,7 +19,7 @@ export function GridOrderList() {
   const { t } = useTranslation();
   const { address, chainId } = useAccount();
   const { writeContract, isPending } = useWriteContract();
-  const [expandedGrids, setExpandedGrids] = useState<Set<number>>(new Set());
+  const [manuallyToggledGrids, setManuallyToggledGrids] = useState<Set<number>>(new Set());
   const [activeTab, setActiveTab] = useState<OrderTab>(address ? 'my_grids' : 'all_grids');
 
   // My grids: filtered by connected wallet owner
@@ -27,18 +28,40 @@ export function GridOrderList() {
     refreshInterval: 10_000,
   });
 
-  // All grids: no owner filter
-  const allGridsResult = useGridOrders({
+  // All grids: flat order list with grid info
+  const allOrdersResult = useOrdersWithGridInfo({
     refreshInterval: 10_000,
   });
 
   const isMyGrids = activeTab === 'my_grids';
-  const { grids, total, page, pageSize, isLoading, setPage } = isMyGrids
-    ? myGridsResult
-    : allGridsResult;
+
+  // Derive variables based on active tab
+  const isLoading = isMyGrids ? myGridsResult.isLoading : allOrdersResult.isLoading;
+  const total = isMyGrids ? myGridsResult.total : allOrdersResult.total;
+  const page = isMyGrids ? myGridsResult.page : allOrdersResult.page;
+  const pageSize = isMyGrids ? myGridsResult.pageSize : allOrdersResult.pageSize;
+  const setPage = isMyGrids ? myGridsResult.setPage : allOrdersResult.setPage;
+  const grids = myGridsResult.grids;
+  const allOrders = allOrdersResult.orders;
+
+  // For My Grids, auto-expand all grids by default (user can manually toggle)
+  const expandedGrids = useMemo(() => {
+    if (isMyGrids && grids.length > 0) {
+      // Start with all grids expanded, then apply manual toggles
+      const allGridIds = new Set(grids.map((g) => g.config.grid_id));
+      // Remove any that were manually toggled off
+      manuallyToggledGrids.forEach((id) => {
+        if (allGridIds.has(id)) {
+          allGridIds.delete(id);
+        }
+      });
+      return allGridIds;
+    }
+    return manuallyToggledGrids;
+  }, [isMyGrids, grids, manuallyToggledGrids]);
 
   const toggleGrid = (gridId: number) => {
-    setExpandedGrids((prev) => {
+    setManuallyToggledGrids((prev) => {
       const next = new Set(prev);
       if (next.has(gridId)) {
         next.delete(gridId);
@@ -150,96 +173,170 @@ export function GridOrderList() {
       <CardContent className="p-0">
         {isLoading ? (
           <div className="text-center py-10 text-(--text-disabled) text-sm">{t('common.loading')}</div>
-        ) : grids.length === 0 ? (
-          <div className="text-center py-10 text-(--text-disabled) text-sm">
-            {t('grid.order_list.no_orders')}
-          </div>
-        ) : (
-          <>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-(--border-subtle)">
-                    <th className="w-8 py-2.5 px-3"></th>
-                    <th className="text-left py-2.5 px-5 text-[11px] font-medium text-(--text-disabled) uppercase tracking-wider">
-                      {t('grid.order_list.grid_id')}
-                    </th>
-                    {!isMyGrids && (
+        ) : isMyGrids ? (
+          // My Grids: Show grids with expandable orders
+          grids.length === 0 ? (
+            <div className="text-center py-10 text-(--text-disabled) text-sm">
+              {t('grid.order_list.no_orders')}
+            </div>
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-(--border-subtle)">
+                      <th className="w-8 py-2.5 px-3"></th>
                       <th className="text-left py-2.5 px-5 text-[11px] font-medium text-(--text-disabled) uppercase tracking-wider">
-                        {t('grid.order_list.owner')}
+                        {t('grid.order_list.grid_id')}
                       </th>
-                    )}
-                    <th className="text-left py-2.5 px-5 text-[11px] font-medium text-(--text-disabled) uppercase tracking-wider">
-                      {t('grid.order_list.pair')}
-                    </th>
-                    <th className="text-left py-2.5 px-5 text-[11px] font-medium text-(--text-disabled) uppercase tracking-wider">
-                      {t('grid.order_list.orders')}
-                    </th>
-                    <th className="text-left py-2.5 px-5 text-[11px] font-medium text-(--text-disabled) uppercase tracking-wider">
-                      {t('grid.order_list.initial_investment')}
-                    </th>
-                    <th className="text-left py-2.5 px-5 text-[11px] font-medium text-(--text-disabled) uppercase tracking-wider">
-                      {t('grid.order_list.profit')}
-                    </th>
-                    <th className="text-left py-2.5 px-5 text-[11px] font-medium text-(--text-disabled) uppercase tracking-wider">
-                      {t('grid.order_list.status')}
-                    </th>
-                    {isMyGrids && (
+                      <th className="text-left py-2.5 px-5 text-[11px] font-medium text-(--text-disabled) uppercase tracking-wider">
+                        {t('grid.order_list.pair')}
+                      </th>
+                      <th className="text-left py-2.5 px-5 text-[11px] font-medium text-(--text-disabled) uppercase tracking-wider">
+                        {t('grid.order_list.orders')}
+                      </th>
+                      <th className="text-left py-2.5 px-5 text-[11px] font-medium text-(--text-disabled) uppercase tracking-wider">
+                        {t('grid.order_list.initial_investment')}
+                      </th>
+                      <th className="text-left py-2.5 px-5 text-[11px] font-medium text-(--text-disabled) uppercase tracking-wider">
+                        {t('grid.order_list.profit')}
+                      </th>
+                      <th className="text-left py-2.5 px-5 text-[11px] font-medium text-(--text-disabled) uppercase tracking-wider">
+                        {t('grid.order_list.status')}
+                      </th>
                       <th className="text-right py-2.5 px-5 text-[11px] font-medium text-(--text-disabled) uppercase tracking-wider">
                         {t('grid.order_list.actions')}
                       </th>
-                    )}
-                  </tr>
-                </thead>
-                <tbody>
-                  {grids.map((gridWithOrders) => (
-                    <GridRow
-                      key={gridWithOrders.config.grid_id}
-                      gridWithOrders={gridWithOrders}
-                      isExpanded={expandedGrids.has(gridWithOrders.config.grid_id)}
-                      onToggle={() => toggleGrid(gridWithOrders.config.grid_id)}
-                      onWithdraw={handleWithdraw}
-                      onCancel={handleCancel}
-                      isPending={isPending}
-                      getStatusBadge={getStatusBadge}
-                      showActions={isMyGrids}
-                      showOwner={!isMyGrids}
-                      t={t}
-                    />
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between px-5 py-3 border-t border-(--border-subtle)">
-                <span className="text-[12px] text-(--text-disabled)">
-                  {t('grid.order_list.page_info')
-                    .replace('{page}', String(page))
-                    .replace('{total}', String(totalPages))}
-                </span>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setPage(page - 1)}
-                    disabled={page <= 1}
-                  >
-                    {t('grid.order_list.page_prev')}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setPage(page + 1)}
-                    disabled={page >= totalPages}
-                  >
-                    {t('grid.order_list.page_next')}
-                  </Button>
-                </div>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {grids.map((gridWithOrders) => (
+                      <GridRow
+                        key={gridWithOrders.config.grid_id}
+                        gridWithOrders={gridWithOrders}
+                        isExpanded={expandedGrids.has(gridWithOrders.config.grid_id)}
+                        onToggle={() => toggleGrid(gridWithOrders.config.grid_id)}
+                        onWithdraw={handleWithdraw}
+                        onCancel={handleCancel}
+                        isPending={isPending}
+                        getStatusBadge={getStatusBadge}
+                        showActions={true}
+                        showOwner={false}
+                        t={t}
+                      />
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            )}
-          </>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between px-5 py-3 border-t border-(--border-subtle)">
+                  <span className="text-[12px] text-(--text-disabled)">
+                    {t('grid.order_list.page_info')
+                      .replace('{page}', String(page))
+                      .replace('{total}', String(totalPages))}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setPage(page - 1)}
+                      disabled={page <= 1}
+                    >
+                      {t('grid.order_list.page_prev')}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setPage(page + 1)}
+                      disabled={page >= totalPages}
+                    >
+                      {t('grid.order_list.page_next')}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
+          )
+        ) : (
+          // All Grids: Show flat order list
+          allOrders.length === 0 ? (
+            <div className="text-center py-10 text-(--text-disabled) text-sm">
+              {t('grid.order_list.no_orders')}
+            </div>
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-(--border-subtle)">
+                      <th className="text-left py-2.5 px-5 text-[11px] font-medium text-(--text-disabled) uppercase tracking-wider">
+                        {t('grid.order_list.grid_id')}
+                      </th>
+                      <th className="text-left py-2.5 px-5 text-[11px] font-medium text-(--text-disabled) uppercase tracking-wider">
+                        {t('grid.order_list.owner')}
+                      </th>
+                      <th className="text-left py-2.5 px-5 text-[11px] font-medium text-(--text-disabled) uppercase tracking-wider">
+                        {t('grid.order_list.pair')}
+                      </th>
+                      <th className="text-left py-2.5 px-5 text-[11px] font-medium text-(--text-disabled) uppercase tracking-wider">
+                        {t('grid.order_list.side')}
+                      </th>
+                      <th className="text-left py-2.5 px-5 text-[11px] font-medium text-(--text-disabled) uppercase tracking-wider">
+                        {t('grid.order_list.price')}
+                      </th>
+                      <th className="text-left py-2.5 px-5 text-[11px] font-medium text-(--text-disabled) uppercase tracking-wider">
+                        {t('grid.order_list.amount')}
+                      </th>
+                      <th className="text-left py-2.5 px-5 text-[11px] font-medium text-(--text-disabled) uppercase tracking-wider">
+                        {t('grid.order_list.status')}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {allOrders.map((order) => (
+                      <FlatOrderRow
+                        key={order.order_id}
+                        order={order}
+                        getStatusBadge={getStatusBadge}
+                        t={t}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between px-5 py-3 border-t border-(--border-subtle)">
+                  <span className="text-[12px] text-(--text-disabled)">
+                    {t('grid.order_list.page_info')
+                      .replace('{page}', String(page))
+                      .replace('{total}', String(totalPages))}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setPage(page - 1)}
+                      disabled={page <= 1}
+                    >
+                      {t('grid.order_list.page_prev')}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setPage(page + 1)}
+                      disabled={page >= totalPages}
+                    >
+                      {t('grid.order_list.page_next')}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
+          )
         )}
       </CardContent>
     </Card>
@@ -441,7 +538,7 @@ function OrderRow({
       </td>
       <td className="py-1.5 px-3">
         <span className="font-mono text-[11px] text-(--text-secondary)">
-          {formatNumber(Number(order.price) / 1e18, 6)} {quoteToken}
+          {formatNumber(Number(order.price) / 1e36, 6)} {quoteToken}
         </span>
       </td>
       <td className="py-1.5 px-3">
@@ -465,6 +562,55 @@ function OrderRow({
           </span>
         )}
       </td>
+    </tr>
+  );
+}
+
+/** A flat order row for All Grids view */
+function FlatOrderRow({
+  order,
+  getStatusBadge,
+  t,
+}: {
+  order: OrderWithGridInfo;
+  getStatusBadge: (status: number) => React.ReactNode;
+  t: (key: string) => string;
+}) {
+  return (
+    <tr className="border-b border-(--border-subtle) last:border-0 hover:bg-[rgba(136,150,171,0.02)] transition-colors">
+      <td className="py-3 px-5">
+        <span className="font-mono text-[13px] text-(--text-secondary)">#{order.grid_id}</span>
+      </td>
+      <td className="py-3 px-5">
+        <span className="font-mono text-[11px] text-(--text-disabled)">
+          {order.owner
+            ? `${order.owner.slice(0, 6)}...${order.owner.slice(-4)}`
+            : '-'}
+        </span>
+      </td>
+      <td className="py-3 px-5">
+        <span className="text-sm font-semibold text-(--text-primary)">
+          {order.base_token}/{order.quote_token}
+        </span>
+      </td>
+      <td className="py-3 px-5">
+        {order.is_ask ? (
+          <span className="text-[11px] font-medium text-(--red)">{t('grid.order_list.ask')}</span>
+        ) : (
+          <span className="text-[11px] font-medium text-(--green)">{t('grid.order_list.bid')}</span>
+        )}
+      </td>
+      <td className="py-3 px-5">
+        <span className="font-mono text-[11px] text-(--text-secondary)">
+          {formatNumber(Number(order.price) / 1e36, 6)} {order.quote_token}
+        </span>
+      </td>
+      <td className="py-3 px-5">
+        <span className="font-mono text-[11px] text-(--text-secondary)">
+          {formatNumber(Number(order.amount) / 1e18, 4)} {order.is_ask ? order.base_token : order.quote_token}
+        </span>
+      </td>
+      <td className="py-3 px-5">{getStatusBadge(order.status)}</td>
     </tr>
   );
 }

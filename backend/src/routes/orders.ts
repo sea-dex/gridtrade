@@ -4,14 +4,45 @@ import {
   getOrdersQuerySchema,
   getOrderDetailQuerySchema,
   getOrderDetailParamsSchema,
+  getOrdersWithGridInfoQuerySchema,
   orderListResponseSchema,
   orderInfoSchema,
   orderFillsResponseSchema,
+  orderWithGridInfoListResponseSchema,
 } from '../schemas/orders.js';
-import { getOrders, getOrderDetail, getOrderFills } from '../services/orders.service.js';
+import { getOrders, getOrderDetail, getOrderFills, getOrdersWithGridInfo } from '../services/orders.service.js';
 
 const ordersRoutes: FastifyPluginAsync = async (fastify) => {
   const app = fastify.withTypeProvider<ZodTypeProvider>();
+
+  // Get flat list of orders with grid info (for All Grids view)
+  app.get(
+    '/with-grid-info',
+    {
+      schema: {
+        tags: ['Orders'],
+        summary: 'Get orders with grid info',
+        description: 'Get a flat list of orders joined with grid-level fields (owner, profits, compound, tokens)',
+        querystring: getOrdersWithGridInfoQuerySchema,
+        response: {
+          200: orderWithGridInfoListResponseSchema,
+        },
+      },
+    },
+    async (request, _reply) => {
+      const { chain_id, owner, grid_id, page, page_size } = request.query;
+
+      const result = await getOrdersWithGridInfo({
+        chainId: chain_id,
+        owner,
+        gridId: grid_id,
+        page,
+        pageSize: page_size,
+      });
+
+      return result;
+    }
+  );
 
   // Get list of orders
   app.get(
