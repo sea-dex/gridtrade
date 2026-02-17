@@ -48,12 +48,10 @@ go build -o gridex-indexer .
 
 ## Configuration
 
-Copy and edit the sample config:
+The indexer uses environment-specific configuration files:
 
-```bash
-cp config.yaml config.local.yaml
-# Edit config.local.yaml with your settings
-```
+- `config.yaml` — Default configuration (used for local development)
+- `config.prod.yaml` — Production environment configuration
 
 Configuration supports environment variable expansion using `${VAR:-default}` syntax.
 
@@ -75,16 +73,66 @@ Configuration supports environment variable expansion using `${VAR:-default}` sy
 
 ## Run
 
+### Local Development
+
 ```bash
 # Using default config.yaml
 ./gridex-indexer
 
-# Using custom config file
-./gridex-indexer -config config.local.yaml
+# Or explicitly specify config file
+./gridex-indexer -config config.yaml
+
+# Using production config
+./gridex-indexer -config config.prod.yaml
 
 # With environment variables
 RPC_URL=https://my-rpc.example.com DB_PASSWORD=secret ./gridex-indexer
 ```
+
+### Docker
+
+```bash
+# Build the image
+docker build -t gridex-indexer .
+
+# Run with prod config (default in Docker)
+docker run --rm gridex-indexer
+
+# Run with dev config (set ENV=dev)
+docker run --rm -e ENV=dev gridex-indexer
+
+# Run with environment variable overrides
+docker run --rm -e RPC_URL=https://my-rpc.example.com -e DB_PASSWORD=secret gridex-indexer
+
+# Mount custom config file (overrides built-in config)
+docker run --rm -v $(pwd)/config.yaml:/app/config.yaml gridex-indexer
+```
+
+The Docker image includes both `config.yaml` (default) and `config.prod.yaml`. By default, Docker runs with `ENV=prod` to use the production config. Set `ENV=dev` to use the default config instead.
+
+### Docker Compose
+
+The indexer can be run via Docker Compose, connecting to host services (PostgreSQL, Kafka):
+
+```bash
+# Copy environment file and edit as needed
+cp .env.example .env
+
+# Start the indexer
+docker compose up -d
+
+# View logs
+docker compose logs -f indexer
+
+# Stop the indexer
+docker compose down
+```
+
+The `docker-compose.yml` runs only the indexer service, connecting to:
+- **PostgreSQL** — Running on the host (`host.docker.internal:5432`)
+- **Kafka** — Running on the host (`host.docker.internal:9092`)
+
+Make sure PostgreSQL and Kafka are running on your host machine before starting the indexer container.
 
 ## Database
 

@@ -1,0 +1,36 @@
+version: "3.8"
+
+services:
+  indexer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VERSION: ${VERSION:-dev}
+        COMMIT: ${COMMIT:-unknown}
+        BUILD_TIME: ${BUILD_TIME:-unknown}
+    image: gridex-indexer:${VERSION:-latest}
+    container_name: gridex-indexer
+    restart: unless-stopped
+    environment:
+      # Set ENV=prod for production, ENV=dev for development
+      - ENV=${ENV:-prod}
+      # Database configuration (override via .env file)
+      - DB_HOST=${DB_HOST:-host.docker.internal}
+      - DB_PORT=${DB_PORT:-5432}
+      - DB_USER=${DB_USER:-gridex}
+      - DB_PASSWORD=${DB_PASSWORD:-gridex}
+      - DB_NAME=${DB_NAME:-gridex}
+      - DB_SSLMODE=${DB_SSLMODE:-disable}
+      # RPC configuration
+      - RPC_URL=${RPC_URL:-}
+      - START_BLOCK=${START_BLOCK:-0}
+      - RPC_TPM=${RPC_TPM:-5}
+      # Kafka configuration (connect to host Kafka)
+      - KAFKA_BROKER=${KAFKA_BROKER:-host.docker.internal:9092}
+      - KAFKA_TOPIC=${KAFKA_TOPIC:-gridex-events}
+      # Logging
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    network_mode: bridge

@@ -12,6 +12,7 @@ Thumbs.db
 *.swo
 gridex/
 config.yaml
+config.*.yaml
 Requirement.md
 
 # Indexer build artifacts

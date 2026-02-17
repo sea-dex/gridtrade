@@ -20,7 +20,8 @@ Thumbs.db
 .gitignore
 
 # Config with secrets (mount at runtime instead)
-config.yaml
+# Keep config.yaml (default) and config.prod.yaml for Docker image
+config.local.yaml
 
 # Documentation
 README.md
