@@ -30,4 +30,4 @@ export const NATIVE_TOKENS: Record<number, { symbol: string; name: string; decim
   [bscTestnet.id]: { symbol: 'tBNB', name: 'Test BNB', decimals: 18 },
 };
 
-export const DEFAULT_CHAIN = bscTestnet;
+export const DEFAULT_CHAIN = bsc;
