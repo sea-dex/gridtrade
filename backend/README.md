@@ -152,6 +152,14 @@ backend-ts/
 | `RATE_LIMIT_WINDOW_MS` | Rate limit window (ms) | `60000` |
 | `LOG_LEVEL` | Logging level | `info` |
 
+## Docker
+
+```
+docker compose down
+docker compose build
+docker compose up -d
+```
+
 ## Supported Chains
 
 - Ethereum (Chain ID: 1)

@@ -12,6 +12,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      network: host
+      args:
+        - HTTP_PROXY=${HTTP_PROXY:-}
+        - HTTPS_PROXY=${HTTPS_PROXY:-}
+        - NO_PROXY=${NO_PROXY:-}
     container_name: gridex-backend
     restart: unless-stopped
     ports:
@@ -28,7 +33,7 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5001/health"]
       interval: 30s
       timeout: 5s
       retries: 3
