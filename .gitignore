@@ -18,3 +18,4 @@ Requirement.md
 indexer/bin/
 indexer/main
 tradebot/
+docker/

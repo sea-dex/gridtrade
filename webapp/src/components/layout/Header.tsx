@@ -35,6 +35,7 @@ export function Header() {
     { href: '/limit', label: t('nav.limit_order') },
     { href: '/leaderboard', label: t('nav.leaderboard') },
     { href: '/info', label: t('nav.info') },
+    { href: '/docs', label: t('nav.docs') },
   ];
 
   return (
@@ -71,7 +72,9 @@ export function Header() {
         {/* Centered Navigation — desktop, Kamino style */}
         <nav className="hidden md:flex items-center gap-1 absolute left-1/2 -translate-x-1/2">
           {navItems.map((item) => {
-            const isActive = pathname === item.href;
+            const isActive = item.href === '/'
+              ? pathname === '/'
+              : pathname === item.href || pathname.startsWith(item.href + '/');
             return (
               <Link
                 key={item.href}
@@ -241,7 +244,9 @@ export function Header() {
           <div className="fixed top-25.25 left-0 right-0 z-50 md:hidden animate-slide-down">
             <nav className="bg-[#111a2e] border-b border-[rgba(136,150,171,0.08)] px-5 py-4 flex flex-col gap-1">
               {navItems.map((item) => {
-                const isActive = pathname === item.href;
+                const isActive = item.href === '/'
+                  ? pathname === '/'
+                  : pathname === item.href || pathname.startsWith(item.href + '/');
                 return (
                   <Link
                     key={item.href}

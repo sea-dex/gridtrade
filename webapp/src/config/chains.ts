@@ -10,17 +10,17 @@ export const CHAIN_NAMES: Record<number, string> = {
 };
 
 export const GRIDEX_ADDRESSES: Record<number, `0x${string}`> = {
-  [mainnet.id]: '0x5974411085Cc23863b57Fe7CaF106A81142E5Aaf',
-  [bsc.id]: '0x5974411085Cc23863b57Fe7CaF106A81142E5Aaf',
-  [base.id]: '0x5974411085Cc23863b57Fe7CaF106A81142E5Aaf',
-  [bscTestnet.id]: '0x5974411085Cc23863b57Fe7CaF106A81142E5Aaf',
+  [mainnet.id]: '0xb2eFe2C5291C5Fc8189eCEd4D1aeE6069C7FBC5e',
+  [bsc.id]: '0xb2eFe2C5291C5Fc8189eCEd4D1aeE6069C7FBC5e',
+  [base.id]: '0xb2eFe2C5291C5Fc8189eCEd4D1aeE6069C7FBC5e',
+  [bscTestnet.id]: '0xb2eFe2C5291C5Fc8189eCEd4D1aeE6069C7FBC5e',
 };
 
 export const LINEAR_STRATEGY_ADDRESSES: Record<number, `0x${string}`> = {
-  [mainnet.id]: '0x987a453f8b49d6ccd3962f5e1f25e0cfd22c22fb',
-  [bsc.id]: '0x987a453f8b49d6ccd3962f5e1f25e0cfd22c22fb',
-  [base.id]: '0x987a453f8b49d6ccd3962f5e1f25e0cfd22c22fb',
-  [bscTestnet.id]: '0x987a453f8b49d6ccd3962f5e1f25e0cfd22c22fb',
+  [mainnet.id]: '0xA7a92FdBFEac632C45F4aAD466e0aE0a430A8dDd',
+  [bsc.id]: '0xA7a92FdBFEac632C45F4aAD466e0aE0a430A8dDd',
+  [base.id]: '0xA7a92FdBFEac632C45F4aAD466e0aE0a430A8dDd',
+  [bscTestnet.id]: '0xA7a92FdBFEac632C45F4aAD466e0aE0a430A8dDd',
 };
 
 export const NATIVE_TOKENS: Record<number, { symbol: string; name: string; decimals: number }> = {

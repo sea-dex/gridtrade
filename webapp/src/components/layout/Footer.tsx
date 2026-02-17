@@ -29,7 +29,7 @@ export function Footer() {
 
   const resourceLinks = [
     { label: t('footer.documentation'), href: '/docs' },
-    { label: t('footer.api_reference'), href: '/docs#api', external: false },
+    { label: t('footer.api_reference'), href: '/docs/api', external: false },
     { label: t('footer.smart_contracts'), href: 'https://bscscan.com', external: true },
     { label: t('footer.bug_bounty'), href: 'https://github.com/sea-dex/security', external: true },
   ];
