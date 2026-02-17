@@ -1,7 +1,5 @@
-version: "3.8"
-
 services:
-  indexer:
+  grid-indexer:
     build:
       context: .
       dockerfile: Dockerfile
@@ -15,22 +13,42 @@ services:
     environment:
       # Set ENV=prod for production, ENV=dev for development
       - ENV=${ENV:-prod}
-      # Database configuration (override via .env file)
-      - DB_HOST=${DB_HOST:-host.docker.internal}
-      - DB_PORT=${DB_PORT:-5432}
-      - DB_USER=${DB_USER:-gridex}
-      - DB_PASSWORD=${DB_PASSWORD:-gridex}
-      - DB_NAME=${DB_NAME:-gridex}
-      - DB_SSLMODE=${DB_SSLMODE:-disable}
-      # RPC configuration
-      - RPC_URL=${RPC_URL:-}
-      - START_BLOCK=${START_BLOCK:-0}
-      - RPC_TPM=${RPC_TPM:-5}
-      # Kafka configuration (connect to host Kafka)
-      - KAFKA_BROKER=${KAFKA_BROKER:-host.docker.internal:9092}
-      - KAFKA_TOPIC=${KAFKA_TOPIC:-gridex-events}
-      # Logging
-      - LOG_LEVEL=${LOG_LEVEL:-info}
+      # All other settings (DB, RPC, Kafka, logging) use defaults from
+      # config.prod.yaml via ${VAR:-default} syntax. Only set env vars
+      # here if you need to OVERRIDE the YAML defaults, because
+      # os.LookupEnv returns true for any set var (even "0" or ""),
+      # which prevents the YAML default from being used.
+      #
+      # Uncomment to override config.prod.yaml defaults:
+      # - DB_HOST=${DB_HOST}
+      # - DB_PORT=${DB_PORT}
+      # - DB_USER=${DB_USER}
+      # - DB_PASSWORD=${DB_PASSWORD}
+      # - DB_NAME=${DB_NAME}
+      # - DB_SSLMODE=${DB_SSLMODE}
+      # - RPC_URL=${RPC_URL}
+      # - START_BLOCK=${START_BLOCK}
+      # - RPC_TPM=${RPC_TPM}
+      # - KAFKA_BROKER=${KAFKA_BROKER}
+      # - KAFKA_TOPIC=${KAFKA_TOPIC}
+      # - LOG_LEVEL=${LOG_LEVEL}
+      # Clear proxy settings for runtime – the host proxy at 127.0.0.1:7897
+      # is unreachable from inside the container. Go's net/http client
+      # respects these env vars and will try to proxy through them,
+      # causing "proxyconnect tcp: connection refused" errors.
+      - HTTP_PROXY=
+      - HTTPS_PROXY=
+      - http_proxy=
+      - https_proxy=
+      - NO_PROXY=*
+      - no_proxy=*
+    volumes:
+      - ./config.prod.yaml:/app/config.prod.yaml:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    network_mode: bridge
+    networks:
+      - kafka_default
+
+networks:
+  kafka_default:
+    external: true
