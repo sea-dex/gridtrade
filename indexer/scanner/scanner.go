@@ -51,6 +51,10 @@ type Scanner struct {
 	gridExAddr   common.Address
 	strategyAddr common.Address
 
+	// Kafka brokers and topic for offset tracking
+	kafkaBrokers []string
+	kafkaTopic   string
+
 	// tokenCache avoids repeated on-chain calls for the same token
 	tokenCache map[common.Address]*contracts.TokenInfo
 
@@ -69,6 +73,8 @@ func New(
 	client EthClient,
 	repo *db.Repository,
 	producer *kafka.Producer,
+	kafkaBrokers []string,
+	kafkaTopic string,
 	logger *slog.Logger,
 ) (*Scanner, error) {
 	decoder, err := contracts.NewDecoder()
@@ -107,6 +113,8 @@ func New(
 		logger:        logger.With("chain", cfg.Name, "chain_id", cfg.ChainID),
 		gridExAddr:    gridExAddr,
 		strategyAddr:  strategyAddr,
+		kafkaBrokers:  kafkaBrokers,
+		kafkaTopic:    kafkaTopic,
 		tokenCache:    make(map[common.Address]*contracts.TokenInfo),
 		strategyCache: make(map[string]*linearStrategyInfo),
 	}, nil
@@ -422,6 +430,18 @@ func (s *Scanner) processLogs(ctx context.Context, logs []types.Log, endBlock ui
 		if len(kafkaMsgs) > 0 {
 			if err := s.producer.SendBatch(ctx, kafkaMsgs); err != nil {
 				return fmt.Errorf("send kafka messages: %w", err)
+			}
+
+			// Get the latest Kafka offset and store it for tradebot synchronization
+			lastOffset, err := s.producer.LastOffset(s.kafkaBrokers, s.kafkaTopic)
+			if err != nil {
+				s.logger.Warn("failed to get kafka offset", "error", err)
+				// Non-fatal: offset tracking is for tradebot optimization
+			} else if lastOffset > 0 {
+				if err := db.UpdateKafkaOffset(ctx, tx, s.cfg.ChainID, lastOffset); err != nil {
+					s.logger.Warn("failed to update kafka offset", "error", err)
+					// Non-fatal: offset tracking is for tradebot optimization
+				}
 			}
 		}
 

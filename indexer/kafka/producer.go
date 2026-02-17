@@ -274,6 +274,43 @@ func (p *Producer) SendBatch(ctx context.Context, msgs []*Message) error {
 	return nil
 }
 
+// LastOffset returns the last offset of the Kafka topic.
+// This can be used by the indexer to track the latest offset for tradebot synchronization.
+func (p *Producer) LastOffset(brokers []string, topic string) (int64, error) {
+	// Connect to any broker
+	conn, err := kafkago.Dial("tcp", brokers[0])
+	if err != nil {
+		return 0, fmt.Errorf("dial kafka broker %s: %w", brokers[0], err)
+	}
+	defer conn.Close()
+
+	// Get the partition info for partition 0 (we use single partition)
+	partitions, err := conn.ReadPartitions(topic)
+	if err != nil {
+		return 0, fmt.Errorf("read partitions for topic %s: %w", topic, err)
+	}
+	if len(partitions) == 0 {
+		return 0, nil // No partitions means no messages yet
+	}
+
+	// Connect to the leader for partition 0
+	partition := partitions[0]
+	leaderAddr := net.JoinHostPort(partition.Leader.Host, fmt.Sprintf("%d", partition.Leader.Port))
+	leaderConn, err := kafkago.DialLeader(context.Background(), "tcp", leaderAddr, topic, partition.ID)
+	if err != nil {
+		return 0, fmt.Errorf("dial leader for topic %s partition %d: %w", topic, partition.ID, err)
+	}
+	defer leaderConn.Close()
+
+	// Read the last offset
+	lastOffset, err := leaderConn.ReadLastOffset()
+	if err != nil {
+		return 0, fmt.Errorf("read last offset: %w", err)
+	}
+
+	return lastOffset, nil
+}
+
 // Close closes the Kafka producer.
 func (p *Producer) Close() error {
 	return p.writer.Close()

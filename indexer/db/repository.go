@@ -69,6 +69,36 @@ func UpdateLastBlock(ctx context.Context, tx pgx.Tx, chainID int64, blockNumber 
 	return nil
 }
 
+// UpdateKafkaOffset updates the Kafka offset for a chain within a transaction.
+// This is used to track the latest Kafka message offset for tradebot synchronization.
+func UpdateKafkaOffset(ctx context.Context, tx pgx.Tx, chainID int64, kafkaOffset int64) error {
+	_, err := tx.Exec(ctx, `
+		INSERT INTO indexer_state (chain_id, last_block, kafka_offset, updated_at)
+		VALUES ($1, 0, $2, $3)
+		ON CONFLICT (chain_id) DO UPDATE SET kafka_offset = $2, updated_at = $3
+	`, chainID, kafkaOffset, time.Now().UTC())
+	if err != nil {
+		return fmt.Errorf("update kafka offset: %w", err)
+	}
+	return nil
+}
+
+// GetKafkaOffset returns the last Kafka offset for a chain.
+// Returns 0 if no record exists.
+func (r *Repository) GetKafkaOffset(ctx context.Context, chainID int64) (int64, error) {
+	var kafkaOffset int64
+	err := r.pool.QueryRow(ctx,
+		`SELECT COALESCE(kafka_offset, 0) FROM indexer_state WHERE chain_id = $1`, chainID,
+	).Scan(&kafkaOffset)
+	if err == pgx.ErrNoRows {
+		return 0, nil
+	}
+	if err != nil {
+		return 0, fmt.Errorf("get kafka offset: %w", err)
+	}
+	return kafkaOffset, nil
+}
+
 // InsertPair inserts a new pair record within a transaction.
 func InsertPair(ctx context.Context, tx pgx.Tx, chainID int64, pairID int,
 	baseToken, baseTokenAddr, quoteToken, quoteTokenAddr string, blockNumber uint64) error {

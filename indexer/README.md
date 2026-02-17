@@ -118,6 +118,9 @@ The indexer can be run via Docker Compose, connecting to host services (PostgreS
 # Copy environment file and edit as needed
 cp .env.example .env
 
+# Build
+docker compose build
+
 # Start the indexer
 docker compose up -d
 
