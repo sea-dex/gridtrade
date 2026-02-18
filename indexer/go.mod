@@ -6,7 +6,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1
 	github.com/ethereum/go-ethereum v1.14.12
 	github.com/jackc/pgx/v5 v5.7.2
-	github.com/segmentio/kafka-go v0.4.47
+	github.com/segmentio/kafka-go v0.4.48
 	gopkg.in/yaml.v3 v3.0.1
 )
 
