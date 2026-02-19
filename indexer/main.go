@@ -133,7 +133,7 @@ func main() {
 			)
 		}
 
-		s, err := scanner.New(cCfg, client, repo, producer, cfg.Kafka.Brokers, cfg.Kafka.Topic, logger)
+		s, err := scanner.New(cCfg, cfg.OKX, client, repo, producer, cfg.Kafka.Brokers, cfg.Kafka.Topic, logger)
 		if err != nil {
 			logger.Error("failed to create scanner",
 				"chain", cCfg.Name,

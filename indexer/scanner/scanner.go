@@ -17,6 +17,7 @@ import (
 	"github.com/gridex/indexer/contracts"
 	"github.com/gridex/indexer/db"
 	"github.com/gridex/indexer/kafka"
+	"github.com/gridex/indexer/pricing"
 )
 
 // EthClient defines the subset of ethclient.Client methods used by Scanner.
@@ -62,6 +63,9 @@ type Scanner struct {
 	// Populated when processing LinearStrategyCreated, consumed by GridOrderCreated.
 	// Entries are removed after consumption.
 	strategyCache map[string]*linearStrategyInfo
+
+	// okxPriceClient fetches token prices from OKX DEX API
+	okxPriceClient *pricing.OKXPriceClient
 }
 
 // New creates a new Scanner for a chain.
@@ -70,6 +74,7 @@ type Scanner struct {
 // contracts.ContractCaller, it will be used for contract calls as well.
 func New(
 	cfg config.ChainConfig,
+	okxCfg config.OKXConfig,
 	client EthClient,
 	repo *db.Repository,
 	producer *kafka.Producer,
@@ -103,20 +108,33 @@ func New(
 		return nil, fmt.Errorf("create caller: %w", err)
 	}
 
+	// Create OKX price client for fetching token prices
+	var okxPriceClient *pricing.OKXPriceClient
+	if okxCfg.APIKey != "" && okxCfg.SecretKey != "" {
+		okxPriceClient = pricing.NewOKXPriceClient(pricing.OKXConfig{
+			APIKey:     okxCfg.APIKey,
+			SecretKey:  okxCfg.SecretKey,
+			Passphrase: okxCfg.Passphrase,
+		}, logger)
+	} else {
+		logger.Warn("OKX API credentials not configured, init_price will be empty")
+	}
+
 	return &Scanner{
-		cfg:           cfg,
-		client:        client,
-		decoder:       decoder,
-		caller:        caller,
-		repo:          repo,
-		producer:      producer,
-		logger:        logger.With("chain", cfg.Name, "chain_id", cfg.ChainID),
-		gridExAddr:    gridExAddr,
-		strategyAddr:  strategyAddr,
-		kafkaBrokers:  kafkaBrokers,
-		kafkaTopic:    kafkaTopic,
-		tokenCache:    make(map[common.Address]*contracts.TokenInfo),
-		strategyCache: make(map[string]*linearStrategyInfo),
+		cfg:            cfg,
+		client:         client,
+		decoder:        decoder,
+		caller:         caller,
+		repo:           repo,
+		producer:       producer,
+		logger:         logger.With("chain", cfg.Name, "chain_id", cfg.ChainID),
+		gridExAddr:     gridExAddr,
+		strategyAddr:   strategyAddr,
+		kafkaBrokers:   kafkaBrokers,
+		kafkaTopic:     kafkaTopic,
+		tokenCache:     make(map[common.Address]*contracts.TokenInfo),
+		strategyCache:  make(map[string]*linearStrategyInfo),
+		okxPriceClient: okxPriceClient,
 	}, nil
 }
 

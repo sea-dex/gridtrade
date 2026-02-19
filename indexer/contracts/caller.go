@@ -96,6 +96,46 @@ const getGridOrderABIJSON = `[
   }
 ]`
 
+// pancakeV2PairABI is the ABI for PancakeSwap V2 pair contract to get reserves
+const pancakeV2PairABIJSON = `[
+  {
+    "inputs": [],
+    "name": "getReserves",
+    "outputs": [
+      {"name": "reserve0", "type": "uint112"},
+      {"name": "reserve1", "type": "uint112"},
+      {"name": "blockTimestampLast", "type": "uint32"}
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "token0",
+    "outputs": [{"name": "", "type": "address"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "token1",
+    "outputs": [{"name": "", "type": "address"}],
+    "stateMutability": "view",
+    "type": "function"
+  }
+]`
+
+// pancakeV2FactoryABI is the ABI for PancakeSwap V2 Factory to get pair address
+const pancakeV2FactoryABIJSON = `[
+  {
+    "inputs": [{"name": "tokenA", "type": "address"}, {"name": "tokenB", "type": "address"}],
+    "name": "getPair",
+    "outputs": [{"name": "pair", "type": "address"}],
+    "stateMutability": "view",
+    "type": "function"
+  }
+]`
+
 const erc20ABIJSON = `[
   {
     "inputs": [],

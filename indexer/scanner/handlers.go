@@ -167,6 +167,28 @@ func (s *Scanner) handleGridOrderCreated(ctx context.Context, tx pgx.Tx, log typ
 		return nil, fmt.Errorf("fetch quote token: %w", err)
 	}
 
+	// Fetch init_price from OKX DEX Aggregator Quote API
+	initPrice := ""
+	if s.okxPriceClient != nil {
+		initPrice, err = s.okxPriceClient.GetPairPrice(ctx, s.cfg.ChainID,
+			strings.ToLower(baseAddr.Hex()), strings.ToLower(quoteAddr.Hex()),
+			baseInfo.Decimals, quoteInfo.Decimals)
+		if err != nil {
+			s.logger.Warn("failed to fetch init_price from OKX, using empty string",
+				"error", err,
+				"base", baseAddr.Hex(),
+				"quote", quoteAddr.Hex(),
+			)
+			initPrice = ""
+		} else {
+			s.logger.Info("fetched init_price from OKX",
+				"init_price", initPrice,
+				"base", baseInfo.Symbol,
+				"quote", quoteInfo.Symbol,
+			)
+		}
+	}
+
 	// Calculate initialBaseAmount and initialQuoteAmount per Lens.sol calcGridAmount logic.
 	// bidPrice0Int and bidGapInt come from the cached LinearStrategyCreated event.
 	// For bid orders: price_i = bidPrice0 + bidGap * i (bidGap is int256, negative for bids)
@@ -199,7 +221,7 @@ func (s *Scanner) handleGridOrderCreated(ctx context.Context, tx pgx.Tx, log typ
 		initialBaseAmountStr, initialQuoteAmountStr,
 		int(event.Asks), int(event.Bids), int(event.Fee),
 		event.Compound, event.Oneshot,
-		askPrice0, askGap, bidPrice0, bidGap,
+		askPrice0, askGap, bidPrice0, bidGap, initPrice,
 		log.BlockNumber); err != nil {
 		return nil, err
 	}

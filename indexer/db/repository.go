@@ -132,24 +132,25 @@ func UpsertToken(ctx context.Context, tx pgx.Tx, chainID int64,
 
 // InsertGrid inserts a new grid record within a transaction.
 // askPrice0/askGap/bidPrice0/bidGap come from LinearStrategyCreated events (may be empty strings).
+// initPrice is the initial price when the grid was created (typically bidPrice0).
 func InsertGrid(ctx context.Context, tx pgx.Tx, chainID int64, gridID int64,
 	owner string, pairID int, baseToken, quoteToken, initialBaseAmount, initialQuoteAmount string,
 	askOrderCount, bidOrderCount, fee int, compound, oneshot bool,
-	askPrice0, askGap, bidPrice0, bidGap string,
+	askPrice0, askGap, bidPrice0, bidGap, initPrice string,
 	blockNumber uint64) error {
 	_, err := tx.Exec(ctx, `
 		INSERT INTO grids (grid_id, chain_id, owner, pair_id, base_token, quote_token,
 			ask_order_count, bid_order_count, initial_base_amount, initial_quote_amount,
 			fee, compound, oneshot, status,
-			ask_price0, ask_gap, bid_price0, bid_gap,
+			ask_price0, ask_gap, bid_price0, bid_gap, init_price,
 			create_block, update_block)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 1,
-			$14, $15, $16, $17, $18, $18)
+			$14, $15, $16, $17, $18, $19, $19)
 		ON CONFLICT DO NOTHING
 	`, gridID, chainID, owner, pairID, baseToken, quoteToken,
 		askOrderCount, bidOrderCount, initialBaseAmount, initialQuoteAmount,
 		fee, compound, oneshot,
-		askPrice0, askGap, bidPrice0, bidGap,
+		askPrice0, askGap, bidPrice0, bidGap, initPrice,
 		int64(blockNumber))
 	if err != nil {
 		return fmt.Errorf("insert grid: %w", err)

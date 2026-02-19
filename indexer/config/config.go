@@ -14,6 +14,7 @@ type Config struct {
 	Database DBConfig      `yaml:"database"`
 	Kafka    KafkaConfig   `yaml:"kafka"`
 	Log      LogConfig     `yaml:"log"`
+	OKX      OKXConfig     `yaml:"okx"`
 }
 
 // ChainConfig describes one EVM chain to index.
@@ -28,6 +29,13 @@ type ChainConfig struct {
 	PollInterval          int    `yaml:"poll_interval_ms"` // milliseconds between polls
 	Confirmations         uint64 `yaml:"confirmations"`    // blocks to wait for finality
 	RPCTPM                int    `yaml:"rpc_tpm"`          // max RPC requests per minute (0 = unlimited)
+}
+
+// OKXConfig holds OKX DEX API authentication config.
+type OKXConfig struct {
+	APIKey     string `yaml:"api_key"`
+	SecretKey  string `yaml:"secret_key"`
+	Passphrase string `yaml:"passphrase"`
 }
 
 // DBConfig holds PostgreSQL connection parameters.
