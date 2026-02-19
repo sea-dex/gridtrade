@@ -13,6 +13,7 @@ import {
   LayoutGrid,
   Zap,
   Shield,
+  FileCode,
 } from 'lucide-react';
 
 export default function DocsPage() {
@@ -41,6 +42,18 @@ export default function DocsPage() {
         'Creating a Grid Order',
         'Managing Your Grids',
         'Understanding Fees',
+      ],
+    },
+    {
+      id: 'contracts',
+      title: 'Contract Addresses',
+      icon: FileCode,
+      description: 'Deployed smart contract addresses on all supported chains',
+      href: '/docs/contracts',
+      items: [
+        'Diamond Proxy (EIP-2535)',
+        'Facet Addresses',
+        'Explorer Links',
       ],
     },
     {
@@ -123,21 +136,21 @@ export default function DocsPage() {
             </CardContent>
           </Card>
         </Link>
-        <Link href="/docs/api">
+        <Link href="/docs/contracts">
           <Card
             variant="bordered"
             className="p-4 hover:border-(--accent-muted) transition-colors cursor-pointer"
           >
             <CardContent className="p-0 flex items-center gap-3">
               <div className="p-2 bg-[#a855f7]/10 rounded-lg">
-                <Code className="w-5 h-5 text-[#a855f7]" />
+                <FileCode className="w-5 h-5 text-[#a855f7]" />
               </div>
               <div>
                 <h3 className="font-medium text-(--text-primary) text-sm">
-                  API Reference
+                  Contracts
                 </h3>
                 <p className="text-xs text-(--text-tertiary)">
-                  REST API documentation
+                  Smart contract addresses
                 </p>
               </div>
             </CardContent>

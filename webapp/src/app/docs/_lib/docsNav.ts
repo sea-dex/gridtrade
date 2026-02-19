@@ -40,6 +40,17 @@ export const docsNavigation: NavPage[] = [
     ],
   },
   {
+    href: '/docs/contracts',
+    title: 'Contract Addresses',
+    description: 'Deployed smart contract addresses',
+    sections: [
+      { id: 'addresses', title: 'Deployed Contracts' },
+      { id: 'supported-chains', title: 'Supported Chains' },
+      { id: 'explorer-links', title: 'Explorer Links' },
+      { id: 'architecture', title: 'Architecture' },
+    ],
+  },
+  {
     href: '/docs/api',
     title: 'API Reference',
     description: 'REST API documentation',
