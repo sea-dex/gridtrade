@@ -195,7 +195,7 @@ func EnsureTopic(brokers []string, topic string, numPartitions int, replicationF
 	// Wait for the topic to become visible on the broker. Topic creation is
 	// asynchronous on some Kafka deployments, so we poll until the metadata
 	// reflects the new topic.
-	for i := 0; i < topicVerifyRetries; i++ {
+	for range topicVerifyRetries {
 		time.Sleep(topicVerifyInterval)
 		if topicExists(brokers, topic) {
 			return nil

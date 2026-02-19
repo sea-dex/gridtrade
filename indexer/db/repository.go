@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"fmt"
+	"math/big"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -156,20 +157,29 @@ func InsertGrid(ctx context.Context, tx pgx.Tx, chainID int64, gridID int64,
 	return nil
 }
 
+// orderIDToHex converts a numeric orderID string to hexadecimal format.
+// Returns "0x" prefixed hex string.
+func orderIDToHex(orderID string) string {
+	bigInt := new(big.Int)
+	bigInt.SetString(orderID, 10)
+	return "0x" + bigInt.Text(16)
+}
+
 // InsertOrder inserts a new order record within a transaction.
 func InsertOrder(ctx context.Context, tx pgx.Tx, chainID int64, orderID string,
 	gridID int64, pairID int, isAsk, compound, oneshot bool, fee int,
 	amount, revAmount, initialBaseAmount, initialQuoteAmount, price, revPrice string,
 	blockNumber uint64) error {
+	hexOrderID := orderIDToHex(orderID)
 	_, err := tx.Exec(ctx, `
 		INSERT INTO orders (order_id, chain_id, grid_id, pair_id, is_ask, compound, oneshot,
 			fee, status, amount, rev_amount, initial_base_amount, initial_quote_amount,
-			price, rev_price, create_block, update_block)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 0, $9, $10, $11, $12, $13, $14, $15, $15)
+			price, rev_price, hex_order_id, create_block, update_block)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 0, $9, $10, $11, $12, $13, $14, $15, $16, $16)
 		ON CONFLICT DO NOTHING
 	`, orderID, chainID, gridID, pairID, isAsk, compound, oneshot, fee,
 		amount, revAmount, initialBaseAmount, initialQuoteAmount, price, revPrice,
-		int64(blockNumber))
+		hexOrderID, int64(blockNumber))
 	if err != nil {
 		return fmt.Errorf("insert order: %w", err)
 	}
