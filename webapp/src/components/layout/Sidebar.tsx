@@ -16,6 +16,7 @@ import {
   Github,
   Twitter,
   MessageCircle,
+  Send,
 } from 'lucide-react';
 
 const navItems = [
@@ -29,6 +30,7 @@ const navItems = [
 
 const socialLinks = [
   { href: 'https://twitter.com', icon: Twitter, label: 'Twitter' },
+  { href: 'https://t.me/gridtradexyz', icon: Send, label: 'Telegram' },
   { href: 'https://discord.com', icon: MessageCircle, label: 'Discord' },
   { href: 'https://github.com', icon: Github, label: 'GitHub' },
 ];

@@ -9,10 +9,12 @@ import {
   BookOpen,
   ExternalLink,
   Mail,
+  Send,
 } from 'lucide-react';
 
 const socialLinks = [
   { icon: Twitter, href: 'https://x.com/sea_protocol', label: 'Twitter' },
+  { icon: Send, href: 'https://t.me/gridtradexyz', label: 'Telegram' },
   { icon: Github, href: 'https://github.com/sea-dex', label: 'GitHub' },
   { icon: BookOpen, href: 'https://medium.com/@seaprotocol', label: 'Medium' },
 ];
@@ -36,6 +38,7 @@ export function Footer() {
 
   const communityLinks = [
     { label: 'Twitter / X', href: 'https://x.com/sea_protocol', external: true },
+    { label: 'Telegram', href: 'https://t.me/gridtradexyz', external: true },
     { label: 'Medium', href: 'https://medium.com/@seaprotocol', external: true },
     { label: 'GitHub', href: 'https://github.com/sea-dex', external: true },
     { label: t('footer.governance'), href: '#', external: false },
