@@ -63,7 +63,7 @@ export function Sidebar() {
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    'flex items-center gap-2.5 px-3 py-2 rounded-(--radius-sm) text-[13px] font-medium transition-colors duration-150',
+                    'flex items-center gap-2.5 px-3 py-2 rounded-sm text-[13px] font-medium transition-colors duration-150',
                     isActive
                       ? 'bg-[rgba(136,150,171,0.08)] text-(--text-primary)'
                       : 'text-(--text-secondary) hover:bg-[rgba(136,150,171,0.04)] hover:text-(--text-primary)'
@@ -83,7 +83,7 @@ export function Sidebar() {
                 href="https://docs.gridex.io"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center justify-between px-3 py-2 rounded-(--radius-sm) text-[13px] text-(--text-tertiary) hover:bg-[rgba(136,150,171,0.04)] hover:text-(--text-secondary) transition-colors"
+                className="flex items-center justify-between px-3 py-2 rounded-sm text-[13px] text-(--text-tertiary) hover:bg-[rgba(136,150,171,0.04)] hover:text-(--text-secondary) transition-colors"
               >
                 <span>Documentation</span>
                 <ExternalLink size={12} />
@@ -92,7 +92,7 @@ export function Sidebar() {
                 href="https://github.com/gridex"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center justify-between px-3 py-2 rounded-(--radius-sm) text-[13px] text-(--text-tertiary) hover:bg-[rgba(136,150,171,0.04)] hover:text-(--text-secondary) transition-colors"
+                className="flex items-center justify-between px-3 py-2 rounded-sm text-[13px] text-(--text-tertiary) hover:bg-[rgba(136,150,171,0.04)] hover:text-(--text-secondary) transition-colors"
               >
                 <span>Security</span>
                 <ExternalLink size={12} />
@@ -107,7 +107,7 @@ export function Sidebar() {
                   href={link.href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="p-2 rounded-(--radius-sm) text-(--text-disabled) hover:text-(--text-secondary) hover:bg-[rgba(136,150,171,0.04)] transition-colors"
+                  className="p-2 rounded-sm text-(--text-disabled) hover:text-(--text-secondary) hover:bg-[rgba(136,150,171,0.04)] transition-colors"
                   title={link.label}
                 >
                   <link.icon size={15} />
