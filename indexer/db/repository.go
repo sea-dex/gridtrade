@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/gridex/indexer/pricing"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -353,7 +354,10 @@ type ProtocolStats struct {
 }
 
 // ComputeProtocolStats aggregates protocol-level statistics from existing tables.
-func ComputeProtocolStats(ctx context.Context, tx pgx.Tx, chainID int64) (*ProtocolStats, error) {
+// nativeTokenPrice is the USD price of the chain's native token (e.g., BNB, ETH)
+// fetched from Binance. It is used to value wrapped native tokens in TVL.
+// If nativeTokenPrice is nil, wrapped native tokens are valued at $0.
+func ComputeProtocolStats(ctx context.Context, tx pgx.Tx, chainID int64, nativeTokenPrice *big.Float) (*ProtocolStats, error) {
 	stats := &ProtocolStats{}
 
 	// Total volume: SUM of filled_volume (quote token amounts) from order_fills
@@ -365,17 +369,15 @@ func ComputeProtocolStats(ctx context.Context, tx pgx.Tx, chainID int64) (*Proto
 		return nil, fmt.Errorf("compute total volume: %w", err)
 	}
 
-	// Total TVL: SUM of quote token amounts from active orders (status=0).
-	// For ask orders: rev_amount is quote; for bid orders: amount is quote.
-	err = tx.QueryRow(ctx, `
-		SELECT COALESCE(SUM(
-			CASE WHEN is_ask THEN rev_amount::NUMERIC ELSE amount::NUMERIC END
-		), 0)::TEXT
-		FROM orders WHERE chain_id = $1 AND status = 0
-	`, chainID).Scan(&stats.TotalTVL)
+	// Total TVL: Only count stablecoins and wrapped native tokens.
+	// For each active order, we include BOTH amount (base token) and rev_amount (quote token),
+	// but only if the respective token is a stablecoin or wrapped native token.
+	// Stablecoins are valued at $1; wrapped native tokens at the Binance spot price.
+	tvl, err := computeTVL(ctx, tx, chainID, nativeTokenPrice)
 	if err != nil {
 		return nil, fmt.Errorf("compute total tvl: %w", err)
 	}
+	stats.TotalTVL = tvl
 
 	// Total grids and active grids
 	err = tx.QueryRow(ctx, `
@@ -412,6 +414,96 @@ func ComputeProtocolStats(ctx context.Context, tx pgx.Tx, chainID int64) (*Proto
 	}
 
 	return stats, nil
+}
+
+// computeTVL calculates the total TVL by summing USD values of stablecoins and
+// wrapped native tokens held in active orders.
+// For each active order:
+//   - amount is denominated in the base token (pair's base_token_address)
+//   - rev_amount is denominated in the quote token (pair's quote_token_address)
+//
+// Only tokens classified as stablecoins or wrapped native are counted.
+// Stablecoins are valued at $1; wrapped native tokens at nativeTokenPrice.
+func computeTVL(ctx context.Context, tx pgx.Tx, chainID int64, nativeTokenPrice *big.Float) (string, error) {
+	// Query all active orders joined with their pair to get token addresses.
+	rows, err := tx.Query(ctx, `
+		SELECT o.amount, o.rev_amount,
+		       p.base_token_address, p.quote_token_address
+		FROM orders o
+		JOIN pairs p ON o.pair_id = p.pair_id AND o.chain_id = p.chain_id
+		WHERE o.chain_id = $1 AND o.status = 0
+	`, chainID)
+	if err != nil {
+		return "0", fmt.Errorf("query active orders for tvl: %w", err)
+	}
+	defer rows.Close()
+
+	// Use big.Float for precise accumulation of USD values.
+	totalUSD := new(big.Float).SetFloat64(0)
+	one := new(big.Float).SetFloat64(1)
+
+	for rows.Next() {
+		var amountStr, revAmountStr, baseAddr, quoteAddr string
+		if err := rows.Scan(&amountStr, &revAmountStr, &baseAddr, &quoteAddr); err != nil {
+			return "0", fmt.Errorf("scan order row for tvl: %w", err)
+		}
+
+		// Check base token (amount is in base token units)
+		if baseInfo, ok := pricing.LookupTVLToken(chainID, baseAddr); ok {
+			addTokenValue(totalUSD, amountStr, baseInfo, nativeTokenPrice, one)
+		}
+
+		// Check quote token (rev_amount is in quote token units)
+		if quoteInfo, ok := pricing.LookupTVLToken(chainID, quoteAddr); ok {
+			addTokenValue(totalUSD, revAmountStr, quoteInfo, nativeTokenPrice, one)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return "0", fmt.Errorf("iterate orders for tvl: %w", err)
+	}
+
+	// Scale to 18-decimal precision for consistency with on-chain token amounts.
+	precision := new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil)
+	scaled := new(big.Float).Mul(totalUSD, new(big.Float).SetInt(precision))
+	totalInt, _ := scaled.Int(nil)
+	return totalInt.String(), nil
+}
+
+// addTokenValue converts a raw token amount to USD and adds it to the accumulator.
+// rawAmount is the raw integer amount (no decimals applied).
+// info contains the token type and decimal count.
+// nativePrice is the USD price for wrapped native tokens.
+// one is a pre-allocated big.Float(1) for stablecoin pricing.
+func addTokenValue(acc *big.Float, rawAmount string, info pricing.TVLTokenInfo, nativePrice, one *big.Float) {
+	amount, ok := new(big.Int).SetString(rawAmount, 10)
+	if !ok || amount.Sign() <= 0 {
+		return
+	}
+
+	// Convert raw amount to human-readable by dividing by 10^decimals.
+	decimals := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(info.Decimals)), nil)
+	humanAmount := new(big.Float).Quo(
+		new(big.Float).SetInt(amount),
+		new(big.Float).SetInt(decimals),
+	)
+
+	// Multiply by the appropriate USD price.
+	var price *big.Float
+	switch info.Type {
+	case pricing.TokenTypeStablecoin:
+		price = one // $1
+	case pricing.TokenTypeWrappedNative:
+		if nativePrice != nil {
+			price = nativePrice
+		} else {
+			return // skip if no price available
+		}
+	default:
+		return // unknown token type, skip
+	}
+
+	usdValue := new(big.Float).Mul(humanAmount, price)
+	acc.Add(acc, usdValue)
 }
 
 // UpsertProtocolStats writes aggregated stats to the protocol_stats table.

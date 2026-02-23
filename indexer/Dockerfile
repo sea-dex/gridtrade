@@ -14,9 +14,22 @@ RUN apk add --no-cache git ca-certificates tzdata
 
 WORKDIR /src
 
+# Avoid inheriting host proxy env during docker build (e.g. HTTP(S)_PROXY=http://127.0.0.1:7897)
+# which is unreachable from inside the build container and breaks `go mod download`.
+ENV HTTP_PROXY= \
+    HTTPS_PROXY= \
+    http_proxy= \
+    https_proxy= \
+    ALL_PROXY= \
+    all_proxy= \
+    NO_PROXY= \
+    no_proxy=
+
 # Cache Go modules
 COPY go.mod go.sum ./
-RUN go mod download
+# Ensure Go does not try to use host-only proxy settings (e.g. 127.0.0.1:7897)
+RUN env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy -u ALL_PROXY -u all_proxy -u NO_PROXY -u no_proxy \
+    go mod download
 
 # Copy source code
 COPY . .
@@ -27,12 +40,13 @@ ARG COMMIT=unknown
 ARG BUILD_TIME=unknown
 
 # Build static binary
-RUN CGO_ENABLED=0 GOOS=linux go build \
-    -ldflags "-s -w \
-      -X main.version=${VERSION} \
-      -X main.commit=${COMMIT} \
-      -X main.buildTime=${BUILD_TIME}" \
-    -o /bin/indexer .
+RUN env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy -u ALL_PROXY -u all_proxy -u NO_PROXY -u no_proxy \
+    CGO_ENABLED=0 GOOS=linux go build \
+      -ldflags "-s -w \
+        -X main.version=${VERSION} \
+        -X main.commit=${COMMIT} \
+        -X main.buildTime=${BUILD_TIME}" \
+      -o /bin/indexer .
 
 # ── Stage 2: Runtime ─────────────────────────────────────────
 FROM alpine:3.21

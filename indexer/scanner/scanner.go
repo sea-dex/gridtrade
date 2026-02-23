@@ -66,6 +66,9 @@ type Scanner struct {
 
 	// okxPriceClient fetches token prices from OKX DEX API
 	okxPriceClient *pricing.OKXPriceClient
+
+	// binanceClient fetches spot prices from Binance for TVL calculation
+	binanceClient *pricing.BinancePriceClient
 }
 
 // New creates a new Scanner for a chain.
@@ -135,6 +138,7 @@ func New(
 		tokenCache:     make(map[common.Address]*contracts.TokenInfo),
 		strategyCache:  make(map[string]*linearStrategyInfo),
 		okxPriceClient: okxPriceClient,
+		binanceClient:  pricing.NewBinancePriceClient(logger),
 	}, nil
 }
 
@@ -468,8 +472,24 @@ func (s *Scanner) processLogs(ctx context.Context, logs []types.Log, endBlock ui
 }
 
 // updateProtocolStats computes aggregate stats and upserts them into protocol_stats.
+// It fetches the native token price from Binance for TVL calculation.
 func (s *Scanner) updateProtocolStats(ctx context.Context, tx pgx.Tx, blockNumber uint64) error {
-	stats, err := db.ComputeProtocolStats(ctx, tx, s.cfg.ChainID)
+	// Fetch native token price from Binance for TVL calculation.
+	var nativeTokenPrice *big.Float
+	if symbol, ok := pricing.ChainNativeSymbol[s.cfg.ChainID]; ok && s.binanceClient != nil {
+		priceStr, err := s.binanceClient.GetSpotPrice(ctx, symbol)
+		if err != nil {
+			s.logger.Warn("failed to fetch native token price from Binance, TVL will exclude wrapped native tokens",
+				"symbol", symbol, "error", err)
+		} else {
+			nativeTokenPrice, _, _ = new(big.Float).Parse(priceStr, 10)
+			if nativeTokenPrice == nil {
+				s.logger.Warn("failed to parse Binance price", "symbol", symbol, "price", priceStr)
+			}
+		}
+	}
+
+	stats, err := db.ComputeProtocolStats(ctx, tx, s.cfg.ChainID, nativeTokenPrice)
 	if err != nil {
 		return err
 	}
