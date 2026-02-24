@@ -9,10 +9,19 @@ import { formatAddress, formatNumber } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { Trophy, Copy, TrendingUp, Loader2, ArrowUp, ArrowDown } from 'lucide-react';
 
-type SortableColumn = {
-  key: SortField;
-  label: string;
-  align: 'left' | 'right';
+// type SortableColumn = {
+//   key: SortField;
+//   label: string;
+//   align: 'left' | 'right';
+// };
+
+const SortIndicator = ({ field, sortBy, sortOrder }: { field: SortField; sortBy: SortField; sortOrder: SortOrder }) => {
+  if (sortBy !== field) return null;
+  return sortOrder === 'desc' ? (
+    <ArrowDown size={12} className="inline ml-0.5" />
+  ) : (
+    <ArrowUp size={12} className="inline ml-0.5" />
+  );
 };
 
 export default function LeaderboardPage() {
@@ -36,15 +45,6 @@ export default function LeaderboardPage() {
       setSortBy(field);
       setSortOrder('desc');
     }
-  };
-
-  const SortIndicator = ({ field }: { field: SortField }) => {
-    if (sortBy !== field) return null;
-    return sortOrder === 'desc' ? (
-      <ArrowDown size={12} className="inline ml-0.5" />
-    ) : (
-      <ArrowUp size={12} className="inline ml-0.5" />
-    );
   };
 
   const getRankBadge = (rank: number) => {
@@ -119,6 +119,9 @@ export default function LeaderboardPage() {
                       {t('leaderboard.rank')}
                     </th>
                     <th className="text-left py-3.5 px-5 text-xs font-medium text-(--text-tertiary) uppercase tracking-wider">
+                      Grid
+                    </th>
+                    <th className="text-left py-3.5 px-5 text-xs font-medium text-(--text-tertiary) uppercase tracking-wider">
                       {t('leaderboard.trader')}
                     </th>
                     <th className="text-left py-3.5 px-5 text-xs font-medium text-(--text-tertiary) uppercase tracking-wider">
@@ -130,7 +133,7 @@ export default function LeaderboardPage() {
                     >
                       <span className={cn(sortBy === 'profit' ? 'text-(--text-primary)' : 'text-(--text-tertiary)')}>
                         {t('leaderboard.profit')}
-                        <SortIndicator field="profit" />
+                        <SortIndicator field="profit" sortBy={sortBy} sortOrder={sortOrder} />
                       </span>
                     </th>
                     <th
@@ -139,7 +142,7 @@ export default function LeaderboardPage() {
                     >
                       <span className={cn(sortBy === 'profit_rate' ? 'text-(--text-primary)' : 'text-(--text-tertiary)')}>
                         {t('leaderboard.profit_rate')}
-                        <SortIndicator field="profit_rate" />
+                        <SortIndicator field="profit_rate" sortBy={sortBy} sortOrder={sortOrder} />
                       </span>
                     </th>
                     <th
@@ -148,7 +151,7 @@ export default function LeaderboardPage() {
                     >
                       <span className={cn(sortBy === 'volume' ? 'text-(--text-primary)' : 'text-(--text-tertiary)')}>
                         {t('leaderboard.volume')}
-                        <SortIndicator field="volume" />
+                        <SortIndicator field="volume" sortBy={sortBy} sortOrder={sortOrder} />
                       </span>
                     </th>
                     <th
@@ -157,7 +160,7 @@ export default function LeaderboardPage() {
                     >
                       <span className={cn(sortBy === 'tvl' ? 'text-(--text-primary)' : 'text-(--text-tertiary)')}>
                         TVL
-                        <SortIndicator field="tvl" />
+                        <SortIndicator field="tvl" sortBy={sortBy} sortOrder={sortOrder} />
                       </span>
                     </th>
                     <th
@@ -166,7 +169,7 @@ export default function LeaderboardPage() {
                     >
                       <span className={cn(sortBy === 'apr' ? 'text-(--text-primary)' : 'text-(--text-tertiary)')}>
                         APR
-                        <SortIndicator field="apr" />
+                        <SortIndicator field="apr" sortBy={sortBy} sortOrder={sortOrder} />
                       </span>
                     </th>
                     <th className="text-right py-3.5 px-5 text-xs font-medium text-(--text-tertiary) uppercase tracking-wider">
@@ -204,6 +207,9 @@ export default function LeaderboardPage() {
                       >
                         <td className="py-3.5 px-5">
                           {getRankBadge(entry.rank)}
+                        </td>
+                        <td className="py-3.5 px-5">
+                          <span className="font-mono text-xs text-(--text-secondary)">{entry.gridId}</span>
                         </td>
                         <td className="py-3.5 px-5">
                           <div className="flex items-center gap-2">
