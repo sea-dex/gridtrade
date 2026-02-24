@@ -122,6 +122,7 @@ export async function getGridsWithOrders(params: GetGridsParams): Promise<GridWi
       price: o.price,
       amount: o.amount,
       rev_amount: o.revAmount,
+      rev_price: o.revPrice,
       status: o.status,
     };
     const existing = ordersByGridId.get(o.gridId) || [];
@@ -205,6 +206,7 @@ export async function getGridDetail(chainId: number, gridId: number): Promise<Gr
     price: o.price,
     amount: o.amount,
     rev_amount: o.revAmount,
+    rev_price: o.revPrice,
     status: o.status,
   }));
 

@@ -108,6 +108,7 @@
       "bid": "Bid",
       "price": "Price",
       "amount": "Amount",
+      "rev_price": "Rev Price",
       "rev_amount": "Rev Amount",
       "compound": "Compound",
       "fee": "Fee",

@@ -480,6 +480,9 @@ function GridRow({
                         {t('grid.order_list.amount')}
                       </th>
                       <th className="text-left py-1.5 px-3 text-[10px] font-medium text-(--text-disabled) uppercase tracking-wider">
+                        {t('grid.order_list.rev_price')}
+                      </th>
+                      <th className="text-left py-1.5 px-3 text-[10px] font-medium text-(--text-disabled) uppercase tracking-wider">
                         {t('grid.order_list.rev_amount')}
                       </th>
                       <th className="text-left py-1.5 px-3 text-[10px] font-medium text-(--text-disabled) uppercase tracking-wider">
@@ -544,6 +547,11 @@ function OrderRow({
       <td className="py-1.5 px-3">
         <span className="font-mono text-[11px] text-(--text-secondary)">
           {formatNumber(Number(order.amount) / 1e18, 4)} {order.is_ask ? baseToken : quoteToken}
+        </span>
+      </td>
+      <td className="py-1.5 px-3">
+        <span className="font-mono text-[11px] text-(--text-secondary)">
+          {formatNumber(Number(order.rev_price) / 1e36, 6)} {quoteToken}
         </span>
       </td>
       <td className="py-1.5 px-3">

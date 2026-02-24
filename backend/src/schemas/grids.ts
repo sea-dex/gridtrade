@@ -31,6 +31,7 @@ export const gridOrderSchema = z.object({
   price: z.string(),
   amount: z.string(),
   rev_amount: z.string(),
+  rev_price: z.string(),
   status: z.number(),
 });
 

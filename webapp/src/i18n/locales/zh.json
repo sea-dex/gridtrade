@@ -117,6 +117,7 @@
       "bid": "买",
       "price": "价格",
       "amount": "数量",
+      "rev_price": "反向价格",
       "rev_amount": "反向数量",
       "compound": "复利",
       "fee": "手续费",

@@ -38,6 +38,7 @@ export interface GridOrder {
   is_ask: boolean;
   price: string;
   amount: string;
+  rev_price: string;
   rev_amount: string;
   status: number;
 }
