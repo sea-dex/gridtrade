@@ -189,6 +189,33 @@ func (s *Scanner) handleGridOrderCreated(ctx context.Context, tx pgx.Tx, log typ
 		}
 	}
 
+	// Fetch USD prices for base and quote tokens (for APR calculation)
+	chainIndex := fmt.Sprintf("%d", s.cfg.ChainID)
+	initBasePrice := ""
+	initQuotePrice := ""
+	if s.okxPriceClient != nil {
+		initBasePrice, err = s.okxPriceClient.GetTokenPrice(ctx, chainIndex, strings.ToLower(baseAddr.Hex()))
+		if err != nil {
+			s.logger.Warn("failed to fetch init_base_price from OKX",
+				"error", err, "base", baseAddr.Hex())
+			initBasePrice = ""
+		}
+		initQuotePrice, err = s.okxPriceClient.GetTokenPrice(ctx, chainIndex, strings.ToLower(quoteAddr.Hex()))
+		if err != nil {
+			s.logger.Warn("failed to fetch init_quote_price from OKX",
+				"error", err, "quote", quoteAddr.Hex())
+			initQuotePrice = ""
+		}
+		if initBasePrice != "" && initQuotePrice != "" {
+			s.logger.Info("fetched init USD prices from OKX",
+				"init_base_price", initBasePrice,
+				"init_quote_price", initQuotePrice,
+				"base", baseInfo.Symbol,
+				"quote", quoteInfo.Symbol,
+			)
+		}
+	}
+
 	// Calculate initialBaseAmount and initialQuoteAmount per Lens.sol calcGridAmount logic.
 	// bidPrice0Int and bidGapInt come from the cached LinearStrategyCreated event.
 	// For bid orders: price_i = bidPrice0 + bidGap * i (bidGap is int256, negative for bids)
@@ -222,6 +249,7 @@ func (s *Scanner) handleGridOrderCreated(ctx context.Context, tx pgx.Tx, log typ
 		int(event.Asks), int(event.Bids), int(event.Fee),
 		event.Compound, event.Oneshot,
 		askPrice0, askGap, bidPrice0, bidGap, initPrice,
+		initBasePrice, initQuotePrice,
 		log.BlockNumber); err != nil {
 		return nil, err
 	}

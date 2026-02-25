@@ -11,6 +11,30 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// ActiveGridRow holds the data needed for APR calculation.
+type ActiveGridRow struct {
+	GridID             int64
+	ChainID            int64
+	PairID             int
+	InitialBaseAmount  string
+	InitialQuoteAmount string
+	InitBasePrice      string
+	InitQuotePrice     string
+	Profits            string
+	Compound           bool
+	CreatedAt          time.Time
+	BaseTokenAddress   string
+	QuoteTokenAddress  string
+}
+
+// GridOrderAmounts holds aggregated order amounts for a grid.
+// BaseAmount = SUM(amount) for ask orders + SUM(rev_amount) for bid orders
+// QuoteAmount = SUM(rev_amount) for ask orders + SUM(amount) for bid orders
+type GridOrderAmounts struct {
+	BaseAmount  string
+	QuoteAmount string
+}
+
 // Repository provides database operations within transactions.
 type Repository struct {
 	pool *pgxpool.Pool
@@ -134,24 +158,28 @@ func UpsertToken(ctx context.Context, tx pgx.Tx, chainID int64,
 // InsertGrid inserts a new grid record within a transaction.
 // askPrice0/askGap/bidPrice0/bidGap come from LinearStrategyCreated events (may be empty strings).
 // initPrice is the initial price when the grid was created (typically bidPrice0).
+// initBasePrice/initQuotePrice are USD prices at creation time from OKX DEX API.
 func InsertGrid(ctx context.Context, tx pgx.Tx, chainID int64, gridID int64,
 	owner string, pairID int, baseToken, quoteToken, initialBaseAmount, initialQuoteAmount string,
 	askOrderCount, bidOrderCount, fee int, compound, oneshot bool,
 	askPrice0, askGap, bidPrice0, bidGap, initPrice string,
+	initBasePrice, initQuotePrice string,
 	blockNumber uint64) error {
 	_, err := tx.Exec(ctx, `
 		INSERT INTO grids (grid_id, chain_id, owner, pair_id, base_token, quote_token,
 			ask_order_count, bid_order_count, initial_base_amount, initial_quote_amount,
 			fee, compound, oneshot, status,
 			ask_price0, ask_gap, bid_price0, bid_gap, init_price,
+			init_base_price, init_quote_price,
 			create_block, update_block)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 1,
-			$14, $15, $16, $17, $18, $19, $19)
+			$14, $15, $16, $17, $18, $19, $20, $21, $21)
 		ON CONFLICT DO NOTHING
 	`, gridID, chainID, owner, pairID, baseToken, quoteToken,
 		askOrderCount, bidOrderCount, initialBaseAmount, initialQuoteAmount,
 		fee, compound, oneshot,
 		askPrice0, askGap, bidPrice0, bidGap, initPrice,
+		initBasePrice, initQuotePrice,
 		int64(blockNumber))
 	if err != nil {
 		return fmt.Errorf("insert grid: %w", err)
@@ -553,6 +581,18 @@ func UpdateLeaderboard(ctx context.Context, tx pgx.Tx, chainID int64, blockNumbe
 	return nil
 }
 
+// UpdateLeaderboardPeriodic refreshes the leaderboard in its own transaction.
+// This is used by the periodic updater (outside the scanning loop).
+func (r *Repository) UpdateLeaderboardPeriodic(ctx context.Context, chainID int64) error {
+	lastBlock, err := r.GetLastBlock(ctx, chainID)
+	if err != nil {
+		return fmt.Errorf("get last block for leaderboard: %w", err)
+	}
+	return r.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) error {
+		return UpdateLeaderboard(ctx, tx, chainID, lastBlock)
+	})
+}
+
 // updateLeaderboardPeriod upserts leaderboard rows for a single period.
 func updateLeaderboardPeriod(ctx context.Context, tx pgx.Tx, chainID int64, p LeaderboardPeriod, blockNumber uint64) error {
 	// Build the time filter for order_fills. For 'all' we use no filter.
@@ -692,5 +732,74 @@ func UpdatePairVolumes(ctx context.Context, tx pgx.Tx, chainID int64, date strin
 		return fmt.Errorf("upsert pair daily stats: %w", err)
 	}
 
+	return nil
+}
+
+// GetActiveGridsForAPR returns all active grids (status=1) with their pair token addresses
+// for APR calculation.
+func (r *Repository) GetActiveGridsForAPR(ctx context.Context, chainID int64) ([]ActiveGridRow, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT g.grid_id, g.chain_id, g.pair_id,
+			g.initial_base_amount, g.initial_quote_amount,
+			g.init_base_price, g.init_quote_price,
+			g.profits, g.compound, g.created_at,
+			p.base_token_address, p.quote_token_address
+		FROM grids g
+		JOIN pairs p ON g.chain_id = p.chain_id AND g.pair_id = p.pair_id
+		WHERE g.chain_id = $1 AND g.status = 1
+			AND g.init_base_price != '' AND g.init_quote_price != ''
+	`, chainID)
+	if err != nil {
+		return nil, fmt.Errorf("query active grids for APR: %w", err)
+	}
+	defer rows.Close()
+
+	var result []ActiveGridRow
+	for rows.Next() {
+		var g ActiveGridRow
+		if err := rows.Scan(
+			&g.GridID, &g.ChainID, &g.PairID,
+			&g.InitialBaseAmount, &g.InitialQuoteAmount,
+			&g.InitBasePrice, &g.InitQuotePrice,
+			&g.Profits, &g.Compound, &g.CreatedAt,
+			&g.BaseTokenAddress, &g.QuoteTokenAddress,
+		); err != nil {
+			return nil, fmt.Errorf("scan active grid row: %w", err)
+		}
+		result = append(result, g)
+	}
+	return result, rows.Err()
+}
+
+// GetGridOrderAmounts returns the aggregated base and quote amounts for a grid
+// by summing order amounts from both ask and bid sides:
+//   - Ask orders (is_ask=true): base_amount = amount, quote_amount = rev_amount
+//   - Bid orders (is_ask=false): base_amount = rev_amount, quote_amount = amount
+//
+// The grid's total base/quote amounts are the sum of both sides.
+func (r *Repository) GetGridOrderAmounts(ctx context.Context, chainID int64, gridID int64) (GridOrderAmounts, error) {
+	var amounts GridOrderAmounts
+	err := r.pool.QueryRow(ctx, `
+		SELECT
+			COALESCE(SUM(CASE WHEN is_ask THEN amount::NUMERIC ELSE rev_amount::NUMERIC END), 0)::TEXT,
+			COALESCE(SUM(CASE WHEN is_ask THEN rev_amount::NUMERIC ELSE amount::NUMERIC END), 0)::TEXT
+		FROM orders
+		WHERE chain_id = $1 AND grid_id = $2
+	`, chainID, gridID).Scan(&amounts.BaseAmount, &amounts.QuoteAmount)
+	if err != nil {
+		return amounts, fmt.Errorf("get grid order amounts: %w", err)
+	}
+	return amounts, nil
+}
+
+// UpdateGridAPR updates the apr_exclude_il and apr_real fields for a grid.
+func (r *Repository) UpdateGridAPR(ctx context.Context, gridID int64, chainID int64, aprExcludeIL, aprReal string) error {
+	_, err := r.pool.Exec(ctx, `
+		UPDATE grids SET apr_exclude_il = $1, apr_real = $2
+		WHERE grid_id = $3 AND chain_id = $4
+	`, aprExcludeIL, aprReal, gridID, chainID)
+	if err != nil {
+		return fmt.Errorf("update grid APR: %w", err)
+	}
 	return nil
 }

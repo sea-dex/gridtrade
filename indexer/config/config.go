@@ -19,16 +19,18 @@ type Config struct {
 
 // ChainConfig describes one EVM chain to index.
 type ChainConfig struct {
-	Name                  string `yaml:"name"`
-	ChainID               int64  `yaml:"chain_id"`
-	RPCURL                string `yaml:"rpc_url"`
-	GridExAddress         string `yaml:"gridex_address"`
-	LinearStrategyAddress string `yaml:"linear_strategy_address"` // Linear strategy contract address
-	StartBlock            uint64 `yaml:"start_block"`
-	BlockBatchSize        uint64 `yaml:"block_batch_size"` // how many blocks per eth_getLogs call
-	PollInterval          int    `yaml:"poll_interval_ms"` // milliseconds between polls
-	Confirmations         uint64 `yaml:"confirmations"`    // blocks to wait for finality
-	RPCTPM                int    `yaml:"rpc_tpm"`          // max RPC requests per minute (0 = unlimited)
+	Name                  string   `yaml:"name"`
+	ChainID               int64    `yaml:"chain_id"`
+	RPCURL                string   `yaml:"rpc_url"`
+	GridExAddress         string   `yaml:"gridex_address"`
+	LinearStrategyAddress string   `yaml:"linear_strategy_address"` // Linear strategy contract address
+	StartBlock            uint64   `yaml:"start_block"`
+	BlockBatchSize        uint64   `yaml:"block_batch_size"`    // how many blocks per eth_getLogs call
+	PollInterval          int      `yaml:"poll_interval_ms"`    // milliseconds between polls
+	Confirmations         uint64   `yaml:"confirmations"`       // blocks to wait for finality
+	RPCTPM                int      `yaml:"rpc_tpm"`             // max RPC requests per minute (0 = unlimited)
+	APRUpdateInterval     int      `yaml:"apr_update_interval"` // seconds between APR recalculations (0 = disabled, default 300)
+	Stablecoins           []string `yaml:"stablecoins"`         // token addresses treated as stablecoins (price = $1)
 }
 
 // OKXConfig holds OKX DEX API authentication config.
@@ -126,6 +128,9 @@ func Load(path string) (*Config, error) {
 		}
 		if cfg.Chains[i].Confirmations == 0 {
 			cfg.Chains[i].Confirmations = 3
+		}
+		if cfg.Chains[i].APRUpdateInterval == 0 {
+			cfg.Chains[i].APRUpdateInterval = 300 // default 5 minutes
 		}
 	}
 

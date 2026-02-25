@@ -9,6 +9,9 @@ chains:
     poll_interval_ms: 2000
     confirmations: 3
     rpc_tpm: ${RPC_TPM:-5}  # max RPC requests per minute (0 = unlimited)
+    stablecoins:
+      - "0x55d398326f99059fF775485246999027B3197955"  # USDT
+      - "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d"  # USDC
 
 database:
   host: "${DB_HOST:-localhost}"

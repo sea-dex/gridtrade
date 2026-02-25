@@ -151,6 +151,9 @@ func (s *Scanner) Run(ctx context.Context) error {
 		s.logger.Warn("failed to pre-populate token cache from DB (will fetch from chain)", "error", err)
 	}
 
+	// Start APR updater in background goroutine
+	go s.runAPRUpdater(ctx)
+
 	// Determine start block
 	lastBlock, err := s.repo.GetLastBlock(ctx, s.cfg.ChainID)
 	if err != nil {
@@ -208,8 +211,10 @@ func (s *Scanner) Run(ctx context.Context) error {
 		// Fetch logs with adaptive range splitting on "limit exceeded" errors
 		logs, err := s.fetchLogsAdaptive(ctx, currentBlock, endBlock)
 		if err != nil {
-			s.logger.Error("failed to fetch logs", "from", currentBlock, "to", endBlock, "error", err)
-			time.Sleep(pollInterval)
+			if err != context.Canceled {
+				s.logger.Error("failed to fetch logs", "from", currentBlock, "to", endBlock, "error", err)
+				time.Sleep(pollInterval)
+			}
 			continue
 		}
 
@@ -442,11 +447,6 @@ func (s *Scanner) processLogs(ctx context.Context, logs []types.Log, endBlock ui
 			s.logger.Warn("failed to update pair stats", "error", err)
 		}
 
-		// Update leaderboard data (all periods)
-		if err := s.updateLeaderboard(ctx, tx, endBlock); err != nil {
-			s.logger.Warn("failed to update leaderboard", "error", err)
-		}
-
 		// Send Kafka messages after successful DB operations but before commit
 		// Note: If Kafka send fails, the transaction will be rolled back
 		if len(kafkaMsgs) > 0 {
@@ -502,11 +502,6 @@ func (s *Scanner) updateProtocolStats(ctx context.Context, tx pgx.Tx, blockNumbe
 func (s *Scanner) updatePairStats(ctx context.Context, tx pgx.Tx, blockNumber uint64) error {
 	today := time.Now().UTC().Format("2006-01-02")
 	return db.UpdatePairVolumes(ctx, tx, s.cfg.ChainID, today, blockNumber)
-}
-
-// updateLeaderboard refreshes the leaderboard table for all periods.
-func (s *Scanner) updateLeaderboard(ctx context.Context, tx pgx.Tx, blockNumber uint64) error {
-	return db.UpdateLeaderboard(ctx, tx, s.cfg.ChainID, blockNumber)
 }
 
 // processLog processes a single event log and returns Kafka messages to send.

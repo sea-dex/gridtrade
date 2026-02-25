@@ -1,10 +1,11 @@
 // Package pricing provides OKX DEX API client for fetching token prices.
 // APIs:
-//   - Market Price: GET https://web3.okx.com/api/v6/dex/market/price
+//   - Market Price: POST https://web3.okx.com/api/v6/dex/market/price
 //   - Aggregator Quote: GET https://web3.okx.com/api/v6/dex/aggregator/quote
 package pricing
 
 import (
+	"bytes"
 	"context"
 	"crypto/hmac"
 	"crypto/sha256"
@@ -16,6 +17,7 @@ import (
 	"math"
 	"math/big"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -46,8 +48,9 @@ func NewOKXPriceClient(cfg OKXConfig, logger *slog.Logger) *OKXPriceClient {
 }
 
 // dexMarketPriceResponse is the API response envelope.
+// Note: Code is json.Number because the OKX API may return it as either a string or a number.
 type dexMarketPriceResponse struct {
-	Code string          `json:"code"`
+	Code json.Number     `json:"code"`
 	Msg  string          `json:"msg"`
 	Data json.RawMessage `json:"data"`
 }
@@ -65,20 +68,32 @@ const okxBaseURL = "https://web3.okx.com"
 // GetTokenPrice fetches the USD price for a token from OKX DEX Market Price API.
 // Returns the price as a decimal string (e.g., "625.1234").
 func (c *OKXPriceClient) GetTokenPrice(ctx context.Context, chainIndex, tokenAddress string) (string, error) {
-	// Build query parameters for GET request
-	params := "chainIndex=" + chainIndex + "&tokenContractAddress=" + strings.ToLower(tokenAddress)
-	requestPath := "/api/v6/dex/market/price?" + params
+	requestPath := "/api/v6/dex/market/price"
 	fullURL := okxBaseURL + requestPath
 
-	httpReq, err := http.NewRequestWithContext(ctx, "GET", fullURL, nil)
+	// Build JSON body for POST request
+	// OKX v6 Market Price API expects an array of token queries
+	bodyItems := []map[string]string{
+		{
+			"chainIndex":           chainIndex,
+			"tokenContractAddress": strings.ToLower(tokenAddress),
+		},
+	}
+	bodyBytes, err := json.Marshal(bodyItems)
+	if err != nil {
+		return "", fmt.Errorf("marshal request body: %w", err)
+	}
+	bodyStr := string(bodyBytes)
+
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", fullURL, bytes.NewReader(bodyBytes))
 	if err != nil {
 		return "", fmt.Errorf("create request: %w", err)
 	}
 
 	// Set OKX DEX API authentication headers
-	// For GET requests, the body in the signature must be empty string
+	// For POST requests, the body is included in the signature
 	timestamp := time.Now().UTC().Format("2006-01-02T15:04:05.000Z")
-	sign := c.okxSign(timestamp, "GET", requestPath, "")
+	sign := c.okxSign(timestamp, "POST", requestPath, bodyStr)
 
 	httpReq.Header.Set("OK-ACCESS-KEY", c.cfg.APIKey)
 	httpReq.Header.Set("OK-ACCESS-SIGN", sign)
@@ -107,8 +122,8 @@ func (c *OKXPriceClient) GetTokenPrice(ctx context.Context, chainIndex, tokenAdd
 		return "", fmt.Errorf("parse response: %w", err)
 	}
 
-	if apiResp.Code != "0" {
-		return "", fmt.Errorf("OKX DEX API error code=%s msg=%s", apiResp.Code, apiResp.Msg)
+	if apiResp.Code.String() != "0" {
+		return "", fmt.Errorf("OKX DEX API error code=%s msg=%s", apiResp.Code.String(), apiResp.Msg)
 	}
 
 	if len(apiResp.Data) == 0 {
@@ -140,10 +155,12 @@ func (c *OKXPriceClient) GetTokenPrice(ctx context.Context, chainIndex, tokenAdd
 }
 
 // dexAggregatorQuoteResponse is the response envelope for the aggregator quote API.
+// Note: Code is json.Number because the OKX API may return it as either a string or a number.
+// Data is json.RawMessage because the API may return it as either an array or a single object.
 type dexAggregatorQuoteResponse struct {
-	Code string                   `json:"code"`
-	Msg  string                   `json:"msg"`
-	Data []dexAggregatorQuoteData `json:"data"`
+	Code json.Number     `json:"code"`
+	Msg  string          `json:"msg"`
+	Data json.RawMessage `json:"data"`
 }
 
 // dexAggregatorQuoteData is the response data element for the aggregator quote API.
@@ -172,22 +189,27 @@ func (c *OKXPriceClient) GetPairPrice(ctx context.Context, chainID int64, baseAd
 	// e.g., for 18-decimal token: amount = 10^18
 	amount := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(baseDecimals)), nil)
 
-	// Build query parameters for the aggregator quote API
-	params := "chainIndex=" + chainIndex +
-		"&fromTokenAddress=" + strings.ToLower(baseAddr) +
-		"&toTokenAddress=" + strings.ToLower(quoteAddr) +
-		"&amount=" + amount.String()
-	requestPath := "/api/v6/dex/aggregator/quote?" + params
+	requestPath := "/api/v6/dex/aggregator/quote"
 	fullURL := okxBaseURL + requestPath
 
-	httpReq, err := http.NewRequestWithContext(ctx, "GET", fullURL, nil)
+	// Build query parameters for GET request
+	params := url.Values{}
+	params.Set("chainIndex", chainIndex)
+	params.Set("fromTokenAddress", strings.ToLower(baseAddr))
+	params.Set("toTokenAddress", strings.ToLower(quoteAddr))
+	params.Set("amount", amount.String())
+
+	queryString := params.Encode()
+	fullURLWithParams := fullURL + "?" + queryString
+
+	httpReq, err := http.NewRequestWithContext(ctx, "GET", fullURLWithParams, nil)
 	if err != nil {
 		return "", fmt.Errorf("create request: %w", err)
 	}
 
 	// Set OKX DEX API authentication headers
 	timestamp := time.Now().UTC().Format("2006-01-02T15:04:05.000Z")
-	sign := c.okxSign(timestamp, "GET", requestPath, "")
+	sign := c.okxSign(timestamp, "GET", requestPath+"?"+queryString, "")
 
 	httpReq.Header.Set("OK-ACCESS-KEY", c.cfg.APIKey)
 	httpReq.Header.Set("OK-ACCESS-SIGN", sign)
@@ -216,15 +238,31 @@ func (c *OKXPriceClient) GetPairPrice(ctx context.Context, chainID int64, baseAd
 		return "", fmt.Errorf("parse response: %w", err)
 	}
 
-	if apiResp.Code != "0" {
-		return "", fmt.Errorf("OKX aggregator quote API error code=%s msg=%s", apiResp.Code, apiResp.Msg)
+	if apiResp.Code.String() != "0" {
+		return "", fmt.Errorf("OKX aggregator quote API error code=%s msg=%s", apiResp.Code.String(), apiResp.Msg)
 	}
 
 	if len(apiResp.Data) == 0 {
 		return "", fmt.Errorf("no quote data returned for %s -> %s on chain %s", baseAddr, quoteAddr, chainIndex)
 	}
 
-	quoteData := apiResp.Data[0]
+	// The OKX API may return data as either an array or a single object.
+	// Try array first, then fall back to single object.
+	var dataItems []dexAggregatorQuoteData
+	if err := json.Unmarshal(apiResp.Data, &dataItems); err != nil {
+		// Try as a single object
+		var single dexAggregatorQuoteData
+		if err2 := json.Unmarshal(apiResp.Data, &single); err2 != nil {
+			return "", fmt.Errorf("parse quote data (tried array and object): array=%w, object=%w", err, err2)
+		}
+		dataItems = []dexAggregatorQuoteData{single}
+	}
+
+	if len(dataItems) == 0 {
+		return "", fmt.Errorf("no quote data returned for %s -> %s on chain %s", baseAddr, quoteAddr, chainIndex)
+	}
+
+	quoteData := dataItems[0]
 	toTokenAmount := quoteData.ToTokenAmount
 	if toTokenAmount == "" || toTokenAmount == "0" {
 		return "", fmt.Errorf("zero quote amount returned for %s -> %s on chain %s", baseAddr, quoteAddr, chainIndex)
