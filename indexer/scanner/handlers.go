@@ -10,7 +10,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v5"
 
-	"github.com/gridex/indexer/contracts"
 	"github.com/gridex/indexer/db"
 	"github.com/gridex/indexer/kafka"
 )
@@ -32,23 +31,65 @@ func (s *Scanner) handleLinearStrategyCreated(ctx context.Context, tx pgx.Tx, lo
 		"gap", event.Gap.String(),
 	)
 
-	// Cache the strategy info keyed by gridId.
-	// There can be two LinearStrategyCreated events per grid (one for ask, one for bid).
-	// We store both price0 values: ask_price0 and bid_price0.
-	key := gridIDStr
-	info, exists := s.strategyCache[key]
-	if !exists {
-		info = &linearStrategyInfo{}
-		s.strategyCache[key] = info
+	// Cache the strategy info keyed by gridIdStr + isAsk.
+	// Ask and bid orders can have different strategies.
+	key := gridIDStr + "_ask"
+	if !event.IsAsk {
+		key = gridIDStr + "_bid"
+	}
+	info := &strategyInfo{
+		AskStrategy: StrategyTypeLinear,
+		AskPrice0:   event.Price0,
+		AskGap:      event.Gap,
+	}
+	if !event.IsAsk {
+		info = &strategyInfo{
+			BidStrategy: StrategyTypeLinear,
+			BidPrice0:   event.Price0,
+			BidGap:      event.Gap,
+		}
+	}
+	s.strategyCache[key] = info
+
+	return nil, nil
+}
+
+// handleGeometryStrategyCreated processes a GeometryStrategyCreated event from the geometry strategy contract.
+// It caches price0 and ratio per gridId for later use by handleGridOrderCreated.
+func (s *Scanner) handleGeometryStrategyCreated(ctx context.Context, tx pgx.Tx, log types.Log) ([]*kafka.Message, error) {
+	event, err := s.decoder.DecodeGeometryStrategyCreated(log)
+	if err != nil {
+		return nil, fmt.Errorf("decode GeometryStrategyCreated: %w", err)
 	}
 
-	if event.IsAsk {
-		info.AskPrice0 = event.Price0
-		info.AskGap = event.Gap
-	} else {
-		info.BidPrice0 = event.Price0
-		info.BidGap = event.Gap
+	gridIDStr := event.GridID.String()
+
+	s.logger.Info("GeometryStrategyCreated",
+		"grid_id", gridIDStr,
+		"is_ask", event.IsAsk,
+		"price0", event.Price0.String(),
+		"ratio", event.Ratio.String(),
+	)
+
+	// Cache the strategy info keyed by gridIdStr + isAsk.
+	// Ask and bid orders can have different strategies.
+	key := gridIDStr + "_ask"
+	if !event.IsAsk {
+		key = gridIDStr + "_bid"
 	}
+	info := &strategyInfo{
+		AskStrategy: StrategyTypeGeometry,
+		AskPrice0:   event.Price0,
+		AskRatio:    event.Ratio,
+	}
+	if !event.IsAsk {
+		info = &strategyInfo{
+			BidStrategy: StrategyTypeGeometry,
+			BidPrice0:   event.Price0,
+			BidRatio:    event.Ratio,
+		}
+	}
+	s.strategyCache[key] = info
 
 	return nil, nil
 }
@@ -114,42 +155,63 @@ func (s *Scanner) handleGridOrderCreated(ctx context.Context, tx pgx.Tx, log typ
 		return nil, fmt.Errorf("decode GridOrderCreated: %w", err)
 	}
 
-	gridID := event.GridID.Int64()
-	gridIDStr := event.GridID.String()
+	gridID := int64(event.GridID)
+	gridIDStr := fmt.Sprintf("%d", event.GridID)
 
-	// Consume cached LinearStrategyCreated data (if any).
-	// The LinearStrategyCreated events fire before GridOrderCreated in the same tx.
-	stratInfo, ok := s.strategyCache[gridIDStr]
-	if !ok {
+	// Consume cached strategy data (if any).
+	// The strategy events fire before GridOrderCreated in the same tx.
+	// Ask and bid strategies are cached separately with keys: gridIdStr + "_ask" / gridIdStr + "_bid"
+	askStratInfo, askOk := s.strategyCache[gridIDStr+"_ask"]
+	bidStratInfo, bidOk := s.strategyCache[gridIDStr+"_bid"]
+	if !askOk && !bidOk {
 		s.logger.Error("not found strategy for grid", "grid_id", gridID)
 		return nil, fmt.Errorf("not found strategy for grid")
 	}
 
+	var askStrategy, bidStrategy string
 	var askPrice0, askGap, bidPrice0, bidGap string
+	var askRatio, bidRatio string
 	var bidPrice0Int, bidGapInt *big.Int // kept as *big.Int for initialQuoteAmount calculation
-	if stratInfo.AskPrice0 != nil {
-		askPrice0 = stratInfo.AskPrice0.String()
+	if askStratInfo != nil {
+		askStrategy = string(askStratInfo.AskStrategy)
+		if askStratInfo.AskPrice0 != nil {
+			askPrice0 = askStratInfo.AskPrice0.String()
+		}
+		if askStratInfo.AskGap != nil {
+			askGap = askStratInfo.AskGap.String()
+		}
+		if askStratInfo.AskRatio != nil {
+			askRatio = askStratInfo.AskRatio.String()
+		}
 	}
-	if stratInfo.AskGap != nil {
-		askGap = stratInfo.AskGap.String()
-	}
-	if stratInfo.BidPrice0 != nil {
-		bidPrice0 = stratInfo.BidPrice0.String()
-		bidPrice0Int = new(big.Int).Set(stratInfo.BidPrice0)
-	}
-	if stratInfo.BidGap != nil {
-		bidGap = stratInfo.BidGap.String()
-		bidGapInt = new(big.Int).Set(stratInfo.BidGap)
+	if bidStratInfo != nil {
+		bidStrategy = string(bidStratInfo.BidStrategy)
+		if bidStratInfo.BidPrice0 != nil {
+			bidPrice0 = bidStratInfo.BidPrice0.String()
+			bidPrice0Int = new(big.Int).Set(bidStratInfo.BidPrice0)
+		}
+		if bidStratInfo.BidGap != nil {
+			bidGap = bidStratInfo.BidGap.String()
+			bidGapInt = new(big.Int).Set(bidStratInfo.BidGap)
+		}
+		if bidStratInfo.BidRatio != nil {
+			bidRatio = bidStratInfo.BidRatio.String()
+		}
 	}
 	// Remove from cache after consumption
-	delete(s.strategyCache, gridIDStr)
+	delete(s.strategyCache, gridIDStr+"_ask")
+	delete(s.strategyCache, gridIDStr+"_bid")
 
-	s.logger.Info("consumed LinearStrategyCreated cache",
+	s.logger.Info("consumed strategy cache",
 		"grid_id", gridID,
+		"ask_strategy", askStrategy,
+		"bid_strategy", bidStrategy,
 		"ask_price0", askPrice0,
 		"ask_gap", askGap,
+		"ask_ratio", askRatio,
 		"bid_price0", bidPrice0,
 		"bid_gap", bidGap,
+		"bid_ratio", bidRatio,
 	)
 
 	// Get pair tokens from chain to populate base_token and quote_token
@@ -227,7 +289,7 @@ func (s *Scanner) handleGridOrderCreated(ctx context.Context, tx pgx.Tx, log typ
 	if bidGapInt == nil {
 		bidGapInt = new(big.Int)
 	}
-	initBase, initQuote := calcInitialAmounts(event.Amount, bidPrice0Int, bidGapInt, event.Asks, event.Bids)
+	initBase, initQuote := calcInitialAmounts(event.Amount, bidPrice0Int, bidGapInt, uint32(event.Asks), uint32(event.Bids))
 	initialBaseAmountStr := initBase.String()
 	initialQuoteAmountStr := initQuote.String()
 
@@ -241,14 +303,17 @@ func (s *Scanner) handleGridOrderCreated(ctx context.Context, tx pgx.Tx, log typ
 		"initial_quote_amount", initialQuoteAmountStr,
 	)
 
-	// Insert grid with strategy price0/gap data
+	// Insert grid with strategy data
 	if err := db.InsertGrid(ctx, tx, s.cfg.ChainID, gridID,
 		strings.ToLower(event.Owner.Hex()), int(event.PairID),
 		baseInfo.Symbol, quoteInfo.Symbol,
 		initialBaseAmountStr, initialQuoteAmountStr,
 		int(event.Asks), int(event.Bids), int(event.Fee),
 		event.Compound, event.Oneshot,
-		askPrice0, askGap, bidPrice0, bidGap, initPrice,
+		askStrategy, bidStrategy,
+		askPrice0, askGap, bidPrice0, bidGap,
+		askRatio, bidRatio,
+		initPrice,
 		initBasePrice, initQuotePrice,
 		log.BlockNumber); err != nil {
 		return nil, err
@@ -285,13 +350,13 @@ func (s *Scanner) handleGridOrderCreated(ctx context.Context, tx pgx.Tx, log typ
 
 	// Compute and insert individual orders from strategy parameters (no contract calls).
 	// Ask orders: askOrderId, askOrderId+1, ..., askOrderId+(asks-1)
-	for i := uint32(0); i < event.Asks; i++ {
-		orderID := new(big.Int).Add(event.AskOrderID, big.NewInt(int64(i)))
-		gridOrderID := toGridOrderID(event.GridID, orderID)
+	for i := uint16(0); i < event.Asks; i++ {
+		orderID := new(big.Int).SetUint64(event.AskOrderID + uint64(i))
+		gridOrderID := toGridOrderID(big.NewInt(int64(event.GridID)), orderID)
 
 		orderMsgs, err := s.computeAndInsertOrder(ctx, tx, log, gridOrderID, gridID,
 			int(event.PairID), true, event.Compound, event.Oneshot, int(event.Fee),
-			event.Amount, stratInfo, i,
+			event.Amount, askStratInfo, uint32(i),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("insert ask order %d: %w", i, err)
@@ -300,13 +365,13 @@ func (s *Scanner) handleGridOrderCreated(ctx context.Context, tx pgx.Tx, log typ
 	}
 
 	// Bid orders: bidOrderId, bidOrderId+1, ..., bidOrderId+(bids-1)
-	for i := uint32(0); i < event.Bids; i++ {
-		orderID := new(big.Int).Add(event.BidOrderID, big.NewInt(int64(i)))
-		gridOrderID := toGridOrderID(event.GridID, orderID)
+	for i := uint16(0); i < event.Bids; i++ {
+		orderID := new(big.Int).SetUint64(event.BidOrderID + uint64(i))
+		gridOrderID := toGridOrderID(big.NewInt(int64(event.GridID)), orderID)
 
 		orderMsgs, err := s.computeAndInsertOrder(ctx, tx, log, gridOrderID, gridID,
 			int(event.PairID), false, event.Compound, event.Oneshot, int(event.Fee),
-			event.Amount, stratInfo, i,
+			event.Amount, bidStratInfo, uint32(i),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("insert bid order %d: %w", i, err)
@@ -413,19 +478,24 @@ func (s *Scanner) handleFilledOrder(ctx context.Context, tx pgx.Tx, log types.Lo
 		return nil, fmt.Errorf("decode FilledOrder: %w", err)
 	}
 
-	gridID, _ := contracts.ExtractGridIDOrderID(event.GridOrderID)
+	// In v2, orderId is uint64 and we need to look up grid_id from the orders table
+	orderIDStr := fmt.Sprintf("%d", event.OrderID)
+
+	// Get grid_id for this order from the database
+	gridID, err := db.GetOrderGridID(ctx, tx, s.cfg.ChainID, orderIDStr)
+	if err != nil {
+		return nil, fmt.Errorf("get grid_id for filled order: %w", err)
+	}
 
 	s.logger.Info("FilledOrder",
-		"grid_order_id", event.GridOrderID.String(),
-		"grid_id", gridID.String(),
+		"order_id", orderIDStr,
+		"grid_id", gridID,
 		"taker", event.Taker.Hex(),
 		"is_ask", event.IsAsk,
 	)
 
-	orderIDStr := event.GridOrderID.String()
-
 	// Get pair_id for this grid
-	pairID, err := db.GetGridPairID(ctx, tx, s.cfg.ChainID, gridID.Int64())
+	pairID, err := db.GetGridPairID(ctx, tx, s.cfg.ChainID, gridID)
 	if err != nil {
 		return nil, fmt.Errorf("get pair_id for filled order: %w", err)
 	}
@@ -459,7 +529,7 @@ func (s *Scanner) handleFilledOrder(ctx context.Context, tx pgx.Tx, log types.Lo
 	msg := s.makeBaseMsg(log, kafka.EventOrderFilled)
 	msg.Data = &kafka.OrderFilledData{
 		OrderID:     orderIDStr,
-		GridID:      gridID.Int64(),
+		GridID:      gridID,
 		Taker:       strings.ToLower(event.Taker.Hex()),
 		BaseAmt:     event.BaseAmt.String(),
 		QuoteVol:    event.QuoteVol.String(),
@@ -478,15 +548,14 @@ func (s *Scanner) handleCancelGridOrder(ctx context.Context, tx pgx.Tx, log type
 		return nil, fmt.Errorf("decode CancelGridOrder: %w", err)
 	}
 
+	gridID := int64(event.GridID)
+	orderIDStr := fmt.Sprintf("%d", event.OrderID)
+
 	s.logger.Info("CancelGridOrder",
 		"owner", event.Owner.Hex(),
-		"order_id", event.OrderID.String(),
-		"grid_id", event.GridID.String(),
+		"order_id", orderIDStr,
+		"grid_id", gridID,
 	)
-
-	// Build the gridOrderId = (gridId << 128) | orderId
-	gridOrderID := toGridOrderID(event.GridID, event.OrderID)
-	orderIDStr := gridOrderID.String()
 
 	if err := db.CancelOrder(ctx, tx, s.cfg.ChainID, orderIDStr, log.BlockNumber); err != nil {
 		return nil, err
@@ -495,7 +564,7 @@ func (s *Scanner) handleCancelGridOrder(ctx context.Context, tx pgx.Tx, log type
 	msg := s.makeBaseMsg(log, kafka.EventOrderCancelled)
 	msg.Data = &kafka.OrderCancelledData{
 		OrderID: orderIDStr,
-		GridID:  event.GridID.Int64(),
+		GridID:  gridID,
 		Owner:   strings.ToLower(event.Owner.Hex()),
 	}
 
@@ -509,7 +578,7 @@ func (s *Scanner) handleCancelWholeGrid(ctx context.Context, tx pgx.Tx, log type
 		return nil, fmt.Errorf("decode CancelWholeGrid: %w", err)
 	}
 
-	gridID := event.GridID.Int64()
+	gridID := int64(event.GridID)
 
 	s.logger.Info("CancelWholeGrid",
 		"owner", event.Owner.Hex(),
@@ -546,7 +615,7 @@ func (s *Scanner) handleGridFeeChanged(ctx context.Context, tx pgx.Tx, log types
 		return nil, fmt.Errorf("decode GridFeeChanged: %w", err)
 	}
 
-	gridID := event.GridID.Int64()
+	gridID := int64(event.GridID)
 
 	s.logger.Info("GridFeeChanged", "grid_id", gridID, "fee", event.Fee)
 
@@ -570,7 +639,7 @@ func (s *Scanner) handleWithdrawProfit(ctx context.Context, tx pgx.Tx, log types
 		return nil, fmt.Errorf("decode WithdrawProfit: %w", err)
 	}
 
-	gridID := event.GridID.Int64()
+	gridID := int64(event.GridID)
 
 	s.logger.Info("WithdrawProfit",
 		"grid_id", gridID,

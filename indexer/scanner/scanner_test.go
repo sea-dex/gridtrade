@@ -100,7 +100,7 @@ func TestFetchLogsAdaptive_NoSplit(t *testing.T) {
 		panic(err.Error())
 	}
 
-	s := &Scanner{client: client, logger: testLogger(), gridExAddr: grid, strategyAddr: strategy}
+	s := &Scanner{client: client, logger: testLogger(), gridExAddr: grid, linearStrategyAddr: strategy}
 	logs, err := s.fetchLogs(ctx, fromBlock, fromBlock+100)
 	if err != nil {
 		t.Fatalf("fetchLogs err=%v", err)
@@ -149,7 +149,7 @@ func TestFetchLogsAdaptive_SplitsOnLimitExceeded(t *testing.T) {
 		},
 	}
 
-	s := &Scanner{client: m, logger: testLogger(), gridExAddr: grid, strategyAddr: strategy}
+	s := &Scanner{client: m, logger: testLogger(), gridExAddr: grid, linearStrategyAddr: strategy}
 	logs, err := s.fetchLogsAdaptive(ctx, 1, 10)
 	if err != nil {
 		t.Fatalf("fetchLogsAdaptive err=%v", err)
@@ -191,7 +191,7 @@ func TestFetchLogsAdaptive_SingleBlockFallsBackToPerAddressAndSorts(t *testing.T
 		return nil, nil
 	}
 
-	s := &Scanner{client: m, logger: testLogger(), gridExAddr: grid, strategyAddr: strategy}
+	s := &Scanner{client: m, logger: testLogger(), gridExAddr: grid, linearStrategyAddr: strategy}
 	logs, err := s.fetchLogsAdaptive(ctx, 7, 7)
 	if err != nil {
 		t.Fatalf("fetchLogsAdaptive err=%v", err)
@@ -250,7 +250,7 @@ func TestFetchLogsSingleBlockPerAddress_LimitExceededFallsBackToReceipts(t *test
 		return r, nil
 	}
 
-	s := &Scanner{client: m, logger: testLogger(), gridExAddr: grid, strategyAddr: strategy}
+	s := &Scanner{client: m, logger: testLogger(), gridExAddr: grid, linearStrategyAddr: strategy}
 	logs, err := s.fetchLogsSingleBlockPerAddress(ctx, blockNum)
 	if err != nil {
 		t.Fatalf("fetchLogsSingleBlockPerAddress err=%v", err)

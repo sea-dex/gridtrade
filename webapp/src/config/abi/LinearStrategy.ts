@@ -1,4 +1,4 @@
-[
+export const LINEAR_STRATEGY_ABI = [
   {
     "type": "constructor",
     "inputs": [
@@ -250,4 +250,4 @@
     "name": "LinearInvalidPriceOrGap",
     "inputs": []
   }
-]
+] as const;

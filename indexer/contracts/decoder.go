@@ -14,15 +14,17 @@ import (
 type Decoder struct {
 	abi         abi.ABI
 	strategyABI abi.ABI
+	geometryABI abi.ABI
 }
 
 // linearStrategyABI is the ABI for the Linear strategy contract events.
+// Updated for v2: gridId is now uint48 (was uint128)
 const linearStrategyABI = `[
   {
     "anonymous": false,
     "inputs": [
       {"indexed": false, "name": "isAsk", "type": "bool"},
-      {"indexed": false, "name": "gridId", "type": "uint128"},
+      {"indexed": false, "name": "gridId", "type": "uint48"},
       {"indexed": false, "name": "price0", "type": "uint256"},
       {"indexed": false, "name": "gap", "type": "int256"}
     ],
@@ -31,7 +33,24 @@ const linearStrategyABI = `[
   }
 ]`
 
+// geometryStrategyABI is the ABI for the Geometry strategy contract events.
+// Updated for v2: gridId is now uint48 (was uint128)
+const geometryStrategyABI = `[
+  {
+    "anonymous": false,
+    "inputs": [
+      {"indexed": false, "name": "isAsk", "type": "bool"},
+      {"indexed": false, "name": "gridId", "type": "uint48"},
+      {"indexed": false, "name": "price0", "type": "uint256"},
+      {"indexed": false, "name": "ratio", "type": "uint256"}
+    ],
+    "name": "GeometryStrategyCreated",
+    "type": "event"
+  }
+]`
+
 // gridExABI is a minimal ABI containing only the events we care about.
+// Updated for v2 contract with new types (uint48 gridId, uint64 orderId, uint16 order counts)
 const gridExABI = `[
   {
     "anonymous": false,
@@ -49,11 +68,11 @@ const gridExABI = `[
       {"indexed": true, "name": "owner", "type": "address"},
       {"indexed": false, "name": "pairId", "type": "uint64"},
       {"indexed": false, "name": "amount", "type": "uint256"},
-      {"indexed": false, "name": "gridId", "type": "uint128"},
-      {"indexed": false, "name": "askOrderId", "type": "uint256"},
-      {"indexed": false, "name": "bidOrderId", "type": "uint256"},
-      {"indexed": false, "name": "asks", "type": "uint32"},
-      {"indexed": false, "name": "bids", "type": "uint32"},
+      {"indexed": false, "name": "gridId", "type": "uint48"},
+      {"indexed": false, "name": "askOrderId", "type": "uint64"},
+      {"indexed": false, "name": "bidOrderId", "type": "uint64"},
+      {"indexed": false, "name": "asks", "type": "uint16"},
+      {"indexed": false, "name": "bids", "type": "uint16"},
       {"indexed": false, "name": "fee", "type": "uint32"},
       {"indexed": false, "name": "compound", "type": "bool"},
       {"indexed": false, "name": "oneshot", "type": "bool"}
@@ -65,7 +84,7 @@ const gridExABI = `[
     "anonymous": false,
     "inputs": [
       {"indexed": false, "name": "taker", "type": "address"},
-      {"indexed": false, "name": "gridOrderId", "type": "uint256"},
+      {"indexed": false, "name": "orderId", "type": "uint64"},
       {"indexed": false, "name": "baseAmt", "type": "uint256"},
       {"indexed": false, "name": "quoteVol", "type": "uint256"},
       {"indexed": false, "name": "orderAmt", "type": "uint256"},
@@ -79,8 +98,8 @@ const gridExABI = `[
     "anonymous": false,
     "inputs": [
       {"indexed": true, "name": "owner", "type": "address"},
-      {"indexed": true, "name": "orderId", "type": "uint128"},
-      {"indexed": true, "name": "gridId", "type": "uint128"}
+      {"indexed": true, "name": "orderId", "type": "uint64"},
+      {"indexed": true, "name": "gridId", "type": "uint48"}
     ],
     "name": "CancelGridOrder",
     "type": "event"
@@ -89,7 +108,7 @@ const gridExABI = `[
     "anonymous": false,
     "inputs": [
       {"indexed": true, "name": "owner", "type": "address"},
-      {"indexed": true, "name": "gridId", "type": "uint128"}
+      {"indexed": true, "name": "gridId", "type": "uint48"}
     ],
     "name": "CancelWholeGrid",
     "type": "event"
@@ -98,7 +117,7 @@ const gridExABI = `[
     "anonymous": false,
     "inputs": [
       {"indexed": true, "name": "sender", "type": "address"},
-      {"indexed": false, "name": "gridId", "type": "uint256"},
+      {"indexed": false, "name": "gridId", "type": "uint48"},
       {"indexed": false, "name": "fee", "type": "uint32"}
     ],
     "name": "GridFeeChanged",
@@ -107,7 +126,7 @@ const gridExABI = `[
   {
     "anonymous": false,
     "inputs": [
-      {"indexed": false, "name": "gridId", "type": "uint128"},
+      {"indexed": false, "name": "gridId", "type": "uint48"},
       {"indexed": false, "name": "quote", "type": "address"},
       {"indexed": false, "name": "to", "type": "address"},
       {"indexed": false, "name": "amt", "type": "uint256"}
@@ -127,7 +146,11 @@ func NewDecoder() (*Decoder, error) {
 	if err != nil {
 		return nil, fmt.Errorf("parse linear strategy abi: %w", err)
 	}
-	return &Decoder{abi: parsed, strategyABI: stratParsed}, nil
+	geometryParsed, err := abi.JSON(strings.NewReader(geometryStrategyABI))
+	if err != nil {
+		return nil, fmt.Errorf("parse geometry strategy abi: %w", err)
+	}
+	return &Decoder{abi: parsed, strategyABI: stratParsed, geometryABI: geometryParsed}, nil
 }
 
 // DecodePairCreated decodes a PairCreated event log.
@@ -152,6 +175,7 @@ func (d *Decoder) DecodePairCreated(log types.Log) (*PairCreatedEvent, error) {
 }
 
 // DecodeGridOrderCreated decodes a GridOrderCreated event log.
+// Updated for v2 contract with new types.
 func (d *Decoder) DecodeGridOrderCreated(log types.Log) (*GridOrderCreatedEvent, error) {
 	event := &GridOrderCreatedEvent{}
 
@@ -169,11 +193,12 @@ func (d *Decoder) DecodeGridOrderCreated(log types.Log) (*GridOrderCreatedEvent,
 
 	event.PairID = values[0].(uint64)
 	event.Amount = values[1].(*big.Int)
-	event.GridID = values[2].(*big.Int)
-	event.AskOrderID = values[3].(*big.Int)
-	event.BidOrderID = values[4].(*big.Int)
-	event.Asks = values[5].(uint32)
-	event.Bids = values[6].(uint32)
+	// gridId is uint48, but abi library returns it as uint64
+	event.GridID = values[2].(uint64)
+	event.AskOrderID = values[3].(uint64)
+	event.BidOrderID = values[4].(uint64)
+	event.Asks = values[5].(uint16)
+	event.Bids = values[6].(uint16)
 	event.Fee = values[7].(uint32)
 	event.Compound = values[8].(bool)
 	event.Oneshot = values[9].(bool)
@@ -182,6 +207,7 @@ func (d *Decoder) DecodeGridOrderCreated(log types.Log) (*GridOrderCreatedEvent,
 }
 
 // DecodeFilledOrder decodes a FilledOrder event log.
+// Updated for v2 contract with uint64 orderId.
 func (d *Decoder) DecodeFilledOrder(log types.Log) (*FilledOrderEvent, error) {
 	event := &FilledOrderEvent{}
 
@@ -192,7 +218,7 @@ func (d *Decoder) DecodeFilledOrder(log types.Log) (*FilledOrderEvent, error) {
 	}
 
 	event.Taker = values[0].(common.Address)
-	event.GridOrderID = values[1].(*big.Int)
+	event.OrderID = values[1].(uint64)
 	event.BaseAmt = values[2].(*big.Int)
 	event.QuoteVol = values[3].(*big.Int)
 	event.OrderAmt = values[4].(*big.Int)
@@ -203,6 +229,7 @@ func (d *Decoder) DecodeFilledOrder(log types.Log) (*FilledOrderEvent, error) {
 }
 
 // DecodeCancelGridOrder decodes a CancelGridOrder event log.
+// Updated for v2 contract with new types.
 func (d *Decoder) DecodeCancelGridOrder(log types.Log) (*CancelGridOrderEvent, error) {
 	event := &CancelGridOrderEvent{}
 
@@ -211,13 +238,16 @@ func (d *Decoder) DecodeCancelGridOrder(log types.Log) (*CancelGridOrderEvent, e
 		return nil, fmt.Errorf("CancelGridOrder: expected 4 topics, got %d", len(log.Topics))
 	}
 	event.Owner = common.HexToAddress(log.Topics[1].Hex())
-	event.OrderID = new(big.Int).SetBytes(log.Topics[2].Bytes())
-	event.GridID = new(big.Int).SetBytes(log.Topics[3].Bytes())
+	// orderId is uint64
+	event.OrderID = new(big.Int).SetBytes(log.Topics[2].Bytes()).Uint64()
+	// gridId is uint48
+	event.GridID = new(big.Int).SetBytes(log.Topics[3].Bytes()).Uint64()
 
 	return event, nil
 }
 
 // DecodeCancelWholeGrid decodes a CancelWholeGrid event log.
+// Updated for v2 contract with uint48 gridId.
 func (d *Decoder) DecodeCancelWholeGrid(log types.Log) (*CancelWholeGridEvent, error) {
 	event := &CancelWholeGridEvent{}
 
@@ -225,12 +255,13 @@ func (d *Decoder) DecodeCancelWholeGrid(log types.Log) (*CancelWholeGridEvent, e
 		return nil, fmt.Errorf("CancelWholeGrid: expected 3 topics, got %d", len(log.Topics))
 	}
 	event.Owner = common.HexToAddress(log.Topics[1].Hex())
-	event.GridID = new(big.Int).SetBytes(log.Topics[2].Bytes())
+	event.GridID = new(big.Int).SetBytes(log.Topics[2].Bytes()).Uint64()
 
 	return event, nil
 }
 
 // DecodeGridFeeChanged decodes a GridFeeChanged event log.
+// Updated for v2 contract with uint48 gridId.
 func (d *Decoder) DecodeGridFeeChanged(log types.Log) (*GridFeeChangedEvent, error) {
 	event := &GridFeeChangedEvent{}
 
@@ -243,13 +274,14 @@ func (d *Decoder) DecodeGridFeeChanged(log types.Log) (*GridFeeChangedEvent, err
 	if err != nil {
 		return nil, fmt.Errorf("unpack GridFeeChanged data: %w", err)
 	}
-	event.GridID = values[0].(*big.Int)
+	event.GridID = values[0].(uint64)
 	event.Fee = values[1].(uint32)
 
 	return event, nil
 }
 
 // DecodeWithdrawProfit decodes a WithdrawProfit event log.
+// Updated for v2 contract with uint48 gridId.
 func (d *Decoder) DecodeWithdrawProfit(log types.Log) (*WithdrawProfitEvent, error) {
 	event := &WithdrawProfitEvent{}
 
@@ -257,7 +289,7 @@ func (d *Decoder) DecodeWithdrawProfit(log types.Log) (*WithdrawProfitEvent, err
 	if err != nil {
 		return nil, fmt.Errorf("unpack WithdrawProfit data: %w", err)
 	}
-	event.GridID = values[0].(*big.Int)
+	event.GridID = values[0].(uint64)
 	event.Quote = values[1].(common.Address)
 	event.To = values[2].(common.Address)
 	event.Amt = values[3].(*big.Int)
@@ -279,6 +311,24 @@ func (d *Decoder) DecodeLinearStrategyCreated(log types.Log) (*LinearStrategyCre
 	event.GridID = values[1].(*big.Int)
 	event.Price0 = values[2].(*big.Int)
 	event.Gap = values[3].(*big.Int)
+
+	return event, nil
+}
+
+// DecodeGeometryStrategyCreated decodes a GeometryStrategyCreated event log.
+func (d *Decoder) DecodeGeometryStrategyCreated(log types.Log) (*GeometryStrategyCreatedEvent, error) {
+	event := &GeometryStrategyCreatedEvent{}
+
+	// All parameters are non-indexed
+	values, err := d.geometryABI.Events["GeometryStrategyCreated"].Inputs.NonIndexed().Unpack(log.Data)
+	if err != nil {
+		return nil, fmt.Errorf("unpack GeometryStrategyCreated data: %w", err)
+	}
+
+	event.IsAsk = values[0].(bool)
+	event.GridID = values[1].(*big.Int)
+	event.Price0 = values[2].(*big.Int)
+	event.Ratio = values[3].(*big.Int)
 
 	return event, nil
 }

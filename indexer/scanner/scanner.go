@@ -29,15 +29,32 @@ type EthClient interface {
 	TransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error)
 }
 
-// linearStrategyInfo holds price0 and gap from LinearStrategyCreated events,
+// StrategyType represents the type of grid strategy
+type StrategyType string
+
+const (
+	StrategyTypeLinear   StrategyType = "linear"
+	StrategyTypeGeometry StrategyType = "geometry"
+)
+
+// strategyInfo holds strategy parameters from strategy events,
 // keyed by gridId. This is populated before GridOrderCreated in the same tx.
 // There can be two events per grid: one for ask side, one for bid side.
-type linearStrategyInfo struct {
+type strategyInfo struct {
+	AskStrategy StrategyType // "linear" or "geometry"
+	BidStrategy StrategyType // "linear" or "geometry"
+	// Linear strategy parameters
 	AskPrice0 *big.Int // ask starting price (uint256)
 	AskGap    *big.Int // ask price gap between consecutive orders (int256)
 	BidPrice0 *big.Int // bid starting price (uint256)
 	BidGap    *big.Int // bid price gap between consecutive orders (int256)
+	// Geometry strategy parameters
+	AskRatio *big.Int // ask ratio for geometry strategy (uint256, scaled by 10^18)
+	BidRatio *big.Int // bid ratio for geometry strategy (uint256, scaled by 10^18)
 }
+
+// linearStrategyInfo is kept for backward compatibility
+type linearStrategyInfo = strategyInfo
 
 // Scanner scans a single chain for GridEx events.
 type Scanner struct {
@@ -49,8 +66,9 @@ type Scanner struct {
 	producer *kafka.Producer
 	logger   *slog.Logger
 
-	gridExAddr   common.Address
-	strategyAddr common.Address
+	gridExAddr           common.Address
+	linearStrategyAddr   common.Address
+	geometryStrategyAddr common.Address
 
 	// Kafka brokers and topic for offset tracking
 	kafkaBrokers []string
@@ -123,22 +141,31 @@ func New(
 		logger.Warn("OKX API credentials not configured, init_price will be empty")
 	}
 
+	// Parse geometry strategy address (optional)
+	var geometryStrategyAddr common.Address
+	if cfg.GeometryStrategyAddress != "" {
+		geometryStrategyAddr = common.HexToAddress(cfg.GeometryStrategyAddress)
+	} else {
+		panic("GeometryStrategyAddress is the zero address")
+	}
+
 	return &Scanner{
-		cfg:            cfg,
-		client:         client,
-		decoder:        decoder,
-		caller:         caller,
-		repo:           repo,
-		producer:       producer,
-		logger:         logger.With("chain", cfg.Name, "chain_id", cfg.ChainID),
-		gridExAddr:     gridExAddr,
-		strategyAddr:   strategyAddr,
-		kafkaBrokers:   kafkaBrokers,
-		kafkaTopic:     kafkaTopic,
-		tokenCache:     make(map[common.Address]*contracts.TokenInfo),
-		strategyCache:  make(map[string]*linearStrategyInfo),
-		okxPriceClient: okxPriceClient,
-		binanceClient:  pricing.NewBinancePriceClient(logger),
+		cfg:                  cfg,
+		client:               client,
+		decoder:              decoder,
+		caller:               caller,
+		repo:                 repo,
+		producer:             producer,
+		logger:               logger.With("chain", cfg.Name, "chain_id", cfg.ChainID),
+		gridExAddr:           gridExAddr,
+		linearStrategyAddr:   strategyAddr,
+		geometryStrategyAddr: geometryStrategyAddr,
+		kafkaBrokers:         kafkaBrokers,
+		kafkaTopic:           kafkaTopic,
+		tokenCache:           make(map[common.Address]*contracts.TokenInfo),
+		strategyCache:        make(map[string]*strategyInfo),
+		okxPriceClient:       okxPriceClient,
+		binanceClient:        pricing.NewBinancePriceClient(logger),
 	}, nil
 }
 
@@ -294,7 +321,7 @@ func (s *Scanner) fetchLogsAdaptive(ctx context.Context, fromBlock, toBlock uint
 // query with all addresses exceeds the RPC limit. If a per-address query still
 // exceeds the limit, it falls back to receipt-based log extraction.
 func (s *Scanner) fetchLogsSingleBlockPerAddress(ctx context.Context, blockNum uint64) ([]types.Log, error) {
-	addresses := []common.Address{s.gridExAddr, s.strategyAddr}
+	addresses := []common.Address{s.gridExAddr, s.linearStrategyAddr, s.geometryStrategyAddr}
 
 	var allLogs []types.Log
 	blockBig := new(big.Int).SetUint64(blockNum)
@@ -338,8 +365,9 @@ func (s *Scanner) fetchLogsFromReceipts(ctx context.Context, blockNum uint64) ([
 
 	// Build lookup set for fast address matching
 	addressSet := map[common.Address]struct{}{
-		s.gridExAddr:   {},
-		s.strategyAddr: {},
+		s.gridExAddr:           {},
+		s.linearStrategyAddr:   {},
+		s.geometryStrategyAddr: {},
 	}
 
 	var allLogs []types.Log
@@ -377,7 +405,7 @@ func (s *Scanner) fetchLogsFromReceipts(ctx context.Context, blockNum uint64) ([
 // emitted by these contracts are captured.
 func (s *Scanner) fetchLogs(ctx context.Context, fromBlock, toBlock uint64) ([]types.Log, error) {
 	// Build the list of contract addresses to watch
-	addresses := []common.Address{s.gridExAddr, s.strategyAddr}
+	addresses := []common.Address{s.gridExAddr, s.linearStrategyAddr, s.geometryStrategyAddr}
 
 	query := ethereum.FilterQuery{
 		FromBlock: new(big.Int).SetUint64(fromBlock),
@@ -511,6 +539,8 @@ func (s *Scanner) processLog(ctx context.Context, tx pgx.Tx, log types.Log) ([]*
 	switch topic {
 	case contracts.TopicLinearStrategyCreated:
 		return s.handleLinearStrategyCreated(ctx, tx, log)
+	case contracts.TopicGeometryStrategyCreated:
+		return s.handleGeometryStrategyCreated(ctx, tx, log)
 	case contracts.TopicPairCreated:
 		return s.handlePairCreated(ctx, tx, log)
 	case contracts.TopicGridOrderCreated:

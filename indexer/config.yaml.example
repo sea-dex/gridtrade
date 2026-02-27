@@ -1,9 +1,11 @@
+# v2 contract addresses
 chains:
   - name: "bsc-testnet"
     chain_id: 97
     rpc_url: "${RPC_URL:-https://rpc.ankr.com/bsc_testnet_chapel}"
-    gridex_address: "0x5F7943e9424eF9370392570D06fFA630a5124e9A"
-    linear_strategy_address: "${LINEAR_STRATEGY_ADDRESS:-0x1cf9a206c9e416d39332530277D26090AC2692A0}"
+    gridex_address: "0xa91a5AAa0BC042200a3391eDb7b02d5B4aa804dB"  # Router
+    linear_strategy_address: "0x9D403942473B39123e8dAbeC529011Ae8636e61D"
+    geometry_strategy_address: "0xB0281fE94d7f739142ec89c633AFaEACBd3b08e8"
     start_block: ${START_BLOCK:-0}
     block_batch_size: 100
     poll_interval_ms: 2000

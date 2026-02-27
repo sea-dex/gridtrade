@@ -156,29 +156,41 @@ func UpsertToken(ctx context.Context, tx pgx.Tx, chainID int64,
 }
 
 // InsertGrid inserts a new grid record within a transaction.
+// askStrategy/bidStrategy are strategy type identifiers: "linear" or "geometry".
 // askPrice0/askGap/bidPrice0/bidGap come from LinearStrategyCreated events (may be empty strings).
+// askRatio/bidRatio come from GeometryStrategyCreated events (may be empty strings).
 // initPrice is the initial price when the grid was created (typically bidPrice0).
 // initBasePrice/initQuotePrice are USD prices at creation time from OKX DEX API.
+// aprExcludeIl/aprReal are APR calculation fields (empty on creation, updated by periodic timer).
 func InsertGrid(ctx context.Context, tx pgx.Tx, chainID int64, gridID int64,
 	owner string, pairID int, baseToken, quoteToken, initialBaseAmount, initialQuoteAmount string,
 	askOrderCount, bidOrderCount, fee int, compound, oneshot bool,
-	askPrice0, askGap, bidPrice0, bidGap, initPrice string,
+	askStrategy, bidStrategy string,
+	askPrice0, askGap, bidPrice0, bidGap string,
+	askRatio, bidRatio string,
+	initPrice string,
 	initBasePrice, initQuotePrice string,
 	blockNumber uint64) error {
 	_, err := tx.Exec(ctx, `
 		INSERT INTO grids (grid_id, chain_id, owner, pair_id, base_token, quote_token,
 			ask_order_count, bid_order_count, initial_base_amount, initial_quote_amount,
 			fee, compound, oneshot, status,
-			ask_price0, ask_gap, bid_price0, bid_gap, init_price,
-			init_base_price, init_quote_price,
+			ask_strategy, bid_strategy,
+			ask_price0, ask_gap, bid_price0, bid_gap,
+			ask_ratio, bid_ratio,
+			init_price,
+			init_base_price, init_quote_price, apr_exclude_il, apr_real,
 			create_block, update_block)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 1,
-			$14, $15, $16, $17, $18, $19, $20, $21, $21)
+			$14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, '', '', $25, $25)
 		ON CONFLICT DO NOTHING
 	`, gridID, chainID, owner, pairID, baseToken, quoteToken,
 		askOrderCount, bidOrderCount, initialBaseAmount, initialQuoteAmount,
 		fee, compound, oneshot,
-		askPrice0, askGap, bidPrice0, bidGap, initPrice,
+		askStrategy, bidStrategy,
+		askPrice0, askGap, bidPrice0, bidGap,
+		askRatio, bidRatio,
+		initPrice,
 		initBasePrice, initQuotePrice,
 		int64(blockNumber))
 	if err != nil {
@@ -368,6 +380,18 @@ func GetGridPairID(ctx context.Context, tx pgx.Tx, chainID int64, gridID int64) 
 		return 0, fmt.Errorf("get grid pair_id: %w", err)
 	}
 	return pairID, nil
+}
+
+// GetOrderGridID returns the grid_id for a given order.
+func GetOrderGridID(ctx context.Context, tx pgx.Tx, chainID int64, orderID string) (int64, error) {
+	var gridID int64
+	err := tx.QueryRow(ctx,
+		`SELECT grid_id FROM orders WHERE chain_id = $1 AND order_id = $2`, chainID, orderID,
+	).Scan(&gridID)
+	if err != nil {
+		return 0, fmt.Errorf("get order grid_id: %w", err)
+	}
+	return gridID, nil
 }
 
 // ProtocolStats holds aggregated protocol statistics.

@@ -1,4 +1,4 @@
-export const GRIDEX_ABI = [
+export const GRIDEX_ROUTER_ABI = [
   {
     "type": "constructor",
     "inputs": [

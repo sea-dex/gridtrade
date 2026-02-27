@@ -38,6 +38,19 @@
   },
   {
     "type": "function",
+    "name": "RATIO_MULTIPLIER",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "createGridStrategy",
     "inputs": [
       {
@@ -134,9 +147,9 @@
         "internalType": "uint256"
       },
       {
-        "name": "gap",
-        "type": "int256",
-        "internalType": "int256"
+        "name": "ratio",
+        "type": "uint256",
+        "internalType": "uint256"
       }
     ],
     "stateMutability": "view"
@@ -171,7 +184,7 @@
   },
   {
     "type": "event",
-    "name": "LinearStrategyCreated",
+    "name": "GeometryStrategyCreated",
     "inputs": [
       {
         "name": "isAsk",
@@ -192,62 +205,42 @@
         "internalType": "uint256"
       },
       {
-        "name": "gap",
-        "type": "int256",
+        "name": "ratio",
+        "type": "uint256",
         "indexed": false,
-        "internalType": "int256"
+        "internalType": "uint256"
       }
     ],
     "anonymous": false
   },
   {
     "type": "error",
-    "name": "LinearAskGapNonPositive",
+    "name": "GeometryAskRatioTooLow",
     "inputs": []
   },
   {
     "type": "error",
-    "name": "LinearAskGapTooLarge",
+    "name": "GeometryAskZeroQuote",
     "inputs": []
   },
   {
     "type": "error",
-    "name": "LinearAskPriceOverflow",
+    "name": "GeometryBidRatioTooHigh",
     "inputs": []
   },
   {
     "type": "error",
-    "name": "LinearAskZeroQuote",
+    "name": "GeometryBidZeroQuote",
     "inputs": []
   },
   {
     "type": "error",
-    "name": "LinearBidGapNonNegative",
+    "name": "GeometryInvalidCount",
     "inputs": []
   },
   {
     "type": "error",
-    "name": "LinearBidInvalidLastPrice",
-    "inputs": []
-  },
-  {
-    "type": "error",
-    "name": "LinearBidPriceOverflow",
-    "inputs": []
-  },
-  {
-    "type": "error",
-    "name": "LinearBidZeroQuote",
-    "inputs": []
-  },
-  {
-    "type": "error",
-    "name": "LinearInvalidCount",
-    "inputs": []
-  },
-  {
-    "type": "error",
-    "name": "LinearInvalidPriceOrGap",
+    "name": "GeometryInvalidPriceOrRatio",
     "inputs": []
   }
 ]

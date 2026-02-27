@@ -3,9 +3,21 @@
     "type": "function",
     "name": "cancelGrid",
     "inputs": [
-      { "name": "recipient", "type": "address", "internalType": "address" },
-      { "name": "gridId", "type": "uint128", "internalType": "uint128" },
-      { "name": "flag", "type": "uint32", "internalType": "uint32" }
+      {
+        "name": "recipient",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "gridId",
+        "type": "uint48",
+        "internalType": "uint48"
+      },
+      {
+        "name": "flag",
+        "type": "uint32",
+        "internalType": "uint32"
+      }
     ],
     "outputs": [],
     "stateMutability": "nonpayable"
@@ -14,26 +26,54 @@
     "type": "function",
     "name": "cancelGridOrders",
     "inputs": [
-      { "name": "gridId", "type": "uint128", "internalType": "uint128" },
-      { "name": "recipient", "type": "address", "internalType": "address" },
-      { "name": "idList", "type": "uint256[]", "internalType": "uint256[]" },
-      { "name": "flag", "type": "uint32", "internalType": "uint32" }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "cancelGridOrders",
-    "inputs": [
-      { "name": "recipient", "type": "address", "internalType": "address" },
+      {
+        "name": "recipient",
+        "type": "address",
+        "internalType": "address"
+      },
       {
         "name": "startGridOrderId",
-        "type": "uint256",
-        "internalType": "uint256"
+        "type": "uint64",
+        "internalType": "uint64"
       },
-      { "name": "howmany", "type": "uint32", "internalType": "uint32" },
-      { "name": "flag", "type": "uint32", "internalType": "uint32" }
+      {
+        "name": "howmany",
+        "type": "uint32",
+        "internalType": "uint32"
+      },
+      {
+        "name": "flag",
+        "type": "uint32",
+        "internalType": "uint32"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "cancelGridOrders",
+    "inputs": [
+      {
+        "name": "gridId",
+        "type": "uint48",
+        "internalType": "uint48"
+      },
+      {
+        "name": "recipient",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "idList",
+        "type": "uint64[]",
+        "internalType": "uint64[]"
+      },
+      {
+        "name": "flag",
+        "type": "uint32",
+        "internalType": "uint32"
+      }
     ],
     "outputs": [],
     "stateMutability": "nonpayable"
@@ -42,8 +82,16 @@
     "type": "function",
     "name": "modifyGridFee",
     "inputs": [
-      { "name": "gridId", "type": "uint128", "internalType": "uint128" },
-      { "name": "fee", "type": "uint32", "internalType": "uint32" }
+      {
+        "name": "gridId",
+        "type": "uint48",
+        "internalType": "uint48"
+      },
+      {
+        "name": "fee",
+        "type": "uint32",
+        "internalType": "uint32"
+      }
     ],
     "outputs": [],
     "stateMutability": "nonpayable"
@@ -52,10 +100,26 @@
     "type": "function",
     "name": "withdrawGridProfits",
     "inputs": [
-      { "name": "gridId", "type": "uint128", "internalType": "uint128" },
-      { "name": "amt", "type": "uint256", "internalType": "uint256" },
-      { "name": "to", "type": "address", "internalType": "address" },
-      { "name": "flag", "type": "uint32", "internalType": "uint32" }
+      {
+        "name": "gridId",
+        "type": "uint48",
+        "internalType": "uint48"
+      },
+      {
+        "name": "amt",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "to",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "flag",
+        "type": "uint32",
+        "internalType": "uint32"
+      }
     ],
     "outputs": [],
     "stateMutability": "nonpayable"
@@ -72,15 +136,15 @@
       },
       {
         "name": "orderId",
-        "type": "uint128",
+        "type": "uint64",
         "indexed": true,
-        "internalType": "uint128"
+        "internalType": "uint64"
       },
       {
         "name": "gridId",
-        "type": "uint128",
+        "type": "uint48",
         "indexed": true,
-        "internalType": "uint128"
+        "internalType": "uint48"
       }
     ],
     "anonymous": false
@@ -97,9 +161,9 @@
       },
       {
         "name": "gridId",
-        "type": "uint128",
+        "type": "uint48",
         "indexed": true,
-        "internalType": "uint128"
+        "internalType": "uint48"
       }
     ],
     "anonymous": false
@@ -141,9 +205,9 @@
       },
       {
         "name": "gridOrderId",
-        "type": "uint256",
+        "type": "uint64",
         "indexed": false,
-        "internalType": "uint256"
+        "internalType": "uint64"
       },
       {
         "name": "baseAmt",
@@ -190,9 +254,9 @@
       },
       {
         "name": "gridId",
-        "type": "uint256",
+        "type": "uint48",
         "indexed": false,
-        "internalType": "uint256"
+        "internalType": "uint48"
       },
       {
         "name": "fee",
@@ -227,21 +291,9 @@
       },
       {
         "name": "gridId",
-        "type": "uint128",
+        "type": "uint48",
         "indexed": false,
-        "internalType": "uint128"
-      },
-      {
-        "name": "askOrderId",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      },
-      {
-        "name": "bidOrderId",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
+        "internalType": "uint48"
       },
       {
         "name": "asks",
@@ -332,9 +384,9 @@
     "inputs": [
       {
         "name": "gridId",
-        "type": "uint128",
+        "type": "uint48",
         "indexed": false,
-        "internalType": "uint128"
+        "internalType": "uint48"
       },
       {
         "name": "quote",
@@ -357,13 +409,49 @@
     ],
     "anonymous": false
   },
-  { "type": "error", "name": "CannotModifyOneshotFee", "inputs": [] },
-  { "type": "error", "name": "ETHTransferFailed", "inputs": [] },
-  { "type": "error", "name": "ExceedMaxAmount", "inputs": [] },
-  { "type": "error", "name": "InvalidGridFee", "inputs": [] },
-  { "type": "error", "name": "InvalidGridId", "inputs": [] },
-  { "type": "error", "name": "NoProfits", "inputs": [] },
-  { "type": "error", "name": "NotGridOwner", "inputs": [] },
-  { "type": "error", "name": "NotWETH", "inputs": [] },
-  { "type": "error", "name": "OrderCanceled", "inputs": [] }
+  {
+    "type": "error",
+    "name": "CannotModifyOneshotFee",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "ETHTransferFailed",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "ExceedMaxAmount",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidGridFee",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidGridId",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NoProfits",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NotGridOwner",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NotWETH",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "OrderCanceled",
+    "inputs": []
+  }
 ]

@@ -17,10 +17,23 @@ export const grids = pgTable('grids', {
   fee: integer('fee').notNull(),
   compound: boolean('compound').notNull(),
   oneshot: boolean('oneshot').notNull(),
+  // Strategy type identifiers (from v2 - supports 'linear' | 'geometry')
+  askStrategy: varchar('ask_strategy', { length: 32 }).notNull().default('linear'),
+  bidStrategy: varchar('bid_strategy', { length: 32 }).notNull().default('linear'),
+  // Linear strategy parameters (from migrations 004, 009, 010)
   askPrice0: varchar('ask_price0', { length: 78 }).notNull().default(''),
   askGap: varchar('ask_gap', { length: 78 }).notNull().default(''),
   bidPrice0: varchar('bid_price0', { length: 78 }).notNull().default(''),
   bidGap: varchar('bid_gap', { length: 78 }).notNull().default(''),
+  // Geometry strategy parameters (from v2)
+  askRatio: varchar('ask_ratio', { length: 78 }).notNull().default(''),
+  bidRatio: varchar('bid_ratio', { length: 78 }).notNull().default(''),
+  initPrice: varchar('init_price', { length: 78 }).notNull().default(''),
+  // APR calculation fields (from migration 010)
+  initBasePrice: varchar('init_base_price', { length: 78 }).notNull().default(''),
+  initQuotePrice: varchar('init_quote_price', { length: 78 }).notNull().default(''),
+  aprExcludeIl: varchar('apr_exclude_il', { length: 78 }).notNull().default(''),
+  aprReal: varchar('apr_real', { length: 78 }).notNull().default(''),
   status: integer('status').notNull().default(1),
   createBlock: bigint('create_block', { mode: 'number' }).notNull().default(0),
   updateBlock: bigint('update_block', { mode: 'number' }).notNull().default(0),
@@ -38,6 +51,8 @@ export const orders = pgTable('orders', {
   id: serial('id').primaryKey(),
   // orderId can exceed JS safe integer range, store as string
   orderId: varchar('order_id', { length: 78 }).notNull(),
+  // hex_order_id is the hexadecimal representation of orderId (from migration 008)
+  hexOrderId: varchar('hex_order_id', { length: 66 }),
   chainId: integer('chain_id').notNull(),
   gridId: bigint('grid_id', { mode: 'number' }).notNull(),
   pairId: integer('pair_id').notNull(),
@@ -61,6 +76,7 @@ export const orders = pgTable('orders', {
   index('orders_chain_id_grid_id_idx').on(t.chainId, t.gridId),
   index('orders_chain_id_pair_id_idx').on(t.chainId, t.pairId),
   index('orders_chain_id_status_idx').on(t.chainId, t.status),
+  index('idx_orders_hex_order_id').on(t.hexOrderId),
 ]);
 
 // Order fills table
@@ -71,6 +87,8 @@ export const orderFills = pgTable('order_fills', {
   taker: varchar('taker', { length: 42 }).notNull(),
   // orderId can exceed JS safe integer range, store as string
   orderId: varchar('order_id', { length: 78 }).notNull(),
+  // hex_order_id is the hexadecimal representation of orderId (from migration 008)
+  hexOrderId: varchar('hex_order_id', { length: 66 }),
   filledAmount: varchar('filled_amount', { length: 78 }).notNull(),
   filledVolume: varchar('filled_volume', { length: 78 }).notNull(),
   isAsk: boolean('is_ask').notNull(),

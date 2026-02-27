@@ -19,7 +19,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Select, SelectTrigger, SelectContent, SelectItem } from '@/components/ui/Select';
 import { ERC20_ABI } from '@/config/abi/ERC20';
 import { GRIDEX_ABI } from '@/config/abi/GridEx';
-import { GRIDEX_ADDRESSES, LINEAR_STRATEGY_ADDRESSES } from '@/config/chains';
+import { GRIDEX_ADDRESSES, LINEAR_STRATEGY_ADDRESSES, GEOMETRY_STRATEGY_ADDRESSES } from '@/config/chains';
 import { cn } from '@/lib/utils';
 import { TransactionStatusDialog, type TxStep } from '@/components/trading/TransactionStatusDialog';
 import type { PriceLine } from '@/types/grid';
@@ -35,15 +35,26 @@ function formatAmount(value: bigint, decimals: number, maxFractionDigits = 6): s
 const PRICE_MULTIPLIER = 10n ** 36n;
 const PRICE_MULTIPLIER_BN = new BigNumber(10).pow(36);
 
+/** Ratio multiplier for Geometry strategy (10^18) */
+const RATIO_MULTIPLIER = 10n ** 18n;
+const RATIO_MULTIPLIER_BN = new BigNumber(10).pow(18);
+
+/** Strategy types */
+export type StrategyType = 'linear' | 'geometry';
+
 export interface ExternalGridFormData {
   askPrice0?: string;
   bidPrice0?: string;
   askGap?: string;
   bidGap?: string;
+  askRatio?: string;  // For geometry strategy
+  bidRatio?: string;  // For geometry strategy
   askOrderCount?: string;
   bidOrderCount?: string;
   amountPerGrid?: string;
   compound?: boolean;
+  askStrategy?: StrategyType;
+  bidStrategy?: StrategyType;
 }
 
 interface GridOrderFormProps {
@@ -165,10 +176,14 @@ export function GridOrderForm({ baseToken, quoteToken, onPriceLinesChange, exter
   });
 
   const [formData, setFormData] = useState(() => ({
+    askStrategy: 'linear' as StrategyType,  // strategy type for ask orders
+    bidStrategy: 'linear' as StrategyType,  // strategy type for bid orders
     askPrice0: '',    // lowest ask order price
     bidPrice0: '',    // highest bid order price
-    askGap: '',       // price gap between ask orders
-    bidGap: '',       // price gap between bid orders
+    askGap: '',       // price gap between ask orders (linear)
+    bidGap: '',       // price gap between bid orders (linear)
+    askRatio: '',     // ratio for geometry strategy (ask)
+    bidRatio: '',     // ratio for geometry strategy (bid)
     askOrderCount: '5',
     bidOrderCount: '5',
     amountPerGrid: '',
@@ -195,29 +210,85 @@ export function GridOrderForm({ baseToken, quoteToken, onPriceLinesChange, exter
       if (externalFormData.bidPrice0 !== undefined) next.bidPrice0 = externalFormData.bidPrice0;
       if (externalFormData.askGap !== undefined) next.askGap = externalFormData.askGap;
       if (externalFormData.bidGap !== undefined) next.bidGap = externalFormData.bidGap;
+      if (externalFormData.askRatio !== undefined) next.askRatio = externalFormData.askRatio;
+      if (externalFormData.bidRatio !== undefined) next.bidRatio = externalFormData.bidRatio;
       if (externalFormData.askOrderCount !== undefined) next.askOrderCount = externalFormData.askOrderCount;
       if (externalFormData.bidOrderCount !== undefined) next.bidOrderCount = externalFormData.bidOrderCount;
       if (externalFormData.amountPerGrid !== undefined) next.amountPerGrid = externalFormData.amountPerGrid;
       if (externalFormData.compound !== undefined) next.compound = externalFormData.compound;
+      if (externalFormData.askStrategy !== undefined) next.askStrategy = externalFormData.askStrategy;
+      if (externalFormData.bidStrategy !== undefined) next.bidStrategy = externalFormData.bidStrategy;
       return next;
     });
   }, [externalFormData]);
 
   // Derive effective order counts:
-  // Per contract requirement: if price is 0 OR gap is 0 → order count becomes 0
+  // For linear: if price is 0 OR gap is 0 → order count becomes 0
+  // For geometry: if price is 0 OR ratio is 0 → order count becomes 0
   const effectiveAskCount = useMemo(() => {
     const price = parseFloat(formData.askPrice0);
-    const gap = parseFloat(formData.askGap);
-    if (!price || !gap) return 0;
+    if (!price) return 0;
+    if (formData.askStrategy === 'linear') {
+      const gap = parseFloat(formData.askGap);
+      if (!gap) return 0;
+    } else {
+      const ratio = parseFloat(formData.askRatio);
+      if (!ratio) return 0;
+    }
     return parseInt(formData.askOrderCount) || 0;
-  }, [formData.askPrice0, formData.askGap, formData.askOrderCount]);
+  }, [formData.askPrice0, formData.askGap, formData.askRatio, formData.askOrderCount, formData.askStrategy]);
 
   const effectiveBidCount = useMemo(() => {
     const price = parseFloat(formData.bidPrice0);
-    const gap = parseFloat(formData.bidGap);
-    if (!price || !gap) return 0;
+    if (!price) return 0;
+    if (formData.bidStrategy === 'linear') {
+      const gap = parseFloat(formData.bidGap);
+      if (!gap) return 0;
+    } else {
+      const ratio = parseFloat(formData.bidRatio);
+      if (!ratio) return 0;
+    }
     return parseInt(formData.bidOrderCount) || 0;
-  }, [formData.bidPrice0, formData.bidGap, formData.bidOrderCount]);
+  }, [formData.bidPrice0, formData.bidGap, formData.bidRatio, formData.bidOrderCount, formData.bidStrategy]);
+
+  /**
+   * Calculate price at index for geometry strategy
+   * price(i) = price0 * ratio^i / RATIO_MULTIPLIER
+   */
+  function calcGeometryPrice(price0: bigint, ratio: bigint, idx: number): bigint {
+    if (idx === 0) return price0;
+    let result = RATIO_MULTIPLIER;
+    let base = ratio;
+    let e = idx;
+    while (e > 0) {
+      if ((e & 1) !== 0) {
+        result = (result * base) / RATIO_MULTIPLIER;
+      }
+      e >>= 1;
+      if (e > 0) {
+        base = (base * base) / RATIO_MULTIPLIER;
+      }
+    }
+    return (price0 * result) / RATIO_MULTIPLIER;
+  }
+
+  /**
+   * Calculate total quote amount for geometry strategy bid orders
+   */
+  function calcGeometryGridQuoteAmount(
+    baseAmt: bigint,
+    bidPrice0: bigint,
+    bidRatio: bigint,
+    bidCount: number,
+  ): bigint {
+    let quoteAmt = 0n;
+    for (let i = 0; i < bidCount; i++) {
+      const price = calcGeometryPrice(bidPrice0, bidRatio, i);
+      const amt = (baseAmt * price) / PRICE_MULTIPLIER;
+      quoteAmt += amt;
+    }
+    return quoteAmt;
+  }
 
   // Calculate total base and quote amounts needed
   const totals = useMemo(() => {
@@ -227,18 +298,22 @@ export function GridOrderForm({ baseToken, quoteToken, onPriceLinesChange, exter
 
     try {
       const baseAmt = parseUnits(formData.amountPerGrid, baseToken.decimals);
-      const bidPrice = priceToBigInt(formData.bidPrice0);
-      const bidGap = priceToBigInt(formData.bidGap);
+      const bidPrice0 = priceToBigInt(formData.bidPrice0);
 
-      const [totalBase, totalQuote] = calcGridAmount(
-        baseAmt,
-        bidPrice,
-        bidGap,
-        effectiveAskCount,
-        effectiveBidCount,
-      );
+      let quoteTotal = 0n;
 
-      return { baseTotal: totalBase, quoteTotal: totalQuote };
+      if (formData.bidStrategy === 'linear') {
+        const bidGap = priceToBigInt(formData.bidGap);
+        quoteTotal = calcGridAmount(baseAmt, bidPrice0, bidGap, 0, effectiveBidCount)[1];
+      } else {
+        // Geometry strategy
+        const bidRatioBN = new BigNumber(formData.bidRatio || '1').times(RATIO_MULTIPLIER_BN).integerValue(BigNumber.ROUND_DOWN);
+        const bidRatio = BigInt(bidRatioBN.toFixed(0));
+        quoteTotal = calcGeometryGridQuoteAmount(baseAmt, bidPrice0, bidRatio, effectiveBidCount);
+      }
+
+      const baseTotal = baseAmt * BigInt(effectiveAskCount);
+      return { baseTotal, quoteTotal };
     } catch {
       return { baseTotal: 0n, quoteTotal: 0n };
     }
@@ -246,6 +321,8 @@ export function GridOrderForm({ baseToken, quoteToken, onPriceLinesChange, exter
     formData.amountPerGrid,
     formData.bidPrice0,
     formData.bidGap,
+    formData.bidRatio,
+    formData.bidStrategy,
     effectiveAskCount,
     effectiveBidCount,
     baseToken,
@@ -281,33 +358,73 @@ export function GridOrderForm({ baseToken, quoteToken, onPriceLinesChange, exter
     const lines: PriceLine[] = [];
 
     const askP0 = parseFloat(formData.askPrice0);
-    const askG = parseFloat(formData.askGap);
     const bidP0 = parseFloat(formData.bidPrice0);
-    const bidG = parseFloat(formData.bidGap);
 
-    if (Number.isFinite(askP0) && Number.isFinite(askG) && askP0 > 0 && askG > 0 && effectiveAskCount > 0) {
-      for (let i = 0; i < effectiveAskCount; i++) {
-        const p = askP0 + askG * i;
-        lines.push({
-          price: p,
-          color: '#ef4444',
-          label: `ASK #${i + 1}`,
-          lineStyle: 2, // dashed
-          lineWidth: 1,
-        });
+    // Ask orders
+    if (Number.isFinite(askP0) && askP0 > 0 && effectiveAskCount > 0) {
+      if (formData.askStrategy === 'linear') {
+        const askG = parseFloat(formData.askGap);
+        if (Number.isFinite(askG) && askG > 0) {
+          for (let i = 0; i < effectiveAskCount; i++) {
+            const p = askP0 + askG * i;
+            lines.push({
+              price: p,
+              color: '#ef4444',
+              label: `ASK #${i + 1}`,
+              lineStyle: 2, // dashed
+              lineWidth: 1,
+            });
+          }
+        }
+      } else {
+        // Geometry strategy
+        const askRatio = parseFloat(formData.askRatio);
+        if (Number.isFinite(askRatio) && askRatio > 0) {
+          for (let i = 0; i < effectiveAskCount; i++) {
+            const p = askP0 * Math.pow(askRatio, i);
+            lines.push({
+              price: p,
+              color: '#ef4444',
+              label: `ASK #${i + 1}`,
+              lineStyle: 2, // dashed
+              lineWidth: 1,
+            });
+          }
+        }
       }
     }
 
-    if (Number.isFinite(bidP0) && Number.isFinite(bidG) && bidP0 > 0 && bidG > 0 && effectiveBidCount > 0) {
-      for (let i = 0; i < effectiveBidCount; i++) {
-        const p = bidP0 - bidG * i;
-        lines.push({
-          price: p,
-          color: '#22c55e',
-          label: `BID #${i + 1}`,
-          lineStyle: 2, // dashed
-          lineWidth: 1,
-        });
+    // Bid orders
+    if (Number.isFinite(bidP0) && bidP0 > 0 && effectiveBidCount > 0) {
+      if (formData.bidStrategy === 'linear') {
+        const bidG = parseFloat(formData.bidGap);
+        if (Number.isFinite(bidG) && bidG > 0) {
+          for (let i = 0; i < effectiveBidCount; i++) {
+            const p = bidP0 - bidG * i;
+            lines.push({
+              price: p,
+              color: '#22c55e',
+              label: `BID #${i + 1}`,
+              lineStyle: 2, // dashed
+              lineWidth: 1,
+            });
+          }
+        }
+      } else {
+        // Geometry strategy
+        const bidRatio = parseFloat(formData.bidRatio);
+        if (Number.isFinite(bidRatio) && bidRatio > 0) {
+          for (let i = 0; i < effectiveBidCount; i++) {
+            const p = bidP0 * Math.pow(bidRatio, i);
+            lines.push({
+              price: p,
+              color: '#22c55e',
+              label: `BID #${i + 1}`,
+              lineStyle: 2, // dashed
+              lineWidth: 1,
+            });
+          }
+        }
       }
     }
 
@@ -315,8 +432,12 @@ export function GridOrderForm({ baseToken, quoteToken, onPriceLinesChange, exter
   }, [
     formData.askPrice0,
     formData.askGap,
+    formData.askRatio,
+    formData.askStrategy,
     formData.bidPrice0,
     formData.bidGap,
+    formData.bidRatio,
+    formData.bidStrategy,
     effectiveAskCount,
     effectiveBidCount,
   ]);
@@ -432,33 +553,66 @@ export function GridOrderForm({ baseToken, quoteToken, onPriceLinesChange, exter
       updateStep(stepIndexMap.place, { status: 'active' });
 
       const askPrice0 = priceToBigInt(formData.askPrice0);
-      const askGap = priceToBigInt(formData.askGap);
       const bidPrice0 = priceToBigInt(formData.bidPrice0);
-      const bidGapPositive = priceToBigInt(formData.bidGap);
-      // Contract expects bid gap as negative (prices decrease for each subsequent bid order)
-      const bidGap = bidGapPositive > 0n ? -bidGapPositive : bidGapPositive;
 
-      console.info('ask price:', askPrice0)
-      console.info('ask gap:', askGap)
-      console.info('bid price:', bidPrice0)
-      console.info('bid gap:', bidGap)
-
+      // Get strategy addresses
       const linearStrategy = LINEAR_STRATEGY_ADDRESSES[chainId];
-      if (!linearStrategy) return;
+      const geometryStrategy = GEOMETRY_STRATEGY_ADDRESSES[chainId];
+      if (!linearStrategy || !geometryStrategy) return;
 
-      const askData = encodeAbiParameters(
-        [{ type: 'uint256' }, { type: 'int256' }],
-        [askPrice0, askGap],
-      );
+      // Encode strategy data based on selected strategy type
+      let askData: `0x${string}`;
+      let bidData: `0x${string}`;
+      let askStrategyAddress: `0x${string}`;
+      let bidStrategyAddress: `0x${string}`;
 
-      const bidData = encodeAbiParameters(
-        [{ type: 'uint256' }, { type: 'int256' }],
-        [bidPrice0, bidGap],
-      );
+      // Ask strategy encoding
+      if (formData.askStrategy === 'linear') {
+        const askGap = priceToBigInt(formData.askGap);
+        console.info('ask strategy: linear, price:', askPrice0, 'gap:', askGap);
+        askData = encodeAbiParameters(
+          [{ type: 'uint256' }, { type: 'int256' }],
+          [askPrice0, askGap],
+        );
+        askStrategyAddress = linearStrategy;
+      } else {
+        // Geometry strategy: ratio is scaled by 10^18
+        const askRatioBN = new BigNumber(formData.askRatio || '1').times(RATIO_MULTIPLIER_BN).integerValue(BigNumber.ROUND_DOWN);
+        const askRatio = BigInt(askRatioBN.toFixed(0));
+        console.info('ask strategy: geometry, price:', askPrice0, 'ratio:', askRatio);
+        askData = encodeAbiParameters(
+          [{ type: 'uint256' }, { type: 'uint256' }],
+          [askPrice0, askRatio],
+        );
+        askStrategyAddress = geometryStrategy;
+      }
+
+      // Bid strategy encoding
+      if (formData.bidStrategy === 'linear') {
+        const bidGapPositive = priceToBigInt(formData.bidGap);
+        // Contract expects bid gap as negative (prices decrease for each subsequent bid order)
+        const bidGap = bidGapPositive > 0n ? -bidGapPositive : bidGapPositive;
+        console.info('bid strategy: linear, price:', bidPrice0, 'gap:', bidGap);
+        bidData = encodeAbiParameters(
+          [{ type: 'uint256' }, { type: 'int256' }],
+          [bidPrice0, bidGap],
+        );
+        bidStrategyAddress = linearStrategy;
+      } else {
+        // Geometry strategy: ratio is scaled by 10^18
+        const bidRatioBN = new BigNumber(formData.bidRatio || '1').times(RATIO_MULTIPLIER_BN).integerValue(BigNumber.ROUND_DOWN);
+        const bidRatio = BigInt(bidRatioBN.toFixed(0));
+        console.info('bid strategy: geometry, price:', bidPrice0, 'ratio:', bidRatio);
+        bidData = encodeAbiParameters(
+          [{ type: 'uint256' }, { type: 'uint256' }],
+          [bidPrice0, bidRatio],
+        );
+        bidStrategyAddress = geometryStrategy;
+      }
 
       const param = {
-        askStrategy: linearStrategy,
-        bidStrategy: linearStrategy,
+        askStrategy: askStrategyAddress,
+        bidStrategy: bidStrategyAddress,
         askData: askData,
         bidData: bidData,
         askOrderCount: effectiveAskCount,
@@ -520,12 +674,24 @@ export function GridOrderForm({ baseToken, quoteToken, onPriceLinesChange, exter
         <CardTitle>{t('grid.place_order')}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Ask Price & Gap */}
+        {/* Ask Strategy Selection */}
         <div className="space-y-2">
           <label className="text-xs font-medium text-(--text-secondary) tracking-wide uppercase">
             {t('grid.order_form.ask_settings')}
           </label>
-          <div className="grid grid-cols-2 gap-2.5">
+          <Select
+            value={formData.askStrategy}
+            onValueChange={(v) => handleInputChange('askStrategy', v as StrategyType)}
+          >
+            <SelectTrigger placeholder="Select strategy">
+              {formData.askStrategy === 'linear' ? 'Linear' : 'Geometry'}
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="linear">Linear (Fixed Gap)</SelectItem>
+              <SelectItem value="geometry">Geometry (Ratio)</SelectItem>
+            </SelectContent>
+          </Select>
+          <div className="grid grid-cols-2 gap-2.5 mt-2">
             <Input
               placeholder={t('grid.order_form.ask_price0')}
               value={formData.askPrice0}
@@ -533,22 +699,44 @@ export function GridOrderForm({ baseToken, quoteToken, onPriceLinesChange, exter
               suffix={quoteToken?.symbol}
               type="number"
             />
-            <Input
-              placeholder={t('grid.order_form.ask_gap')}
-              value={formData.askGap}
-              onChange={(e) => handleInputChange('askGap', e.target.value)}
-              suffix={quoteToken?.symbol}
-              type="number"
-            />
+            {formData.askStrategy === 'linear' ? (
+              <Input
+                placeholder={t('grid.order_form.ask_gap')}
+                value={formData.askGap}
+                onChange={(e) => handleInputChange('askGap', e.target.value)}
+                suffix={quoteToken?.symbol}
+                type="number"
+              />
+            ) : (
+              <Input
+                placeholder={t('grid.order_form.ask_ratio') || 'Ratio (e.g., 1.01)'}
+                value={formData.askRatio}
+                onChange={(e) => handleInputChange('askRatio', e.target.value)}
+                type="number"
+                step="0.001"
+              />
+            )}
           </div>
         </div>
 
-        {/* Bid Price & Gap */}
+        {/* Bid Strategy Selection */}
         <div className="space-y-2">
           <label className="text-xs font-medium text-(--text-secondary) tracking-wide uppercase">
             {t('grid.order_form.bid_settings')}
           </label>
-          <div className="grid grid-cols-2 gap-2.5">
+          <Select
+            value={formData.bidStrategy}
+            onValueChange={(v) => handleInputChange('bidStrategy', v as StrategyType)}
+          >
+            <SelectTrigger placeholder="Select strategy">
+              {formData.bidStrategy === 'linear' ? 'Linear' : 'Geometry'}
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="linear">Linear (Fixed Gap)</SelectItem>
+              <SelectItem value="geometry">Geometry (Ratio)</SelectItem>
+            </SelectContent>
+          </Select>
+          <div className="grid grid-cols-2 gap-2.5 mt-2">
             <Input
               placeholder={t('grid.order_form.bid_price0')}
               value={formData.bidPrice0}
@@ -556,13 +744,23 @@ export function GridOrderForm({ baseToken, quoteToken, onPriceLinesChange, exter
               suffix={quoteToken?.symbol}
               type="number"
             />
-            <Input
-              placeholder={t('grid.order_form.bid_gap')}
-              value={formData.bidGap}
-              onChange={(e) => handleInputChange('bidGap', e.target.value)}
-              suffix={quoteToken?.symbol}
-              type="number"
-            />
+            {formData.bidStrategy === 'linear' ? (
+              <Input
+                placeholder={t('grid.order_form.bid_gap')}
+                value={formData.bidGap}
+                onChange={(e) => handleInputChange('bidGap', e.target.value)}
+                suffix={quoteToken?.symbol}
+                type="number"
+              />
+            ) : (
+              <Input
+                placeholder={t('grid.order_form.bid_ratio') || 'Ratio (e.g., 0.99)'}
+                value={formData.bidRatio}
+                onChange={(e) => handleInputChange('bidRatio', e.target.value)}
+                type="number"
+                step="0.001"
+              />
+            )}
           </div>
         </div>
 
