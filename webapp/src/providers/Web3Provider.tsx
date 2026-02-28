@@ -30,6 +30,7 @@ function ChainSyncManager() {
 
 export function Web3Provider({ children }: { children: React.ReactNode }) {
   const theme = useStore((state) => state.theme);
+  const locale = useStore((state) => state.locale);
 
   return (
     <WagmiProvider config={wagmiConfig}>
@@ -37,6 +38,7 @@ export function Web3Provider({ children }: { children: React.ReactNode }) {
         <RainbowKitProvider
           theme={theme === 'dark' ? darkTheme() : lightTheme()}
           modalSize="compact"
+          locale={locale}
         >
           <ChainSyncManager />
           {children}
