@@ -5,10 +5,11 @@ import { useAccount, useWriteContract } from 'wagmi';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useGridOrders } from '@/hooks/useGridOrders';
 import { useOrdersWithGridInfo } from '@/hooks/useOrdersWithGridInfo';
+import { useBaseTokens, useQuoteTokens } from '@/hooks/useTokens';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { GRIDEX_ABI } from '@/config/abi/GridEx';
-import { GRIDEX_ADDRESSES } from '@/config/chains';
+import { GRIDEX_ADDRESSES, WETH_ADDRESSES } from '@/config/chains';
 import { formatNumber } from '@/lib/utils';
 import { Trash2, Download, ChevronDown, ChevronRight } from 'lucide-react';
 import type { GridWithOrders, GridOrder, OrderWithGridInfo } from '@/types/grid';
@@ -32,6 +33,26 @@ export function GridOrderList() {
   const allOrdersResult = useOrdersWithGridInfo({
     refreshInterval: 10_000,
   });
+
+  // Token lists for symbol-to-address mapping
+  const { tokens: baseTokens } = useBaseTokens();
+  const { tokens: quoteTokens } = useQuoteTokens();
+
+  // Create symbol-to-address mapping from token lists
+  const symbolToAddressMap = useMemo(() => {
+    const map = new Map<string, string>();
+    const allTokens = [...baseTokens, ...quoteTokens];
+    for (const token of allTokens) {
+      // Store lowercase symbol for case-insensitive lookup
+      map.set(token.symbol.toLowerCase(), token.address);
+    }
+    return map;
+  }, [baseTokens, quoteTokens]);
+
+  // Helper function to get token address by symbol
+  const getTokenAddress = (symbol: string): string | undefined => {
+    return symbolToAddressMap.get(symbol.toLowerCase());
+  };
 
   const isMyGrids = activeTab === 'my_grids';
 
@@ -72,29 +93,48 @@ export function GridOrderList() {
     });
   };
 
-  const handleWithdraw = async (gridId: number) => {
+  const handleWithdraw = async (gridId: number, quoteTokenSymbol: string) => {
     if (!address || !chainId) return;
     const gridexAddress = GRIDEX_ADDRESSES[chainId];
     if (!gridexAddress) return;
+
+    // Get quote token address from symbol, then compare with WETH address
+    const wethAddress = WETH_ADDRESSES[chainId];
+    const quoteTokenAddress = getTokenAddress(quoteTokenSymbol);
+    const isQuoteWeth = wethAddress && quoteTokenAddress &&
+      quoteTokenAddress.toLowerCase() === wethAddress.toLowerCase();
+    const flag: number = isQuoteWeth ? 1 : 0;
 
     writeContract({
       address: gridexAddress,
       abi: GRIDEX_ABI,
       functionName: 'withdrawGridProfits',
-      args: [BigInt(gridId), BigInt(0), address, 0],
+      args: [gridId, BigInt(0), address, flag],
     });
   };
 
-  const handleCancel = async (gridId: number) => {
+  const handleCancel = async (gridId: number, baseTokenSymbol: string, quoteTokenSymbol: string) => {
     if (!address || !chainId) return;
     const gridexAddress = GRIDEX_ADDRESSES[chainId];
     if (!gridexAddress) return;
+
+    // Get token addresses from symbols, then compare with WETH address
+    const wethAddress = WETH_ADDRESSES[chainId];
+    const baseTokenAddress = getTokenAddress(baseTokenSymbol);
+    const quoteTokenAddress = getTokenAddress(quoteTokenSymbol);
+    
+    // Determine flag based on WETH address: 1 if base is WETH, 2 if quote is WETH
+    const isBaseWeth = wethAddress && baseTokenAddress &&
+      baseTokenAddress.toLowerCase() === wethAddress.toLowerCase();
+    const isQuoteWeth = wethAddress && quoteTokenAddress &&
+      quoteTokenAddress.toLowerCase() === wethAddress.toLowerCase();
+    const flag: number = isBaseWeth ? 1 : (isQuoteWeth ? 2 : 0);
 
     writeContract({
       address: gridexAddress,
       abi: GRIDEX_ABI,
       functionName: 'cancelGrid',
-      args: [address, BigInt(gridId), 0],
+      args: [address, gridId, flag],
     });
   };
 
@@ -359,8 +399,8 @@ function GridRow({
   gridWithOrders: GridWithOrders;
   isExpanded: boolean;
   onToggle: () => void;
-  onWithdraw: (gridId: number) => void;
-  onCancel: (gridId: number) => void;
+  onWithdraw: (gridId: number, quoteToken: string) => void;
+  onCancel: (gridId: number, baseToken: string, quoteToken: string) => void;
   isPending: boolean;
   getStatusBadge: (status: number) => React.ReactNode;
   showActions: boolean;
@@ -435,7 +475,7 @@ function GridRow({
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => onWithdraw(config.grid_id)}
+                    onClick={() => onWithdraw(config.grid_id, config.quote_token)}
                     disabled={isPending}
                   >
                     <Download size={14} />
@@ -444,7 +484,7 @@ function GridRow({
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => onCancel(config.grid_id)}
+                    onClick={() => onCancel(config.grid_id, config.base_token, config.quote_token)}
                     disabled={isPending}
                     className="text-(--red) hover:text-(--red) hover:bg-(--red-dim)"
                   >

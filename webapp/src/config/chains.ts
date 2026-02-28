@@ -46,4 +46,12 @@ export const NATIVE_TOKENS: Record<number, { symbol: string; name: string; decim
   [bscTestnet.id]: { symbol: 'tBNB', name: 'Test BNB', decimals: 18 },
 };
 
+// WETH addresses for each chain
+export const WETH_ADDRESSES: Record<number, `0x${string}`> = {
+  [mainnet.id]: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+  [bsc.id]: '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c', // WBNB
+  [base.id]: '0x4200000000000000000000000000000000000006',
+  [bscTestnet.id]: '0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd', // WBNB on testnet
+};
+
 export const DEFAULT_CHAIN = bscTestnet;
