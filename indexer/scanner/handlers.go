@@ -425,7 +425,7 @@ func (s *Scanner) computeAndInsertOrder(ctx context.Context, tx pgx.Tx, log type
 		}
 
 		if askStrategy == StrategyTypeGeometry {
-			if strat.AskRatio != nil {
+			if strat.AskRatio == nil {
 				panic("askRatio is nil")
 			}
 			// Geometry strategy: price = askPrice0 * (askRatio / RATIO_MULTIPLIER)^i
