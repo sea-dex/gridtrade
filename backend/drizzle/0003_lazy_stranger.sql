@@ -1,0 +1,1 @@
+ALTER TABLE "indexer_state" ADD COLUMN "kafka_offset" bigint DEFAULT 0 NOT NULL;

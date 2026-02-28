@@ -198,6 +198,8 @@ export const indexerState = pgTable('indexer_state', {
   id: serial('id').primaryKey(),
   chainId: integer('chain_id').notNull(),
   lastBlock: bigint('last_block', { mode: 'number' }).notNull().default(0),
+  // Kafka offset for tradebot synchronization (from migration 007)
+  kafkaOffset: bigint('kafka_offset', { mode: 'number' }).notNull().default(0),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 }, (t) => [
   uniqueIndex('indexer_state_chain_id_uq').on(t.chainId),
