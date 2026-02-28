@@ -10,11 +10,12 @@ import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { GRIDEX_ABI } from '@/config/abi/GridEx';
 import { GRIDEX_ADDRESSES, WETH_ADDRESSES } from '@/config/chains';
-import { formatNumber } from '@/lib/utils';
+import { formatNumber, cn } from '@/lib/utils';
 import { Trash2, Download, ChevronDown, ChevronRight } from 'lucide-react';
 import type { GridWithOrders, GridOrder, OrderWithGridInfo } from '@/types/grid';
 
 type OrderTab = 'my_grids' | 'all_grids';
+type StatusFilter = 'active' | 'cancelled' | 'all';
 
 export function GridOrderList() {
   const { t } = useTranslation();
@@ -22,16 +23,20 @@ export function GridOrderList() {
   const { writeContract, isPending } = useWriteContract();
   const [manuallyToggledGrids, setManuallyToggledGrids] = useState<Set<number>>(new Set());
   const [activeTab, setActiveTab] = useState<OrderTab>(address ? 'my_grids' : 'all_grids');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('active');
 
   // My grids: filtered by connected wallet owner
+  // status=1 for active, status=2 for cancelled, undefined for all
   const myGridsResult = useGridOrders({
     owner: address?.toLowerCase(),
     refreshInterval: 10_000,
+    status: statusFilter === 'all' ? undefined : statusFilter === 'active' ? 1 : 2,
   });
 
   // All grids: flat order list with grid info
   const allOrdersResult = useOrdersWithGridInfo({
     refreshInterval: 10_000,
+    status: statusFilter === 'all' ? undefined : statusFilter === 'active' ? 1 : 2,
   });
 
   // Token lists for symbol-to-address mapping
@@ -161,29 +166,53 @@ export function GridOrderList() {
 
   // Tab buttons component
   const tabButtons = (
-    <div className="flex gap-1">
-      <button
-        type="button"
-        className={`px-3 py-1.5 text-[12px] font-medium rounded-sm transition-colors ${
-          activeTab === 'my_grids'
-            ? 'bg-(--accent-dim) text-(--accent) border border-(--accent)/20'
-            : 'text-(--text-disabled) hover:text-(--text-secondary) hover:bg-[rgba(136,150,171,0.05)]'
-        }`}
-        onClick={() => setActiveTab('my_grids')}
-      >
-        {t('grid.tab_my_grids')}
-      </button>
-      <button
-        type="button"
-        className={`px-3 py-1.5 text-[12px] font-medium rounded-sm transition-colors ${
-          activeTab === 'all_grids'
-            ? 'bg-(--accent-dim) text-(--accent) border border-(--accent)/20'
-            : 'text-(--text-disabled) hover:text-(--text-secondary) hover:bg-[rgba(136,150,171,0.05)]'
-        }`}
-        onClick={() => setActiveTab('all_grids')}
-      >
-        {t('grid.tab_all_grids')}
-      </button>
+    <div className="flex items-center gap-3">
+      <div className="flex gap-1">
+        <button
+          type="button"
+          className={`px-3 py-1.5 text-[12px] font-medium rounded-sm transition-colors ${
+            activeTab === 'my_grids'
+              ? 'bg-(--accent-dim) text-(--accent) border border-(--accent)/20'
+              : 'text-(--text-disabled) hover:text-(--text-secondary) hover:bg-[rgba(136,150,171,0.05)]'
+          }`}
+          onClick={() => setActiveTab('my_grids')}
+        >
+          {t('grid.tab_my_grids')}
+        </button>
+        <button
+          type="button"
+          className={`px-3 py-1.5 text-[12px] font-medium rounded-sm transition-colors ${
+            activeTab === 'all_grids'
+              ? 'bg-(--accent-dim) text-(--accent) border border-(--accent)/20'
+              : 'text-(--text-disabled) hover:text-(--text-secondary) hover:bg-[rgba(136,150,171,0.05)]'
+          }`}
+          onClick={() => setActiveTab('all_grids')}
+        >
+          {t('grid.tab_all_grids')}
+        </button>
+      </div>
+      {/* Show cancelled toggle - visible in both tabs */}
+      <div className="flex items-center gap-2">
+        <span className="text-[12px] text-(--text-secondary)">
+          {t('grid.order_list.show_cancelled')}
+        </span>
+        <button
+          onClick={() => setStatusFilter(statusFilter === 'all' ? 'active' : 'all')}
+          className={cn(
+            'relative w-10 h-5.5 rounded-full transition-colors duration-200 shrink-0',
+            statusFilter === 'all' ? 'bg-(--accent)' : 'bg-(--bg-elevated) border border-(--border-strong)'
+          )}
+        >
+          <span
+            className={cn(
+              'absolute top-0.75 left-0.75 w-4 h-4 rounded-full transition-transform duration-200',
+              statusFilter === 'all'
+                ? 'translate-x-4.5 bg-(--bg-base)'
+                : 'translate-x-0 bg-(--text-disabled)'
+            )}
+          />
+        </button>
+      </div>
     </div>
   );
 

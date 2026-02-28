@@ -123,7 +123,9 @@
       "page_prev": "上一页",
       "page_next": "下一页",
       "page_info": "第 {page} 页，共 {total} 页",
-      "owner": "拥有者"
+      "owner": "拥有者",
+      "show_cancelled": "显示已取消",
+      "status_all": "全部"
     }
   },
   "limit": {

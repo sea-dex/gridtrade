@@ -30,12 +30,13 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
       },
     },
     async (request, _reply) => {
-      const { chain_id, owner, grid_id, page, page_size } = request.query;
+      const { chain_id, owner, grid_id, status, page, page_size } = request.query;
 
       const result = await getOrdersWithGridInfo({
         chainId: chain_id,
         owner,
         gridId: grid_id,
+        status,
         page,
         pageSize: page_size,
       });

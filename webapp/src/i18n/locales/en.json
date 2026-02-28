@@ -121,7 +121,9 @@
       "page_prev": "Previous",
       "page_next": "Next",
       "page_info": "Page {page} of {total}",
-      "owner": "Owner"
+      "owner": "Owner",
+      "show_cancelled": "Show Cancelled",
+      "status_all": "All"
     }
   },
   "limit": {

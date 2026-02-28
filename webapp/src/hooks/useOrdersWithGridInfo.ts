@@ -9,6 +9,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 interface UseOrdersWithGridInfoParams {
   owner?: string;
   gridId?: number;
+  status?: number;
   page?: number;
   pageSize?: number;
   refreshInterval?: number;
@@ -54,6 +55,9 @@ export function useOrdersWithGridInfo(params: UseOrdersWithGridInfoParams = {}):
       if (params.gridId !== undefined) {
         searchParams.set('grid_id', String(params.gridId));
       }
+      if (params.status !== undefined) {
+        searchParams.set('status', String(params.status));
+      }
 
       const res = await fetch(`${API_BASE}/orders/with-grid-info?${searchParams}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -69,7 +73,7 @@ export function useOrdersWithGridInfo(params: UseOrdersWithGridInfoParams = {}):
     } finally {
       setIsLoading(false);
     }
-  }, [selectedChainId, page, pageSize, params.owner, params.gridId, isInitialLoad]);
+  }, [selectedChainId, page, pageSize, params.owner, params.gridId, params.status, isInitialLoad]);
 
   useEffect(() => {
     fetchOrders();

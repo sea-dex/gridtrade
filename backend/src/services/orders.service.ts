@@ -114,12 +114,13 @@ export interface GetOrdersWithGridInfoParams {
   chainId: number;
   owner?: string;
   gridId?: number;
+  status?: number;
   page: number;
   pageSize: number;
 }
 
 export async function getOrdersWithGridInfo(params: GetOrdersWithGridInfoParams): Promise<OrderWithGridInfoListResponse> {
-  const { chainId, owner, gridId, page, pageSize } = params;
+  const { chainId, owner, gridId, status, page, pageSize } = params;
 
   // Build where conditions
   const conditions = [eq(orders.chainId, chainId)];
@@ -128,6 +129,9 @@ export async function getOrdersWithGridInfo(params: GetOrdersWithGridInfoParams)
   }
   if (gridId !== undefined) {
     conditions.push(eq(orders.gridId, gridId));
+  }
+  if (status !== undefined) {
+    conditions.push(eq(grids.status, status));
   }
 
   // Count total
