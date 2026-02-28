@@ -13,9 +13,9 @@ var (
 	TopicPairCreated = crypto.Keccak256Hash([]byte("PairCreated(address,address,uint64)"))
 
 	// GridOrderCreated(address indexed owner, uint64 pairId, uint256 amount, uint48 gridId,
-	//   uint64 askOrderId, uint64 bidOrderId, uint16 asks, uint16 bids, uint32 fee, bool compound, bool oneshot)
-	// Note: gridId is now uint48, orderId is now uint64 (not uint256)
-	TopicGridOrderCreated = crypto.Keccak256Hash([]byte("GridOrderCreated(address,uint64,uint256,uint48,uint64,uint64,uint16,uint16,uint32,bool,bool)"))
+	//   uint32 asks, uint32 bids, uint32 fee, bool compound, bool oneshot)
+	// Note: gridId is uint48, asks/bids are uint32
+	TopicGridOrderCreated = crypto.Keccak256Hash([]byte("GridOrderCreated(address,uint64,uint256,uint48,uint32,uint32,uint32,bool,bool)"))
 
 	// FilledOrder(address taker, uint64 orderId, uint256 baseAmt, uint256 quoteVol,
 	//   uint256 orderAmt, uint256 orderRevAmt, bool isAsk)
@@ -62,19 +62,17 @@ type PairCreatedEvent struct {
 }
 
 // GridOrderCreatedEvent represents a decoded GridOrderCreated event.
-// Note: Types updated for v2 contract
+// Note: Types updated to match contract definition
 type GridOrderCreatedEvent struct {
-	Owner      common.Address
-	PairID     uint64
-	Amount     *big.Int
-	GridID     uint64 // uint48 in contract, stored as uint64 for convenience
-	AskOrderID uint64 // uint64 (was uint256)
-	BidOrderID uint64 // uint64 (was uint256)
-	Asks       uint16 // uint16 (was uint32)
-	Bids       uint16 // uint16 (was uint32)
-	Fee        uint32
-	Compound   bool
-	Oneshot    bool
+	Owner    common.Address
+	PairID   uint64
+	Amount   *big.Int
+	GridID   uint64 // uint48 in contract, stored as uint64 for convenience
+	Asks     uint32 // uint32 - number of ask orders
+	Bids     uint32 // uint32 - number of bid orders
+	Fee      uint32
+	Compound bool
+	Oneshot  bool
 }
 
 // FilledOrderEvent represents a decoded FilledOrder event.

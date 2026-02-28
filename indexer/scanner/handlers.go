@@ -279,8 +279,8 @@ func (s *Scanner) handleGridOrderCreated(ctx context.Context, tx pgx.Tx, log typ
 	}
 
 	// Calculate initialBaseAmount and initialQuoteAmount per Lens.sol calcGridAmount logic.
-	// bidPrice0Int and bidGapInt come from the cached LinearStrategyCreated event.
-	// For bid orders: price_i = bidPrice0 + bidGap * i (bidGap is int256, negative for bids)
+	// For Linear strategy: price_i = bidPrice0 + bidGap * i (bidGap is int256, negative for bids)
+	// For Geometry strategy: price_i = bidPrice0 * (bidRatio / RATIO_MULTIPLIER)^i
 	// quoteAmt_i = floor(baseAmt * price_i / PRICE_MULTIPLIER)
 	// initialBaseAmount = baseAmt * askCount
 	if bidPrice0Int == nil {
@@ -289,7 +289,11 @@ func (s *Scanner) handleGridOrderCreated(ctx context.Context, tx pgx.Tx, log typ
 	if bidGapInt == nil {
 		bidGapInt = new(big.Int)
 	}
-	initBase, initQuote := calcInitialAmounts(event.Amount, bidPrice0Int, bidGapInt, uint32(event.Asks), uint32(event.Bids))
+	var bidRatioInt *big.Int
+	if bidStratInfo != nil && bidStratInfo.BidRatio != nil {
+		bidRatioInt = new(big.Int).Set(bidStratInfo.BidRatio)
+	}
+	initBase, initQuote := calcInitialAmounts(event.Amount, bidPrice0Int, bidGapInt, bidRatioInt, StrategyType(bidStrategy), uint32(event.Asks), uint32(event.Bids))
 	initialBaseAmountStr := initBase.String()
 	initialQuoteAmountStr := initQuote.String()
 
@@ -349,14 +353,19 @@ func (s *Scanner) handleGridOrderCreated(ctx context.Context, tx pgx.Tx, log typ
 	msgs = append(msgs, gridMsg)
 
 	// Compute and insert individual orders from strategy parameters (no contract calls).
-	// Ask orders: askOrderId, askOrderId+1, ..., askOrderId+(asks-1)
-	for i := uint16(0); i < event.Asks; i++ {
-		orderID := new(big.Int).SetUint64(event.AskOrderID + uint64(i))
-		gridOrderID := toGridOrderID(big.NewInt(int64(event.GridID)), orderID)
+	// Order ID encoding: gridOrderId = (gridId << 16) | orderId
+	// Ask orders: orderId starts from ASK_ORDER_START_ID (0x8000 = 32768)
+	// Bid orders: orderId starts from 0
+	const AskOrderStartID = uint16(0x8000) // 32768
+
+	// Ask orders: 0x8000, 0x8001, ..., 0x8000 + asks - 1
+	for i := uint32(0); i < event.Asks; i++ {
+		orderID := AskOrderStartID + uint16(i)
+		gridOrderID := toGridOrderIDV2(event.GridID, orderID)
 
 		orderMsgs, err := s.computeAndInsertOrder(ctx, tx, log, gridOrderID, gridID,
 			int(event.PairID), true, event.Compound, event.Oneshot, int(event.Fee),
-			event.Amount, askStratInfo, uint32(i),
+			event.Amount, askStratInfo, i,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("insert ask order %d: %w", i, err)
@@ -364,14 +373,14 @@ func (s *Scanner) handleGridOrderCreated(ctx context.Context, tx pgx.Tx, log typ
 		msgs = append(msgs, orderMsgs...)
 	}
 
-	// Bid orders: bidOrderId, bidOrderId+1, ..., bidOrderId+(bids-1)
-	for i := uint16(0); i < event.Bids; i++ {
-		orderID := new(big.Int).SetUint64(event.BidOrderID + uint64(i))
-		gridOrderID := toGridOrderID(big.NewInt(int64(event.GridID)), orderID)
+	// Bid orders: 0, 1, ..., bids - 1
+	for i := uint32(0); i < event.Bids; i++ {
+		orderID := uint16(i)
+		gridOrderID := toGridOrderIDV2(event.GridID, orderID)
 
 		orderMsgs, err := s.computeAndInsertOrder(ctx, tx, log, gridOrderID, gridID,
 			int(event.PairID), false, event.Compound, event.Oneshot, int(event.Fee),
-			event.Amount, bidStratInfo, uint32(i),
+			event.Amount, bidStratInfo, i,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("insert bid order %d: %w", i, err)
@@ -383,7 +392,7 @@ func (s *Scanner) handleGridOrderCreated(ctx context.Context, tx pgx.Tx, log typ
 }
 
 // computeAndInsertOrder calculates order properties from strategy parameters
-// (price0, gap, orderIndex) and inserts the order into the DB.
+// (price0, gap/ratio, orderIndex) and inserts the order into the DB.
 // This avoids calling the contract's GetGridOrder method.
 //
 // For a linear grid strategy:
@@ -391,11 +400,15 @@ func (s *Scanner) handleGridOrderCreated(ctx context.Context, tx pgx.Tx, log typ
 //   - Bid order i: price = bidPrice0 + bidGap * i, amount = calcQuoteAmount(baseAmt, price)
 //   - revPrice is the corresponding price on the opposite side at the same index
 //   - revAmount is 0 for newly created orders
+//
+// For a geometry grid strategy:
+//   - Ask order i: price = askPrice0 * (askRatio / RATIO_MULTIPLIER)^i, amount = baseAmt
+//   - Bid order i: price = bidPrice0 * (bidRatio / RATIO_MULTIPLIER)^i, amount = calcQuoteAmount(baseAmt, price)
+//   - revPrice is the corresponding price on the opposite side at the same index
+//   - revAmount is 0 for newly created orders
 func (s *Scanner) computeAndInsertOrder(ctx context.Context, tx pgx.Tx, log types.Log,
-	gridOrderID *big.Int, gridID int64, pairID int, isAsk, compound, oneshot bool,
+	gridOrderID uint64, gridID int64, pairID int, isAsk, compound, oneshot bool,
 	fee int, baseAmt *big.Int, strat *linearStrategyInfo, orderIndex uint32) ([]*kafka.Message, error) {
-
-	idx := big.NewInt(int64(orderIndex))
 
 	var (
 		price, revPrice, amount               *big.Int
@@ -404,38 +417,66 @@ func (s *Scanner) computeAndInsertOrder(ctx context.Context, tx pgx.Tx, log type
 	revAmount := big.NewInt(0)
 
 	if isAsk {
-		// Ask order: price = askPrice0 + askGap * i
+		// Determine strategy type for ask orders
+		askStrategy := strat.AskStrategy
 		askPrice0 := strat.AskPrice0
 		if askPrice0 == nil {
-			askPrice0 = new(big.Int)
+			panic("askPrice0 is nil")
 		}
-		askGap := strat.AskGap
-		if askGap == nil {
-			askGap = new(big.Int)
-		}
-		price = new(big.Int).Add(askPrice0, new(big.Int).Mul(askGap, idx))
 
-		// revPrice for ask = price - askGap (the price when order flips to bid)
-		revPrice = new(big.Int).Sub(price, askGap)
+		if askStrategy == StrategyTypeGeometry {
+			if strat.AskRatio != nil {
+				panic("askRatio is nil")
+			}
+			// Geometry strategy: price = askPrice0 * (askRatio / RATIO_MULTIPLIER)^i
+			price = calcGeometryPrice(askPrice0, strat.AskRatio, orderIndex)
+			// revPrice for ask = price * RATIO_MULTIPLIER / askRatio (the price when order flips to bid)
+			revPrice = new(big.Int).Mul(price, ratioMultiplier)
+			revPrice.Div(revPrice, strat.AskRatio)
+		} else {
+			// Linear strategy: price = askPrice0 + askGap * i
+			askGap := strat.AskGap
+			if askGap == nil {
+				askGap = new(big.Int)
+			}
+			idx := big.NewInt(int64(orderIndex))
+			price = new(big.Int).Add(askPrice0, new(big.Int).Mul(askGap, idx))
+			// revPrice for ask = price - askGap (the price when order flips to bid)
+			revPrice = new(big.Int).Sub(price, askGap)
+		}
 
 		// Ask order amount = baseAmt (base token)
 		amount = new(big.Int).Set(baseAmt)
 		initialBaseAmount = amount.String()
 		initialQuoteAmount = "0"
 	} else {
-		// Bid order: price = bidPrice0 + bidGap * i
+		// Determine strategy type for bid orders
+		bidStrategy := strat.BidStrategy
 		bidPrice0 := strat.BidPrice0
 		if bidPrice0 == nil {
-			bidPrice0 = new(big.Int)
+			panic("bidPrice9 is nil")
 		}
-		bidGap := strat.BidGap
-		if bidGap == nil {
-			bidGap = new(big.Int)
-		}
-		price = new(big.Int).Add(bidPrice0, new(big.Int).Mul(bidGap, idx))
 
-		// revPrice for bid = price + bidGap (the price when order flips to ask), bidGap is negtive
-		revPrice = new(big.Int).Sub(price, bidGap)
+		if bidStrategy == StrategyTypeGeometry {
+			if strat.BidRatio == nil {
+				panic("bidRatio is nil")
+			}
+			// Geometry strategy: price = bidPrice0 * (bidRatio / RATIO_MULTIPLIER)^i
+			price = calcGeometryPrice(bidPrice0, strat.BidRatio, orderIndex)
+			// revPrice for bid = price * RATIO_MULTIPLIER / bidRatio (the price when order flips to ask)
+			revPrice = new(big.Int).Mul(price, ratioMultiplier)
+			revPrice.Div(revPrice, strat.BidRatio)
+		} else {
+			// Linear strategy: price = bidPrice0 + bidGap * i
+			bidGap := strat.BidGap
+			if bidGap == nil {
+				panic("bidGap is nil")
+			}
+			idx := big.NewInt(int64(orderIndex))
+			price = new(big.Int).Add(bidPrice0, new(big.Int).Mul(bidGap, idx))
+			// revPrice for bid = price + bidGap (the price when order flips to ask), bidGap is negative
+			revPrice = new(big.Int).Sub(price, bidGap)
+		}
 
 		// Bid order amount = calcQuoteAmount(baseAmt, price) (quote token)
 		amount = calcQuoteAmount(baseAmt, price)
@@ -443,7 +484,7 @@ func (s *Scanner) computeAndInsertOrder(ctx context.Context, tx pgx.Tx, log type
 		initialQuoteAmount = amount.String()
 	}
 
-	orderIDStr := gridOrderID.String()
+	orderIDStr := fmt.Sprintf("%d", gridOrderID)
 
 	if err := db.InsertOrder(ctx, tx, s.cfg.ChainID, orderIDStr, gridID, pairID,
 		isAsk, compound, oneshot, fee,
@@ -663,16 +704,18 @@ func (s *Scanner) handleWithdrawProfit(ctx context.Context, tx pgx.Tx, log types
 	return []*kafka.Message{msg}, nil
 }
 
-// toGridOrderID constructs a gridOrderId from gridId and orderId.
-// gridOrderId = (gridId << 128) | orderId
-func toGridOrderID(gridID, orderID *big.Int) *big.Int {
-	result := new(big.Int).Lsh(gridID, 128)
-	result.Or(result, orderID)
-	return result
+// toGridOrderIDV2 constructs a gridOrderId from gridId and orderId (v2 format).
+// gridOrderId = (gridId << 16) | orderId
+// gridId is uint48, orderId is uint16
+func toGridOrderIDV2(gridID uint64, orderID uint16) uint64 {
+	return (gridID << 16) | uint64(orderID)
 }
 
 // priceMultiplier is 10^36, matching Lens.sol PRICE_MULTIPLIER.
 var priceMultiplier = new(big.Int).Exp(big.NewInt(10), big.NewInt(36), nil)
+
+// ratioMultiplier is 10^18, matching Geometry.sol RATIO_MULTIPLIER.
+var ratioMultiplier = new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil)
 
 // calcQuoteAmount mirrors Lens.calcQuoteAmount(baseAmt, price, false).
 // It computes floor(baseAmt * price / PRICE_MULTIPLIER).
@@ -683,9 +726,24 @@ func calcQuoteAmount(baseAmt, price *big.Int) *big.Int {
 	return new(big.Int).Div(numerator, priceMultiplier)
 }
 
-// calcInitialAmounts mirrors Lens.calcGridAmount.
-// It computes the initial base and quote amounts for a grid order.
-//
+// calcGeometryPrice computes price_i = price0 * (ratio / RATIO_MULTIPLIER)^i
+// For i=0, returns price0
+// For i>0, multiplies by ratio/RATIO_MULTIPLIER each iteration
+func calcGeometryPrice(price0, ratio *big.Int, idx uint32) *big.Int {
+	if idx == 0 {
+		return new(big.Int).Set(price0)
+	}
+
+	price := new(big.Int).Set(price0)
+	for range idx {
+		// price = price * ratio / RATIO_MULTIPLIER
+		price.Mul(price, ratio)
+		price.Div(price, ratioMultiplier)
+	}
+	return price
+}
+
+// calcInitialAmountsLinear computes initial amounts for Linear strategy.
 // For the bid side, it iterates through each bid order index and computes:
 //
 //	price_i = bidPrice0 + bidGap * i   (bidGap is int256, typically negative for bids)
@@ -693,13 +751,13 @@ func calcQuoteAmount(baseAmt, price *big.Int) *big.Int {
 //	totalQuoteAmt = sum of all quoteAmt_i
 //
 // For the ask side: initialBaseAmount = baseAmt * askCount
-func calcInitialAmounts(baseAmt *big.Int, bidPrice0, bidGap *big.Int, askCount, bidCount uint32) (initialBaseAmount, initialQuoteAmount *big.Int) {
+func calcInitialAmountsLinear(baseAmt *big.Int, bidPrice0, bidGap *big.Int, askCount, bidCount uint32) (initialBaseAmount, initialQuoteAmount *big.Int) {
 	// initialBaseAmount = baseAmt * askCount
 	initialBaseAmount = new(big.Int).Mul(baseAmt, big.NewInt(int64(askCount)))
 
 	// initialQuoteAmount = sum of calcQuoteAmount for each bid order
 	initialQuoteAmount = new(big.Int)
-	for i := uint32(0); i < bidCount; i++ {
+	for i := range bidCount {
 		// price_i = bidPrice0 + bidGap * i
 		offset := new(big.Int).Mul(bidGap, big.NewInt(int64(i)))
 		price := new(big.Int).Add(bidPrice0, offset)
@@ -709,4 +767,37 @@ func calcInitialAmounts(baseAmt *big.Int, bidPrice0, bidGap *big.Int, askCount, 
 	}
 
 	return initialBaseAmount, initialQuoteAmount
+}
+
+// calcInitialAmountsGeometry computes initial amounts for Geometry strategy.
+// For the bid side, it iterates through each bid order index and computes:
+//
+//	price_i = bidPrice0 * (bidRatio / RATIO_MULTIPLIER)^i
+//	quoteAmt_i = floor(baseAmt * price_i / PRICE_MULTIPLIER)
+//	totalQuoteAmt = sum of all quoteAmt_i
+//
+// For the ask side: initialBaseAmount = baseAmt * askCount
+func calcInitialAmountsGeometry(baseAmt *big.Int, bidPrice0, bidRatio *big.Int, askCount, bidCount uint32) (initialBaseAmount, initialQuoteAmount *big.Int) {
+	// initialBaseAmount = baseAmt * askCount
+	initialBaseAmount = new(big.Int).Mul(baseAmt, big.NewInt(int64(askCount)))
+
+	// initialQuoteAmount = sum of calcQuoteAmount for each bid order
+	initialQuoteAmount = new(big.Int)
+	for i := range bidCount {
+		price := calcGeometryPrice(bidPrice0, bidRatio, i)
+		amt := calcQuoteAmount(baseAmt, price)
+		initialQuoteAmount.Add(initialQuoteAmount, amt)
+	}
+
+	return initialBaseAmount, initialQuoteAmount
+}
+
+// calcInitialAmounts computes initial amounts based on strategy type.
+// It dispatches to the appropriate strategy-specific function.
+func calcInitialAmounts(baseAmt *big.Int, bidPrice0, bidGap, bidRatio *big.Int, bidStrategy StrategyType, askCount, bidCount uint32) (initialBaseAmount, initialQuoteAmount *big.Int) {
+	if bidStrategy == StrategyTypeGeometry && bidRatio != nil && bidPrice0 != nil {
+		return calcInitialAmountsGeometry(baseAmt, bidPrice0, bidRatio, askCount, bidCount)
+	}
+	// Default to Linear strategy (or fallback if geometry params missing)
+	return calcInitialAmountsLinear(baseAmt, bidPrice0, bidGap, askCount, bidCount)
 }

@@ -69,10 +69,8 @@ const gridExABI = `[
       {"indexed": false, "name": "pairId", "type": "uint64"},
       {"indexed": false, "name": "amount", "type": "uint256"},
       {"indexed": false, "name": "gridId", "type": "uint48"},
-      {"indexed": false, "name": "askOrderId", "type": "uint64"},
-      {"indexed": false, "name": "bidOrderId", "type": "uint64"},
-      {"indexed": false, "name": "asks", "type": "uint16"},
-      {"indexed": false, "name": "bids", "type": "uint16"},
+      {"indexed": false, "name": "asks", "type": "uint32"},
+      {"indexed": false, "name": "bids", "type": "uint32"},
       {"indexed": false, "name": "fee", "type": "uint32"},
       {"indexed": false, "name": "compound", "type": "bool"},
       {"indexed": false, "name": "oneshot", "type": "bool"}
@@ -175,7 +173,7 @@ func (d *Decoder) DecodePairCreated(log types.Log) (*PairCreatedEvent, error) {
 }
 
 // DecodeGridOrderCreated decodes a GridOrderCreated event log.
-// Updated for v2 contract with new types.
+// Updated to match contract: GridOrderCreated(address indexed owner, uint64 pairId, uint256 amount, uint48 gridId, uint32 asks, uint32 bids, uint32 fee, bool compound, bool oneshot)
 func (d *Decoder) DecodeGridOrderCreated(log types.Log) (*GridOrderCreatedEvent, error) {
 	event := &GridOrderCreatedEvent{}
 
@@ -193,15 +191,14 @@ func (d *Decoder) DecodeGridOrderCreated(log types.Log) (*GridOrderCreatedEvent,
 
 	event.PairID = values[0].(uint64)
 	event.Amount = values[1].(*big.Int)
-	// gridId is uint48, but abi library returns it as uint64
-	event.GridID = values[2].(uint64)
-	event.AskOrderID = values[3].(uint64)
-	event.BidOrderID = values[4].(uint64)
-	event.Asks = values[5].(uint16)
-	event.Bids = values[6].(uint16)
-	event.Fee = values[7].(uint32)
-	event.Compound = values[8].(bool)
-	event.Oneshot = values[9].(bool)
+	// gridId is uint48, abi library returns it as *big.Int
+	gridIDBig := values[2].(*big.Int)
+	event.GridID = gridIDBig.Uint64()
+	event.Asks = values[3].(uint32)
+	event.Bids = values[4].(uint32)
+	event.Fee = values[5].(uint32)
+	event.Compound = values[6].(bool)
+	event.Oneshot = values[7].(bool)
 
 	return event, nil
 }
