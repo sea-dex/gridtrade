@@ -48,7 +48,7 @@
     "stats": {
       "total_volume": "总交易量",
       "total_tvl": "总锁仓量",
-      "total_grids": "活跃网格",
+      "total_grids": "总网格数",
       "total_users": "总用户数"
     }
   },

@@ -48,7 +48,7 @@
     "stats": {
       "total_volume": "Total Volume",
       "total_tvl": "Total TVL",
-      "total_grids": "Active Grids",
+      "total_grids": "Total Grids",
       "total_users": "Total Users"
     }
   },
