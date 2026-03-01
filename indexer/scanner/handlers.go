@@ -283,6 +283,10 @@ func (s *Scanner) handleGridOrderCreated(ctx context.Context, tx pgx.Tx, log typ
 	// For Geometry strategy: price_i = bidPrice0 * (bidRatio / RATIO_MULTIPLIER)^i
 	// quoteAmt_i = floor(baseAmt * price_i / PRICE_MULTIPLIER)
 	// initialBaseAmount = baseAmt * askCount
+	//
+	// IMPORTANT: The contract's calcQuoteAmount uses PRICE_MULTIPLIER = 10^36, which assumes
+	// base and quote tokens have the same decimals. When they differ, we need to adjust:
+	// quoteAmount *= 10^(quoteDecimals - baseDecimals)
 	if bidPrice0Int == nil {
 		bidPrice0Int = new(big.Int)
 	}
@@ -294,6 +298,15 @@ func (s *Scanner) handleGridOrderCreated(ctx context.Context, tx pgx.Tx, log typ
 		bidRatioInt = new(big.Int).Set(bidStratInfo.BidRatio)
 	}
 	initBase, initQuote := calcInitialAmounts(event.Amount, bidPrice0Int, bidGapInt, bidRatioInt, StrategyType(bidStrategy), uint32(event.Asks), uint32(event.Bids))
+
+	// Adjust for decimal difference between base and quote tokens
+	// The contract's PRICE_MULTIPLIER doesn't account for different token decimals
+	if quoteInfo.Decimals > baseInfo.Decimals {
+		decimalDiff := quoteInfo.Decimals - baseInfo.Decimals
+		adjustment := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(decimalDiff)), nil)
+		initQuote.Mul(initQuote, adjustment)
+	}
+
 	initialBaseAmountStr := initBase.String()
 	initialQuoteAmountStr := initQuote.String()
 
@@ -365,7 +378,7 @@ func (s *Scanner) handleGridOrderCreated(ctx context.Context, tx pgx.Tx, log typ
 
 		orderMsgs, err := s.computeAndInsertOrder(ctx, tx, log, gridOrderID, gridID,
 			int(event.PairID), true, event.Compound, event.Oneshot, int(event.Fee),
-			event.Amount, askStratInfo, i,
+			event.Amount, askStratInfo, i, baseInfo.Decimals, quoteInfo.Decimals,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("insert ask order %d: %w", i, err)
@@ -380,7 +393,7 @@ func (s *Scanner) handleGridOrderCreated(ctx context.Context, tx pgx.Tx, log typ
 
 		orderMsgs, err := s.computeAndInsertOrder(ctx, tx, log, gridOrderID, gridID,
 			int(event.PairID), false, event.Compound, event.Oneshot, int(event.Fee),
-			event.Amount, bidStratInfo, i,
+			event.Amount, bidStratInfo, i, baseInfo.Decimals, quoteInfo.Decimals,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("insert bid order %d: %w", i, err)
@@ -408,13 +421,23 @@ func (s *Scanner) handleGridOrderCreated(ctx context.Context, tx pgx.Tx, log typ
 //   - revAmount is 0 for newly created orders
 func (s *Scanner) computeAndInsertOrder(ctx context.Context, tx pgx.Tx, log types.Log,
 	gridOrderID uint64, gridID int64, pairID int, isAsk, compound, oneshot bool,
-	fee int, baseAmt *big.Int, strat *linearStrategyInfo, orderIndex uint32) ([]*kafka.Message, error) {
+	fee int, baseAmt *big.Int, strat *linearStrategyInfo, orderIndex uint32,
+	baseDecimals, quoteDecimals uint8) ([]*kafka.Message, error) {
 
 	var (
 		price, revPrice, amount               *big.Int
 		initialBaseAmount, initialQuoteAmount string
 	)
 	revAmount := big.NewInt(0)
+
+	// Calculate decimal adjustment factor for quote amount calculation
+	// The contract's PRICE_MULTIPLIER doesn't account for different token decimals
+	var decimalAdjustment *big.Int
+	if quoteDecimals > baseDecimals {
+		decimalAdjustment = new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(quoteDecimals-baseDecimals)), nil)
+	} else {
+		decimalAdjustment = big.NewInt(1)
+	}
 
 	if isAsk {
 		// Determine strategy type for ask orders
@@ -479,7 +502,9 @@ func (s *Scanner) computeAndInsertOrder(ctx context.Context, tx pgx.Tx, log type
 		}
 
 		// Bid order amount = calcQuoteAmount(baseAmt, price) (quote token)
+		// Apply decimal adjustment for tokens with different decimals
 		amount = calcQuoteAmount(baseAmt, price)
+		amount.Mul(amount, decimalAdjustment)
 		initialBaseAmount = "0"
 		initialQuoteAmount = amount.String()
 	}

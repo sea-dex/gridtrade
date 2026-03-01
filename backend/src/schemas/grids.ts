@@ -4,6 +4,18 @@ import { chainIdSchema, paginationSchema, addressSchema } from './common.js';
 // Grid status enum
 export const gridStatusSchema = z.enum(['active', 'cancelled', 'completed']).or(z.coerce.number());
 
+// Token info schema for grid response (simplified version for grid config)
+export const gridTokenInfoSchema = z.object({
+  address: addressSchema,
+  symbol: z.string(),
+  name: z.string(),
+  decimals: z.number(),
+  logo: z.string(),
+});
+
+// Export the inferred type
+export type GridTokenInfo = z.infer<typeof gridTokenInfoSchema>;
+
 // Grid configuration schema
 export const gridConfigSchema = z.object({
   grid_id: z.number(),
@@ -11,6 +23,8 @@ export const gridConfigSchema = z.object({
   pair_id: z.number(),
   base_token: z.string(),
   quote_token: z.string(),
+  base_token_info: gridTokenInfoSchema,
+  quote_token_info: gridTokenInfoSchema,
   ask_order_count: z.number(),
   bid_order_count: z.number(),
   initial_base_amount: z.string(),

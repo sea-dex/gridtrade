@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { chainIdSchema, paginationSchema } from './common.js';
+import { gridTokenInfoSchema } from './grids.js';
 
 // Order info schema
 export const orderInfoSchema = z.object({
@@ -77,6 +78,8 @@ export const orderWithGridInfoSchema = z.object({
   owner: z.string(),
   base_token: z.string(),
   quote_token: z.string(),
+  base_token_info: gridTokenInfoSchema,
+  quote_token_info: gridTokenInfoSchema,
   profits: z.string(),
   grid_status: z.number(),
 });

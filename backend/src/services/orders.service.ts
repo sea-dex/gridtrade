@@ -1,6 +1,7 @@
 import { eq, and, sql, desc } from 'drizzle-orm';
-import { db, orders, orderFills, grids } from '../db/index.js';
+import { db, orders, orderFills, grids, tokens, pairs } from '../db/index.js';
 import type { OrderInfo, OrderFill, OrderListResponse, OrderFillsResponse, OrderWithGridInfo, OrderWithGridInfoListResponse } from '../schemas/orders.js';
+import type { GridTokenInfo } from '../schemas/grids.js';
 
 export interface GetOrdersParams {
   chainId: number;
@@ -119,6 +120,53 @@ export interface GetOrdersWithGridInfoParams {
   pageSize: number;
 }
 
+// Helper function to fetch token info by address
+async function getTokenInfoByAddress(chainId: number, address: string): Promise<GridTokenInfo> {
+  const result = await db
+    .select()
+    .from(tokens)
+    .where(and(eq(tokens.chainId, chainId), eq(tokens.address, address.toLowerCase())))
+    .limit(1);
+  
+  if (result.length === 0) {
+    // Return default token info if not found
+    return {
+      address,
+      symbol: '',
+      name: '',
+      decimals: 18,
+      logo: '',
+    };
+  }
+  
+  const t = result[0];
+  return {
+    address: t.address,
+    symbol: t.symbol,
+    name: t.name,
+    decimals: t.decimals,
+    logo: t.logo,
+  };
+}
+
+// Helper function to get token addresses from pair
+async function getPairTokenAddresses(chainId: number, pairId: number): Promise<{ baseTokenAddress: string; quoteTokenAddress: string } | null> {
+  const result = await db
+    .select()
+    .from(pairs)
+    .where(and(eq(pairs.chainId, chainId), eq(pairs.pairId, pairId)))
+    .limit(1);
+  
+  if (result.length === 0) {
+    return null;
+  }
+  
+  return {
+    baseTokenAddress: result[0].baseTokenAddress,
+    quoteTokenAddress: result[0].quoteTokenAddress,
+  };
+}
+
 export async function getOrdersWithGridInfo(params: GetOrdersWithGridInfoParams): Promise<OrderWithGridInfoListResponse> {
   const { chainId, owner, gridId, status, page, pageSize } = params;
 
@@ -172,23 +220,46 @@ export async function getOrdersWithGridInfo(params: GetOrdersWithGridInfoParams)
     .limit(pageSize)
     .offset(offset);
 
-  const orderList: OrderWithGridInfo[] = results.map((o) => ({
-    order_id: o.orderId,
-    grid_id: o.gridId,
-    pair_id: o.pairId,
-    is_ask: o.isAsk,
-    compound: o.compound,
-    fee: o.fee,
-    status: o.status,
-    amount: o.amount,
-    rev_amount: o.revAmount,
-    price: o.price,
-    rev_price: o.revPrice,
-    owner: o.owner,
-    base_token: o.baseToken,
-    quote_token: o.quoteToken,
-    profits: o.profits,
-    grid_status: o.gridStatus,
+  // Fetch token info for each order
+  const orderList: OrderWithGridInfo[] = await Promise.all(results.map(async (o) => {
+    // Get token addresses from pair
+    const pairAddresses = await getPairTokenAddresses(chainId, o.pairId);
+    
+    let baseTokenInfo: GridTokenInfo;
+    let quoteTokenInfo: GridTokenInfo;
+    
+    if (pairAddresses) {
+      // Fetch token info by address (more accurate)
+      [baseTokenInfo, quoteTokenInfo] = await Promise.all([
+        getTokenInfoByAddress(chainId, pairAddresses.baseTokenAddress),
+        getTokenInfoByAddress(chainId, pairAddresses.quoteTokenAddress),
+      ]);
+    } else {
+      // Fallback to default
+      baseTokenInfo = { address: '', symbol: o.baseToken, name: o.baseToken, decimals: 18, logo: '' };
+      quoteTokenInfo = { address: '', symbol: o.quoteToken, name: o.quoteToken, decimals: 18, logo: '' };
+    }
+    
+    return {
+      order_id: o.orderId,
+      grid_id: o.gridId,
+      pair_id: o.pairId,
+      is_ask: o.isAsk,
+      compound: o.compound,
+      fee: o.fee,
+      status: o.status,
+      amount: o.amount,
+      rev_amount: o.revAmount,
+      price: o.price,
+      rev_price: o.revPrice,
+      owner: o.owner,
+      base_token: o.baseToken,
+      quote_token: o.quoteToken,
+      base_token_info: baseTokenInfo,
+      quote_token_info: quoteTokenInfo,
+      profits: o.profits,
+      grid_status: o.gridStatus,
+    };
   }));
 
   return {

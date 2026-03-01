@@ -12,6 +12,15 @@ export interface PriceLine {
   lineWidth?: number;
 }
 
+/** Token info for grid response */
+export interface GridTokenInfo {
+  address: string;
+  symbol: string;
+  name: string;
+  decimals: number;
+  logo: string;
+}
+
 /** Grid configuration from the API */
 export interface GridConfig {
   grid_id: number;
@@ -19,6 +28,8 @@ export interface GridConfig {
   pair_id: number;
   base_token: string;
   quote_token: string;
+  base_token_info: GridTokenInfo;
+  quote_token_info: GridTokenInfo;
   ask_order_count: number;
   bid_order_count: number;
   initial_base_amount: string;
@@ -73,6 +84,8 @@ export interface OrderWithGridInfo {
   owner: string;
   base_token: string;
   quote_token: string;
+  base_token_info: GridTokenInfo;
+  quote_token_info: GridTokenInfo;
   profits: string;
   grid_status: number;
 }

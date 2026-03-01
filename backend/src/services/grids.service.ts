@@ -1,6 +1,6 @@
 import { eq, and, desc, sql, inArray } from 'drizzle-orm';
-import { db, grids, orders } from '../db/index.js';
-import type { GridConfig, GridOrder, GridWithOrders, GridListResponse, GridWithOrdersListResponse, GridDetailResponse, GridProfitsResponse } from '../schemas/grids.js';
+import { db, grids, orders, tokens, pairs } from '../db/index.js';
+import type { GridConfig, GridOrder, GridWithOrders, GridListResponse, GridWithOrdersListResponse, GridDetailResponse, GridProfitsResponse, GridTokenInfo } from '../schemas/grids.js';
 
 export interface GetGridsParams {
   chainId: number;
@@ -8,6 +8,82 @@ export interface GetGridsParams {
   status?: number;
   page: number;
   pageSize: number;
+}
+
+// Helper function to fetch token info by symbol
+async function getTokenInfoBySymbol(chainId: number, symbol: string): Promise<GridTokenInfo> {
+  const result = await db
+    .select()
+    .from(tokens)
+    .where(and(eq(tokens.chainId, chainId), eq(tokens.symbol, symbol)))
+    .limit(1);
+  
+  if (result.length === 0) {
+    // Return default token info if not found
+    return {
+      address: '',
+      symbol,
+      name: symbol,
+      decimals: 18,
+      logo: '',
+    };
+  }
+  
+  const t = result[0];
+  return {
+    address: t.address,
+    symbol: t.symbol,
+    name: t.name,
+    decimals: t.decimals,
+    logo: t.logo,
+  };
+}
+
+// Helper function to fetch token info by address
+async function getTokenInfoByAddress(chainId: number, address: string): Promise<GridTokenInfo> {
+  const result = await db
+    .select()
+    .from(tokens)
+    .where(and(eq(tokens.chainId, chainId), eq(tokens.address, address.toLowerCase())))
+    .limit(1);
+  
+  if (result.length === 0) {
+    // Return default token info if not found
+    return {
+      address,
+      symbol: '',
+      name: '',
+      decimals: 18,
+      logo: '',
+    };
+  }
+  
+  const t = result[0];
+  return {
+    address: t.address,
+    symbol: t.symbol,
+    name: t.name,
+    decimals: t.decimals,
+    logo: t.logo,
+  };
+}
+
+// Helper function to get token addresses from pair
+async function getPairTokenAddresses(chainId: number, pairId: number): Promise<{ baseTokenAddress: string; quoteTokenAddress: string } | null> {
+  const result = await db
+    .select()
+    .from(pairs)
+    .where(and(eq(pairs.chainId, chainId), eq(pairs.pairId, pairId)))
+    .limit(1);
+  
+  if (result.length === 0) {
+    return null;
+  }
+  
+  return {
+    baseTokenAddress: result[0].baseTokenAddress,
+    quoteTokenAddress: result[0].quoteTokenAddress,
+  };
 }
 
 export async function getGrids(params: GetGridsParams): Promise<GridListResponse> {
@@ -42,22 +118,47 @@ export async function getGrids(params: GetGridsParams): Promise<GridListResponse
     .limit(pageSize)
     .offset(offset);
 
-  const gridConfigs: GridConfig[] = results.map((g) => ({
-    grid_id: g.gridId,
-    owner: g.owner,
-    pair_id: g.pairId,
-    base_token: g.baseToken,
-    quote_token: g.quoteToken,
-    ask_order_count: g.askOrderCount,
-    bid_order_count: g.bidOrderCount,
-    initial_base_amount: g.initialBaseAmount,
-    initial_quote_amount: g.initialQuoteAmount,
-    profits: g.profits,
-    fee: g.fee,
-    compound: g.compound,
-    oneshot: g.oneshot,
-    status: g.status,
-    created_at: g.createdAt.toISOString(),
+  // Fetch token info for each grid
+  const gridConfigs: GridConfig[] = await Promise.all(results.map(async (g) => {
+    // Get token addresses from pair
+    const pairAddresses = await getPairTokenAddresses(chainId, g.pairId);
+    
+    let baseTokenInfo: GridTokenInfo;
+    let quoteTokenInfo: GridTokenInfo;
+    
+    if (pairAddresses) {
+      // Fetch token info by address (more accurate)
+      [baseTokenInfo, quoteTokenInfo] = await Promise.all([
+        getTokenInfoByAddress(chainId, pairAddresses.baseTokenAddress),
+        getTokenInfoByAddress(chainId, pairAddresses.quoteTokenAddress),
+      ]);
+    } else {
+      // Fallback to symbol lookup
+      [baseTokenInfo, quoteTokenInfo] = await Promise.all([
+        getTokenInfoBySymbol(chainId, g.baseToken),
+        getTokenInfoBySymbol(chainId, g.quoteToken),
+      ]);
+    }
+    
+    return {
+      grid_id: g.gridId,
+      owner: g.owner,
+      pair_id: g.pairId,
+      base_token: g.baseToken,
+      quote_token: g.quoteToken,
+      base_token_info: baseTokenInfo,
+      quote_token_info: quoteTokenInfo,
+      ask_order_count: g.askOrderCount,
+      bid_order_count: g.bidOrderCount,
+      initial_base_amount: g.initialBaseAmount,
+      initial_quote_amount: g.initialQuoteAmount,
+      profits: g.profits,
+      fee: g.fee,
+      compound: g.compound,
+      oneshot: g.oneshot,
+      status: g.status,
+      created_at: g.createdAt.toISOString(),
+    };
   }));
 
   return {
@@ -130,26 +231,50 @@ export async function getGridsWithOrders(params: GetGridsParams): Promise<GridWi
     ordersByGridId.set(o.gridId, existing);
   }
 
-  // Build response with grids and their orders
-  const gridsWithOrders: GridWithOrders[] = gridResults.map((g) => ({
-    config: {
-      grid_id: g.gridId,
-      owner: g.owner,
-      pair_id: g.pairId,
-      base_token: g.baseToken,
-      quote_token: g.quoteToken,
-      ask_order_count: g.askOrderCount,
-      bid_order_count: g.bidOrderCount,
-      initial_base_amount: g.initialBaseAmount,
-      initial_quote_amount: g.initialQuoteAmount,
-      profits: g.profits,
-      fee: g.fee,
-      compound: g.compound,
-      oneshot: g.oneshot,
-      status: g.status,
-      created_at: g.createdAt.toISOString(),
-    },
-    orders: ordersByGridId.get(g.gridId) || [],
+  // Build response with grids and their orders (with token info)
+  const gridsWithOrders: GridWithOrders[] = await Promise.all(gridResults.map(async (g) => {
+    // Get token addresses from pair
+    const pairAddresses = await getPairTokenAddresses(chainId, g.pairId);
+    
+    let baseTokenInfo: GridTokenInfo;
+    let quoteTokenInfo: GridTokenInfo;
+    
+    if (pairAddresses) {
+      // Fetch token info by address (more accurate)
+      [baseTokenInfo, quoteTokenInfo] = await Promise.all([
+        getTokenInfoByAddress(chainId, pairAddresses.baseTokenAddress),
+        getTokenInfoByAddress(chainId, pairAddresses.quoteTokenAddress),
+      ]);
+    } else {
+      // Fallback to symbol lookup
+      [baseTokenInfo, quoteTokenInfo] = await Promise.all([
+        getTokenInfoBySymbol(chainId, g.baseToken),
+        getTokenInfoBySymbol(chainId, g.quoteToken),
+      ]);
+    }
+    
+    return {
+      config: {
+        grid_id: g.gridId,
+        owner: g.owner,
+        pair_id: g.pairId,
+        base_token: g.baseToken,
+        quote_token: g.quoteToken,
+        base_token_info: baseTokenInfo,
+        quote_token_info: quoteTokenInfo,
+        ask_order_count: g.askOrderCount,
+        bid_order_count: g.bidOrderCount,
+        initial_base_amount: g.initialBaseAmount,
+        initial_quote_amount: g.initialQuoteAmount,
+        profits: g.profits,
+        fee: g.fee,
+        compound: g.compound,
+        oneshot: g.oneshot,
+        status: g.status,
+        created_at: g.createdAt.toISOString(),
+      },
+      orders: ordersByGridId.get(g.gridId) || [],
+    };
   }));
 
   return {
@@ -181,12 +306,34 @@ export async function getGridDetail(chainId: number, gridId: number): Promise<Gr
     .where(and(eq(orders.chainId, chainId), eq(orders.gridId, gridId)))
     .orderBy(orders.orderId);
 
+  // Get token addresses from pair
+  const pairAddresses = await getPairTokenAddresses(chainId, g.pairId);
+  
+  let baseTokenInfo: GridTokenInfo;
+  let quoteTokenInfo: GridTokenInfo;
+  
+  if (pairAddresses) {
+    // Fetch token info by address (more accurate)
+    [baseTokenInfo, quoteTokenInfo] = await Promise.all([
+      getTokenInfoByAddress(chainId, pairAddresses.baseTokenAddress),
+      getTokenInfoByAddress(chainId, pairAddresses.quoteTokenAddress),
+    ]);
+  } else {
+    // Fallback to symbol lookup
+    [baseTokenInfo, quoteTokenInfo] = await Promise.all([
+      getTokenInfoBySymbol(chainId, g.baseToken),
+      getTokenInfoBySymbol(chainId, g.quoteToken),
+    ]);
+  }
+
   const gridConfig: GridConfig = {
     grid_id: g.gridId,
     owner: g.owner,
     pair_id: g.pairId,
     base_token: g.baseToken,
     quote_token: g.quoteToken,
+    base_token_info: baseTokenInfo,
+    quote_token_info: quoteTokenInfo,
     ask_order_count: g.askOrderCount,
     bid_order_count: g.bidOrderCount,
     initial_base_amount: g.initialBaseAmount,

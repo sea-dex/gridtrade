@@ -39,11 +39,11 @@ export function GridOrderList() {
     status: statusFilter === 'all' ? undefined : statusFilter === 'active' ? 1 : 2,
   });
 
-  // Token lists for symbol-to-address mapping
+  // Token lists for symbol-to-address mapping (used for cancel/withdraw actions)
   const { tokens: baseTokens } = useBaseTokens();
   const { tokens: quoteTokens } = useQuoteTokens();
 
-  // Create symbol-to-address mapping from token lists
+  // Create symbol-to-address mapping from token lists (for cancel/withdraw actions)
   const symbolToAddressMap = useMemo(() => {
     const map = new Map<string, string>();
     const allTokens = [...baseTokens, ...quoteTokens];
@@ -438,6 +438,9 @@ function GridRow({
 }) {
   const { config, orders } = gridWithOrders;
   const colSpan = 7 + (showOwner ? 1 : 0) + (showActions ? 1 : 0);
+  // Use token info from API response (accurate decimals by token address)
+  const baseDecimals = config.base_token_info?.decimals ?? 18;
+  const quoteDecimals = config.quote_token_info?.decimals ?? 18;
 
   return (
     <>
@@ -481,18 +484,18 @@ function GridRow({
         </td>
         <td className="py-3 px-5">
           <div className="text-[12px] text-(--text-secondary)">
-            <span>{formatNumber(Number(config.initial_base_amount) / 1e18, 4)} {config.base_token}</span>
+            <span>{formatNumber(Number(config.initial_base_amount) / Math.pow(10, baseDecimals), 4)} {config.base_token}</span>
             {config.initial_quote_amount !== '0' && (
               <>
                 <span className="text-(--text-disabled) mx-1">+</span>
-                <span>{formatNumber(Number(config.initial_quote_amount) / 1e18, 4)} {config.quote_token}</span>
+                <span>{formatNumber(Number(config.initial_quote_amount) / Math.pow(10, quoteDecimals), 4)} {config.quote_token}</span>
               </>
             )}
           </div>
         </td>
         <td className="py-3 px-5">
           <span className="text-[13px] font-medium text-(--green)">
-            {formatNumber(Number(config.profits) / 1e18, 4)} {config.quote_token}
+            {formatNumber(Number(config.profits) / Math.pow(10, quoteDecimals), 4)} {config.quote_token}
           </span>
         </td>
         <td className="py-3 px-5">{getStatusBadge(config.status)}</td>
@@ -566,6 +569,8 @@ function GridRow({
                         order={order}
                         baseToken={config.base_token}
                         quoteToken={config.quote_token}
+                        baseDecimals={baseDecimals}
+                        quoteDecimals={quoteDecimals}
                         t={t}
                       />
                     ))}
@@ -585,13 +590,35 @@ function OrderRow({
   order,
   baseToken,
   quoteToken,
+  baseDecimals,
+  quoteDecimals,
   t,
 }: {
   order: GridOrder;
   baseToken: string;
   quoteToken: string;
+  baseDecimals: number;
+  quoteDecimals: number;
   t: (key: string) => string;
 }) {
+  // For ask orders: amount is in base token, rev_amount is in quote token
+  // For bid orders: amount is in quote token, rev_amount is in base token
+  const amountDecimals = order.is_ask ? baseDecimals : quoteDecimals;
+  const revAmountDecimals = order.is_ask ? quoteDecimals : baseDecimals;
+  
+  // Debug logging
+  console.log('OrderRow debug:', {
+    orderId: order.order_id,
+    isAsk: order.is_ask,
+    baseToken,
+    quoteToken,
+    baseDecimals,
+    quoteDecimals,
+    amountDecimals,
+    rawAmount: order.amount,
+    parsedAmount: Number(order.amount) / Math.pow(10, amountDecimals),
+  });
+
   return (
     <tr className="border-t border-[rgba(136,150,171,0.08)] hover:bg-[rgba(136,150,171,0.03)] transition-colors">
       <td className="py-1.5 px-3">
@@ -615,7 +642,7 @@ function OrderRow({
       </td>
       <td className="py-1.5 px-3">
         <span className="font-mono text-[11px] text-(--text-secondary)">
-          {formatNumber(Number(order.amount) / 1e18, 4)} {order.is_ask ? baseToken : quoteToken}
+          {formatNumber(Number(order.amount) / Math.pow(10, amountDecimals), 4)} {order.is_ask ? baseToken : quoteToken}
         </span>
       </td>
       <td className="py-1.5 px-3">
@@ -625,7 +652,7 @@ function OrderRow({
       </td>
       <td className="py-1.5 px-3">
         <span className="font-mono text-[11px] text-(--text-secondary)">
-          {formatNumber(Number(order.rev_amount) / 1e18, 4)} {order.is_ask ? quoteToken : baseToken}
+          {formatNumber(Number(order.rev_amount) / Math.pow(10, revAmountDecimals), 4)} {order.is_ask ? quoteToken : baseToken}
         </span>
       </td>
       <td className="py-1.5 px-3">
@@ -653,6 +680,13 @@ function FlatOrderRow({
   getStatusBadge: (status: number) => React.ReactNode;
   t: (key: string) => string;
 }) {
+  // Use token info from API response (accurate decimals by token address)
+  const baseDecimals = order.base_token_info?.decimals ?? 18;
+  const quoteDecimals = order.quote_token_info?.decimals ?? 18;
+  // For ask orders: amount is in base token
+  // For bid orders: amount is in quote token
+  const amountDecimals = order.is_ask ? baseDecimals : quoteDecimals;
+
   return (
     <tr className="border-b border-(--border-subtle) last:border-0 hover:bg-[rgba(136,150,171,0.02)] transition-colors">
       <td className="py-3 px-5">
@@ -684,7 +718,7 @@ function FlatOrderRow({
       </td>
       <td className="py-3 px-5">
         <span className="font-mono text-[11px] text-(--text-secondary)">
-          {formatNumber(Number(order.amount) / 1e18, 4)} {order.is_ask ? order.base_token : order.quote_token}
+          {formatNumber(Number(order.amount) / Math.pow(10, amountDecimals), 4)} {order.is_ask ? order.base_token : order.quote_token}
         </span>
       </td>
       <td className="py-3 px-5">{getStatusBadge(order.status)}</td>
