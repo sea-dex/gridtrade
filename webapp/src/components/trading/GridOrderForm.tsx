@@ -93,10 +93,38 @@ function priceToBigInt(priceStr: string): bigint {
 /**
  * Replicate the Solidity calcQuoteAmount: quoteAmt = baseAmt * price / PRICE_MULTIPLIER
  * Uses standard bigint division (rounds down, i.e. roundUp = false).
+ *
+ * IMPORTANT: This function accounts for decimal difference between base and quote tokens.
+ * The price is defined as: 1 base token = price quote tokens (in human-readable form).
+ * The PRICE_MULTIPLIER (10^36) is used for fixed-point arithmetic.
+ *
+ * Formula: quoteAmt = baseAmt * price / PRICE_MULTIPLIER * 10^quoteDecimals / 10^baseDecimals
+ * Simplified: quoteAmt = baseAmt * price * 10^quoteDecimals / (PRICE_MULTIPLIER * 10^baseDecimals)
  */
-function calcQuoteAmount(baseAmt: bigint, price: bigint): bigint {
+function calcQuoteAmount(
+  baseAmt: bigint,
+  price: bigint,
+  baseDecimals: number,
+  quoteDecimals: number,
+): bigint {
   if (price === 0n) return 0n;
-  return (baseAmt * price) / PRICE_MULTIPLIER;
+  
+  // Calculate the decimal adjustment factor
+  // If baseDecimals > quoteDecimals, we need to divide by the difference
+  // If baseDecimals < quoteDecimals, we need to multiply by the difference
+  const decimalDiff = baseDecimals - quoteDecimals;
+  
+  let result = (baseAmt * price) / PRICE_MULTIPLIER;
+  
+  if (decimalDiff > 0) {
+    // Base has more decimals, divide to get correct quote amount
+    result = result / (10n ** BigInt(decimalDiff));
+  } else if (decimalDiff < 0) {
+    // Quote has more decimals, multiply to get correct quote amount
+    result = result * (10n ** BigInt(-decimalDiff));
+  }
+  
+  return result;
 }
 
 /**
@@ -109,17 +137,60 @@ function calcGridAmount(
   bidGap: bigint,
   askCount: number,
   bidCount: number,
+  baseDecimals: number,
+  quoteDecimals: number,
 ): [bigint, bigint] {
   let quoteAmt = 0n;
   let currentBidPrice = bidPrice;
 
   for (let i = 0; i < bidCount; i++) {
-    const amt = calcQuoteAmount(baseAmt, currentBidPrice);
+    const amt = calcQuoteAmount(baseAmt, currentBidPrice, baseDecimals, quoteDecimals);
     quoteAmt += amt;
     currentBidPrice -= bidGap;
   }
 
   return [baseAmt * BigInt(askCount), quoteAmt];
+}
+
+/**
+ * Calculate price at index for geometry strategy
+ * price(i) = price0 * ratio^i / RATIO_MULTIPLIER
+ */
+function calcGeometryPrice(price0: bigint, ratio: bigint, idx: number): bigint {
+  if (idx === 0) return price0;
+  let result = RATIO_MULTIPLIER;
+  let base = ratio;
+  let e = idx;
+  while (e > 0) {
+    if ((e & 1) !== 0) {
+      result = (result * base) / RATIO_MULTIPLIER;
+    }
+    e >>= 1;
+    if (e > 0) {
+      base = (base * base) / RATIO_MULTIPLIER;
+    }
+  }
+  return (price0 * result) / RATIO_MULTIPLIER;
+}
+
+/**
+ * Calculate total quote amount for geometry strategy bid orders
+ */
+function calcGeometryGridQuoteAmount(
+  baseAmt: bigint,
+  bidPrice0: bigint,
+  bidRatio: bigint,
+  bidCount: number,
+  baseDecimals: number,
+  quoteDecimals: number,
+): bigint {
+  let quoteAmt = 0n;
+  for (let i = 0; i < bidCount; i++) {
+    const price = calcGeometryPrice(bidPrice0, bidRatio, i);
+    const amt = calcQuoteAmount(baseAmt, price, baseDecimals, quoteDecimals);
+    quoteAmt += amt;
+  }
+  return quoteAmt;
 }
 
 export function GridOrderForm({ baseToken, quoteToken, onPriceLinesChange, externalFormData }: GridOrderFormProps) {
@@ -251,48 +322,9 @@ export function GridOrderForm({ baseToken, quoteToken, onPriceLinesChange, exter
     return parseInt(formData.bidOrderCount) || 0;
   }, [formData.bidPrice0, formData.bidGap, formData.bidRatio, formData.bidOrderCount, formData.bidStrategy]);
 
-  /**
-   * Calculate price at index for geometry strategy
-   * price(i) = price0 * ratio^i / RATIO_MULTIPLIER
-   */
-  function calcGeometryPrice(price0: bigint, ratio: bigint, idx: number): bigint {
-    if (idx === 0) return price0;
-    let result = RATIO_MULTIPLIER;
-    let base = ratio;
-    let e = idx;
-    while (e > 0) {
-      if ((e & 1) !== 0) {
-        result = (result * base) / RATIO_MULTIPLIER;
-      }
-      e >>= 1;
-      if (e > 0) {
-        base = (base * base) / RATIO_MULTIPLIER;
-      }
-    }
-    return (price0 * result) / RATIO_MULTIPLIER;
-  }
-
-  /**
-   * Calculate total quote amount for geometry strategy bid orders
-   */
-  function calcGeometryGridQuoteAmount(
-    baseAmt: bigint,
-    bidPrice0: bigint,
-    bidRatio: bigint,
-    bidCount: number,
-  ): bigint {
-    let quoteAmt = 0n;
-    for (let i = 0; i < bidCount; i++) {
-      const price = calcGeometryPrice(bidPrice0, bidRatio, i);
-      const amt = (baseAmt * price) / PRICE_MULTIPLIER;
-      quoteAmt += amt;
-    }
-    return quoteAmt;
-  }
-
   // Calculate total base and quote amounts needed
   const totals = useMemo(() => {
-    if (!baseToken || !formData.amountPerGrid) {
+    if (!baseToken || !quoteToken || !formData.amountPerGrid) {
       return { baseTotal: 0n, quoteTotal: 0n };
     }
 
@@ -304,12 +336,12 @@ export function GridOrderForm({ baseToken, quoteToken, onPriceLinesChange, exter
 
       if (formData.bidStrategy === 'linear') {
         const bidGap = priceToBigInt(formData.bidGap);
-        quoteTotal = calcGridAmount(baseAmt, bidPrice0, bidGap, 0, effectiveBidCount)[1];
+        quoteTotal = calcGridAmount(baseAmt, bidPrice0, bidGap, 0, effectiveBidCount, baseToken.decimals, quoteToken.decimals)[1];
       } else {
         // Geometry strategy
         const bidRatioBN = new BigNumber(formData.bidRatio || '1').times(RATIO_MULTIPLIER_BN).integerValue(BigNumber.ROUND_DOWN);
         const bidRatio = BigInt(bidRatioBN.toFixed(0));
-        quoteTotal = calcGeometryGridQuoteAmount(baseAmt, bidPrice0, bidRatio, effectiveBidCount);
+        quoteTotal = calcGeometryGridQuoteAmount(baseAmt, bidPrice0, bidRatio, effectiveBidCount, baseToken.decimals, quoteToken.decimals);
       }
 
       const baseTotal = baseAmt * BigInt(effectiveAskCount);
@@ -326,6 +358,7 @@ export function GridOrderForm({ baseToken, quoteToken, onPriceLinesChange, exter
     effectiveAskCount,
     effectiveBidCount,
     baseToken,
+    quoteToken,
   ]);
 
   const needsBaseApproval =

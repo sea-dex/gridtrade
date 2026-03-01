@@ -178,6 +178,26 @@ export const priceFeeds: PriceFeedEntry[] = [
     decimals: 18,
     binance: { symbol: 'ETHUSDT', side: 'base' },
   },
+  {
+    chainId: 97,
+    address: '0xd66c6B4F0be8CE5b39D52E0Fd1344c389929B378', // ETH testnet (alt address)
+    symbol: 'ETH',
+    decimals: 18,
+    binance: { symbol: 'ETHUSDT', side: 'base' },
+  },
+  {
+    chainId: 97,
+    address: '0x5abDc7d6A08AE1975CB9DA9281de41A092a4b85b', // MockUSDT testnet (alt address)
+    symbol: 'USDT',
+    decimals: 18,
+  },
+  {
+    chainId: 97,
+    address: '0x7A05B59A7788aE08AAFAf86b4be90942E311815e', // MockUSDT testnet (alt address)
+    symbol: 'USDC',
+    decimals: 18,
+    binance: { symbol: 'USDCUSDT', side: 'base' },
+  },
 ];
 
 // ---------------------------------------------------------------------------
