@@ -82,40 +82,33 @@ function KlinePanelInner({
   const { tokens: baseTokens, isLoading: baseLoading } = useBaseTokens();
   const { tokens: quoteTokens, isLoading: quoteLoading } = useQuoteTokens();
 
-  const [baseToken, setBaseToken] = useState<TokenItem | null>(initialBaseToken ?? null);
-  const [quoteToken, setQuoteToken] = useState<TokenItem | null>(initialQuoteToken ?? null);
-
-  // Resolve URL address params to tokens once token lists are loaded
-  const urlResolvedRef = useRef(false);
-  useEffect(() => {
-    if (urlResolvedRef.current) return;
-    if (baseTokens.length === 0 && quoteTokens.length === 0) return;
-
-    let resolved = false;
-    if (initialBaseAddress && baseTokens.length > 0) {
-      const found = baseTokens.find(
-        (t) => t.address.toLowerCase() === initialBaseAddress.toLowerCase()
-      );
-      if (found) {
-        setBaseToken(found);
-        resolved = true;
-      }
-    }
-    if (initialQuoteAddress && quoteTokens.length > 0) {
-      const found = quoteTokens.find(
-        (t) => t.address.toLowerCase() === initialQuoteAddress.toLowerCase()
-      );
-      if (found) {
-        setQuoteToken(found);
-        resolved = true;
-      }
-    }
-    if (resolved || (!initialBaseAddress && !initialQuoteAddress)) {
-      urlResolvedRef.current = true;
-    }
-  }, [baseTokens, quoteTokens, initialBaseAddress, initialQuoteAddress]);
   const [baseDialogOpen, setBaseDialogOpen] = useState(false);
   const [interval, setIntervalState] = useState<KlineInterval>(initialInterval);
+
+  // Track user's explicit token selections (null means no user selection yet)
+  const [userBaseToken, setUserBaseToken] = useState<TokenItem | null>(initialBaseToken ?? null);
+  const [userQuoteToken, setUserQuoteToken] = useState<TokenItem | null>(initialQuoteToken ?? null);
+
+  // Derive URL-based tokens during render (only when URL params exist)
+  const urlBaseToken = useMemo(() => {
+    if (!initialBaseAddress || baseTokens.length === 0) return null;
+    return baseTokens.find(
+      (t) => t.address.toLowerCase() === initialBaseAddress.toLowerCase()
+    ) ?? null;
+  }, [initialBaseAddress, baseTokens]);
+
+  const urlQuoteToken = useMemo(() => {
+    if (!initialQuoteAddress || quoteTokens.length === 0) return null;
+    return quoteTokens.find(
+      (t) => t.address.toLowerCase() === initialQuoteAddress.toLowerCase()
+    ) ?? null;
+  }, [initialQuoteAddress, quoteTokens]);
+
+  // Resolve effective tokens: URL params take priority on initial load,
+  // then user selections take over once they interact.
+  // This is derived during render, not stored in state.
+  const baseToken = userBaseToken ?? urlBaseToken;
+  const quoteToken = userQuoteToken ?? urlQuoteToken;
 
   // Wrapper to notify parent when interval changes
   const handleIntervalChange = (newInterval: KlineInterval) => {
@@ -146,7 +139,7 @@ function KlinePanelInner({
   // If the current baseToken is not in the selectable list (e.g. it was
   // removed because it matches the newly selected quote), fall back to
   // the first available selectable token.
-  const baseResolved = baseToken
+  const baseResolvedRaw = baseToken
     && selectableBaseTokens.some(
       (t) => t.address.toLowerCase() === baseToken.address.toLowerCase()
     )
@@ -155,54 +148,117 @@ function KlinePanelInner({
       ? selectableBaseTokens[0]
       : null;
 
+  // Apply priority-based swap: if base.priority > quote.priority, swap them
+  // This ensures base always has lower priority than quote
+  const shouldSwapPriority = baseResolvedRaw && quoteResolved && baseResolvedRaw.priority > quoteResolved.priority;
+  const baseResolved = shouldSwapPriority ? quoteResolved : baseResolvedRaw;
+  const quoteResolvedWithSwap = shouldSwapPriority ? baseResolvedRaw : quoteResolved;
+
   // ---------------------------------------------------------------------------
   // Sync resolved tokens to parent on initial auto-select and whenever they
   // change. Without this, the parent page never receives the default tokens,
   // causing balances/totals to show '—' and the Place Grid button to stay disabled.
   // ---------------------------------------------------------------------------
+  // IMPORTANT: Use a single useEffect to batch base+quote updates together.
+  // This prevents race conditions where URL updates use stale token state.
 
   const lastBaseSentRef = useRef<string | null>(null);
   const lastQuoteSentRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (baseResolved?.address && lastBaseSentRef.current !== baseResolved.address) {
-      lastBaseSentRef.current = baseResolved.address;
-      onBaseTokenChange?.(baseResolved);
-    }
-  }, [baseResolved, onBaseTokenChange]);
+    const baseChanged = baseResolved?.address && lastBaseSentRef.current !== baseResolved.address;
+    const quoteChanged = quoteResolvedWithSwap?.address && lastQuoteSentRef.current !== quoteResolvedWithSwap.address;
 
-  useEffect(() => {
-    if (quoteResolved?.address && lastQuoteSentRef.current !== quoteResolved.address) {
-      lastQuoteSentRef.current = quoteResolved.address;
-      onQuoteTokenChange?.(quoteResolved);
+    if (baseChanged) {
+      lastBaseSentRef.current = baseResolved.address;
     }
-  }, [quoteResolved, onQuoteTokenChange]);
+    if (quoteChanged) {
+      lastQuoteSentRef.current = quoteResolvedWithSwap.address;
+    }
+
+    // Only call callbacks if something changed
+    if (baseChanged || quoteChanged) {
+      // Use setTimeout to batch both updates together in the next tick
+      // This ensures the parent's URL update sees both tokens updated
+      setTimeout(() => {
+        if (baseChanged) onBaseTokenChange?.(baseResolved!);
+        if (quoteChanged) onQuoteTokenChange?.(quoteResolvedWithSwap!);
+      }, 0);
+    }
+  }, [baseResolved, quoteResolvedWithSwap, onBaseTokenChange, onQuoteTokenChange]);
 
   // Fetch kline data with 30-second auto-refresh
   const { data: klineData, isLoading: klineLoading, error: klineError } = useKline({
     base: baseResolved?.address ?? '',
-    quote: quoteResolved?.address ?? '',
+    quote: quoteResolvedWithSwap?.address ?? '',
     interval,
     limit: 200,
     autoRefresh: true,
   });
 
+  /**
+   * Auto-swap base and quote tokens if base.priority > quote.priority
+   * This ensures base always has lower priority than quote.
+   * Returns true if a swap was performed.
+   */
+  const autoSwapByPriority = (
+    newBase: TokenItem | null,
+    newQuote: TokenItem | null
+  ): { base: TokenItem | null; quote: TokenItem | null; swapped: boolean } => {
+    if (!newBase || !newQuote) {
+      return { base: newBase, quote: newQuote, swapped: false };
+    }
+    
+    // If base priority > quote priority, swap them
+    if (newBase.priority > newQuote.priority) {
+      return { base: newQuote, quote: newBase, swapped: true };
+    }
+    
+    return { base: newBase, quote: newQuote, swapped: false };
+  };
+
   const handleBaseSelect = (token: TokenItem) => {
-    setBaseToken(token);
-    onBaseTokenChange?.(token);
+    // Check if we need to auto-swap based on priority
+    const { base: newBase, quote: newQuote, swapped } = autoSwapByPriority(token, quoteResolvedWithSwap);
+    
+    if (swapped && newBase && newQuote) {
+      // Swap occurred: token (selected as base) has higher priority than current quote
+      // So token becomes the new quote, and old quote becomes the new base
+      setUserBaseToken(newBase);
+      setUserQuoteToken(newQuote);
+      onBaseTokenChange?.(newBase);
+      onQuoteTokenChange?.(newQuote);
+    } else {
+      // No swap needed
+      setUserBaseToken(token);
+      onBaseTokenChange?.(token);
+    }
   };
 
   const handleQuoteSelect = (token: TokenItem) => {
-    setQuoteToken(token);
-    onQuoteTokenChange?.(token);
+    // Check if we need to auto-swap based on priority
+    const { base: newBase, quote: newQuote, swapped } = autoSwapByPriority(baseResolved, token);
+    
+    if (swapped && newBase && newQuote) {
+      // Swap occurred: token (selected as quote) has lower priority than current base
+      // So token becomes the new base, and old base becomes the new quote
+      setUserBaseToken(newBase);
+      setUserQuoteToken(newQuote);
+      onBaseTokenChange?.(newBase);
+      onQuoteTokenChange?.(newQuote);
+    } else {
+      // No swap needed
+      setUserQuoteToken(token);
+      onQuoteTokenChange?.(token);
 
-    // If the current base token is the same as the newly selected quote,
-    // reset base so it falls back to the first selectable token
-    if (
-      baseToken &&
-      baseToken.address.toLowerCase() === token.address.toLowerCase()
-    ) {
-      setBaseToken(null);
+      // If the current base token is the same as the newly selected quote,
+      // reset base so it falls back to the first selectable token
+      if (
+        baseToken &&
+        baseToken.address.toLowerCase() === token.address.toLowerCase()
+      ) {
+        setUserBaseToken(null);
+      }
     }
   };
 
@@ -266,7 +322,7 @@ function KlinePanelInner({
 
           {/* Quote token dropdown */}
           <QuoteTokenDropdown
-            selectedToken={quoteResolved}
+            selectedToken={quoteResolvedWithSwap}
             onSelect={handleQuoteSelect}
             tokens={quoteTokens}
             isLoading={quoteLoading}
@@ -292,10 +348,10 @@ function KlinePanelInner({
         </div>
 
         {/* Right: Current price */}
-        {baseResolved && quoteResolved && (
+        {baseResolved && quoteResolvedWithSwap && (
           <div className="text-right">
             <div className="text-xs text-(--text-disabled)">
-              {baseResolved.symbol}/{quoteResolved.symbol}
+              {baseResolved.symbol}/{quoteResolvedWithSwap.symbol}
             </div>
             {currentPrice !== null && (
               <div className="flex items-center gap-1.5">

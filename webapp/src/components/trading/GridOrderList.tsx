@@ -24,6 +24,7 @@ export function GridOrderList() {
   const [manuallyToggledGrids, setManuallyToggledGrids] = useState<Set<number>>(new Set());
   const [activeTab, setActiveTab] = useState<OrderTab>(address ? 'my_grids' : 'all_grids');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('active');
+  const [showAllPairs, setShowAllPairs] = useState(false);
 
   // My grids: filtered by connected wallet owner
   // status=1 for active, status=2 for cancelled, undefined for all
@@ -207,6 +208,28 @@ export function GridOrderList() {
             className={cn(
               'absolute top-0.75 left-0.75 w-4 h-4 rounded-full transition-transform duration-200',
               statusFilter === 'all'
+                ? 'translate-x-4.5 bg-(--bg-base)'
+                : 'translate-x-0 bg-(--text-disabled)'
+            )}
+          />
+        </button>
+      </div>
+      {/* Show all pairs toggle - visible in both tabs */}
+      <div className="flex items-center gap-2">
+        <span className="text-[12px] text-(--text-secondary)">
+          {t('grid.order_list.show_all_pairs')}
+        </span>
+        <button
+          onClick={() => setShowAllPairs(!showAllPairs)}
+          className={cn(
+            'relative w-10 h-5.5 rounded-full transition-colors duration-200 shrink-0',
+            showAllPairs ? 'bg-(--accent)' : 'bg-(--bg-elevated) border border-(--border-strong)'
+          )}
+        >
+          <span
+            className={cn(
+              'absolute top-0.75 left-0.75 w-4 h-4 rounded-full transition-transform duration-200',
+              showAllPairs
                 ? 'translate-x-4.5 bg-(--bg-base)'
                 : 'translate-x-0 bg-(--text-disabled)'
             )}

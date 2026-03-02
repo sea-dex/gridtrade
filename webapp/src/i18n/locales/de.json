@@ -96,7 +96,9 @@
       "view_details": "Details Anzeigen",
       "no_orders": "Keine Grid Orders gefunden",
       "status_active": "Aktiv",
-      "status_cancelled": "Abgebrochen"
+      "status_cancelled": "Abgebrochen",
+      "show_cancelled": "Abgebrochene Anzeigen",
+      "show_all_pairs": "Alle Paare Anzeigen"
     }
   },
   "limit": {

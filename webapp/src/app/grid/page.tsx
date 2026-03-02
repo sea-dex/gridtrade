@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState, useEffect, useCallback } from 'react';
+import { Suspense, useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import type { PriceLine } from '@/types/grid';
 import { useStore } from '@/store/useStore';
@@ -60,17 +60,27 @@ function GridTradingPageInner() {
     decimals: number;
   } | undefined>(undefined);
 
+  // Use refs to track latest token values for URL updates (avoids race conditions)
+  const baseTokenRef = useRef<typeof baseToken>(undefined);
+  const quoteTokenRef = useRef<typeof quoteToken>(undefined);
+
   const [priceLines, setPriceLines] = useState<PriceLine[]>([]);
   const [currentPrice, setCurrentPrice] = useState<number | null>(null);
   const [externalFormData, setExternalFormData] = useState<ExternalGridFormData | undefined>(undefined);
 
   // Read interval from URL, default to 4h
   const urlInterval = searchParams.get('interval') as KlineInterval | null;
-  const [interval, setInterval] = useState<KlineInterval>(
+  const [interval, setIntervalState] = useState<KlineInterval>(
     urlInterval && ['1m', '5m', '15m', '1h', '4h', '1d', '1w'].includes(urlInterval)
       ? urlInterval
       : DEFAULT_INTERVAL
   );
+
+  // Use ref for interval to avoid stale closure in URL update
+  const intervalRef = useRef(interval);
+  useEffect(() => {
+    intervalRef.current = interval;
+  }, [interval]);
 
   const handleStrategyGenerated = useCallback((strategy: AiStrategyResult) => {
     setExternalFormData({ ...strategy });
@@ -80,40 +90,53 @@ function GridTradingPageInner() {
   const urlBase = searchParams.get('base');
   const urlQuote = searchParams.get('quote');
 
+  // Update URL with current token values from refs (avoids race conditions)
   const updateUrl = useCallback(
-    (base?: string, quote?: string, newInterval?: KlineInterval) => {
+    (newInterval?: KlineInterval) => {
       const params = new URLSearchParams();
       params.set('chainId', String(selectedChainId));
-      if (base) params.set('base', base);
-      if (quote) params.set('quote', quote);
-      params.set('interval', newInterval ?? interval);
+      if (baseTokenRef.current?.address) params.set('base', baseTokenRef.current.address);
+      if (quoteTokenRef.current?.address) params.set('quote', quoteTokenRef.current.address);
+      params.set('interval', newInterval ?? intervalRef.current);
       router.replace(`/grid?${params.toString()}`, { scroll: false });
     },
-    [selectedChainId, router, interval]
+    [selectedChainId, router]
   );
 
-  const handleBaseTokenChange = (token: TokenItem) => {
-    setBaseToken({
+  const handleBaseTokenChange = useCallback((token: TokenItem) => {
+    const newBase = {
       address: token.address as `0x${string}`,
       symbol: token.symbol,
       decimals: token.decimals,
-    });
-    updateUrl(token.address, quoteToken?.address);
-  };
+    };
+    setBaseToken(newBase);
+    baseTokenRef.current = newBase;
+  }, []);
 
-  const handleQuoteTokenChange = (token: TokenItem) => {
-    setQuoteToken({
+  const handleQuoteTokenChange = useCallback((token: TokenItem) => {
+    const newQuote = {
       address: token.address as `0x${string}`,
       symbol: token.symbol,
       decimals: token.decimals,
-    });
-    updateUrl(baseToken?.address, token.address);
-  };
+    };
+    setQuoteToken(newQuote);
+    quoteTokenRef.current = newQuote;
+  }, []);
 
-  const handleIntervalChange = (newInterval: KlineInterval) => {
-    setInterval(newInterval);
-    updateUrl(baseToken?.address, quoteToken?.address, newInterval);
-  };
+  // Update URL when tokens change (batched via useEffect)
+  useEffect(() => {
+    // Small delay to ensure both refs are updated when swapping
+    const timer = setTimeout(() => {
+      updateUrl();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [baseToken, quoteToken, updateUrl]);
+
+  const handleIntervalChange = useCallback((newInterval: KlineInterval) => {
+    setIntervalState(newInterval);
+    intervalRef.current = newInterval;
+    updateUrl(newInterval);
+  }, [updateUrl]);
 
   return (
     <div className="p-5">

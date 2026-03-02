@@ -125,6 +125,7 @@
       "page_info": "第 {page} 页，共 {total} 页",
       "owner": "拥有者",
       "show_cancelled": "显示已取消",
+      "show_all_pairs": "显示所有交易对",
       "status_all": "全部"
     }
   },

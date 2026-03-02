@@ -6,7 +6,7 @@ import { useStore } from '@/store/useStore';
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 /** Polling interval in milliseconds (30 seconds) */
-const POLL_INTERVAL = 30_000;
+const POLL_INTERVAL = 10_000;
 
 // ---------------------------------------------------------------------------
 // Types – mirrors backend schema
@@ -58,7 +58,7 @@ export interface UseKlineOptions {
 export function useKline({
   base,
   quote,
-  interval = '1h',
+  interval = '4h',
   limit = 200,
   autoRefresh = true,
 }: UseKlineOptions) {
