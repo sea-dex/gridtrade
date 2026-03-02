@@ -11,6 +11,10 @@ import { GridOrderList } from '@/components/trading/GridOrderList';
 import { AiStrategyInput } from '@/components/trading/AiStrategyInput';
 import type { TokenItem } from '@/hooks/useTokens';
 import type { AiStrategyResult } from '@/hooks/useAiStrategy';
+import type { KlineInterval } from '@/hooks/useKline';
+
+// Default interval for kline
+const DEFAULT_INTERVAL: KlineInterval = '4h';
 
 export default function GridTradingPage() {
   return (
@@ -60,6 +64,14 @@ function GridTradingPageInner() {
   const [currentPrice, setCurrentPrice] = useState<number | null>(null);
   const [externalFormData, setExternalFormData] = useState<ExternalGridFormData | undefined>(undefined);
 
+  // Read interval from URL, default to 4h
+  const urlInterval = searchParams.get('interval') as KlineInterval | null;
+  const [interval, setInterval] = useState<KlineInterval>(
+    urlInterval && ['1m', '5m', '15m', '1h', '4h', '1d', '1w'].includes(urlInterval)
+      ? urlInterval
+      : DEFAULT_INTERVAL
+  );
+
   const handleStrategyGenerated = useCallback((strategy: AiStrategyResult) => {
     setExternalFormData({ ...strategy });
   }, []);
@@ -69,14 +81,15 @@ function GridTradingPageInner() {
   const urlQuote = searchParams.get('quote');
 
   const updateUrl = useCallback(
-    (base?: string, quote?: string) => {
+    (base?: string, quote?: string, newInterval?: KlineInterval) => {
       const params = new URLSearchParams();
       params.set('chainId', String(selectedChainId));
       if (base) params.set('base', base);
       if (quote) params.set('quote', quote);
+      params.set('interval', newInterval ?? interval);
       router.replace(`/grid?${params.toString()}`, { scroll: false });
     },
-    [selectedChainId, router]
+    [selectedChainId, router, interval]
   );
 
   const handleBaseTokenChange = (token: TokenItem) => {
@@ -97,6 +110,11 @@ function GridTradingPageInner() {
     updateUrl(baseToken?.address, token.address);
   };
 
+  const handleIntervalChange = (newInterval: KlineInterval) => {
+    setInterval(newInterval);
+    updateUrl(baseToken?.address, quoteToken?.address, newInterval);
+  };
+
   return (
     <div className="p-5">
       <div className="max-w-7xl mx-auto">
@@ -112,6 +130,8 @@ function GridTradingPageInner() {
               priceLines={priceLines}
               initialBaseAddress={urlBase}
               initialQuoteAddress={urlQuote}
+              initialInterval={interval}
+              onIntervalChange={handleIntervalChange}
             />
             <AiStrategyInput
               baseToken={baseToken}

@@ -50,6 +50,10 @@ interface KlinePanelProps {
   initialBaseAddress?: string | null;
   /** Initial quote token address from URL (optional) */
   initialQuoteAddress?: string | null;
+  /** Initial kline interval from URL (optional, defaults to '4h') */
+  initialInterval?: KlineInterval;
+  /** Callback when interval changes */
+  onIntervalChange?: (interval: KlineInterval) => void;
 }
 
 /**
@@ -71,6 +75,8 @@ function KlinePanelInner({
   initialQuoteToken,
   initialBaseAddress,
   initialQuoteAddress,
+  initialInterval = '4h',
+  onIntervalChange,
 }: KlinePanelProps) {
   const { theme } = useStore();
   const { tokens: baseTokens, isLoading: baseLoading } = useBaseTokens();
@@ -109,7 +115,13 @@ function KlinePanelInner({
     }
   }, [baseTokens, quoteTokens, initialBaseAddress, initialQuoteAddress]);
   const [baseDialogOpen, setBaseDialogOpen] = useState(false);
-  const [interval, setInterval] = useState<KlineInterval>('1h');
+  const [interval, setIntervalState] = useState<KlineInterval>(initialInterval);
+
+  // Wrapper to notify parent when interval changes
+  const handleIntervalChange = (newInterval: KlineInterval) => {
+    setIntervalState(newInterval);
+    onIntervalChange?.(newInterval);
+  };
 
   // Auto-select first tokens when loaded, ensuring base ≠ quote
   const quoteResolved = (() => {
@@ -265,7 +277,7 @@ function KlinePanelInner({
             {INTERVAL_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
-                onClick={() => setInterval(opt.value)}
+                onClick={() => handleIntervalChange(opt.value)}
                 className={cn(
                   'px-2 py-1 text-xs rounded transition-colors',
                   interval === opt.value
