@@ -1,10 +1,12 @@
 import { eq, and, desc, sql, inArray } from 'drizzle-orm';
 import { db, grids, orders, tokens, pairs } from '../db/index.js';
+import { normalizeTokenAddress } from '../config/tokens.js';
 import type { GridConfig, GridOrder, GridWithOrders, GridListResponse, GridWithOrdersListResponse, GridDetailResponse, GridProfitsResponse, GridTokenInfo } from '../schemas/grids.js';
 
 export interface GetGridsParams {
   chainId: number;
   owner?: string;
+  pairId?: number;
   status?: number;
   page: number;
   pageSize: number;
@@ -87,13 +89,17 @@ async function getPairTokenAddresses(chainId: number, pairId: number): Promise<{
 }
 
 export async function getGrids(params: GetGridsParams): Promise<GridListResponse> {
-  const { chainId, owner, status, page, pageSize } = params;
+  const { chainId, owner, pairId, status, page, pageSize } = params;
 
   // Build where conditions
   const conditions = [eq(grids.chainId, chainId)];
   
   if (owner) {
     conditions.push(eq(grids.owner, owner.toLowerCase()));
+  }
+
+  if (pairId !== undefined) {
+    conditions.push(eq(grids.pairId, pairId));
   }
   
   if (status !== undefined) {
@@ -170,13 +176,17 @@ export async function getGrids(params: GetGridsParams): Promise<GridListResponse
 }
 
 export async function getGridsWithOrders(params: GetGridsParams): Promise<GridWithOrdersListResponse> {
-  const { chainId, owner, status, page, pageSize } = params;
+  const { chainId, owner, pairId, status, page, pageSize } = params;
 
   // Build where conditions
   const conditions = [eq(grids.chainId, chainId)];
 
   if (owner) {
     conditions.push(eq(grids.owner, owner.toLowerCase()));
+  }
+
+  if (pairId !== undefined) {
+    conditions.push(eq(grids.pairId, pairId));
   }
 
   if (status !== undefined) {
@@ -384,5 +394,37 @@ export async function getGridProfits(chainId: number, gridId: number): Promise<G
     grid_id: g.gridId,
     profits: g.profits,
     quote_token: g.quoteToken,
+  };
+}
+
+/**
+ * Get pair ID by base and quote token addresses.
+ * Normalizes 0x0 addresses to WETH address for the given chain.
+ */
+export async function getPairIdByAddresses(
+  chainId: number,
+  baseTokenAddress: string,
+  quoteTokenAddress: string
+): Promise<{ pairId: number | null; baseTokenAddress: string; quoteTokenAddress: string }> {
+  // Normalize addresses (replace 0x0 with WETH)
+  const normalizedBase = normalizeTokenAddress(baseTokenAddress, chainId);
+  const normalizedQuote = normalizeTokenAddress(quoteTokenAddress, chainId);
+
+  const result = await db
+    .select({ pairId: pairs.pairId })
+    .from(pairs)
+    .where(
+      and(
+        eq(pairs.chainId, chainId),
+        eq(pairs.baseTokenAddress, normalizedBase),
+        eq(pairs.quoteTokenAddress, normalizedQuote)
+      )
+    )
+    .limit(1);
+
+  return {
+    pairId: result.length > 0 ? result[0].pairId : null,
+    baseTokenAddress: normalizedBase,
+    quoteTokenAddress: normalizedQuote,
   };
 }

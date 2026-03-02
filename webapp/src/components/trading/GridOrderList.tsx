@@ -7,7 +7,7 @@ import { useGridOrders } from '@/hooks/useGridOrders';
 import { useOrdersWithGridInfo } from '@/hooks/useOrdersWithGridInfo';
 import { useBaseTokens, useQuoteTokens } from '@/hooks/useTokens';
 import { Button } from '@/components/ui/Button';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
+import { Card, CardHeader, CardContent } from '@/components/ui/Card';
 import { GRIDEX_ABI } from '@/config/abi/GridEx';
 import { GRIDEX_ADDRESSES, WETH_ADDRESSES } from '@/config/chains';
 import { formatNumber, cn } from '@/lib/utils';
@@ -17,7 +17,20 @@ import type { GridWithOrders, GridOrder, OrderWithGridInfo } from '@/types/grid'
 type OrderTab = 'my_grids' | 'all_grids';
 type StatusFilter = 'active' | 'cancelled' | 'all';
 
-export function GridOrderList() {
+interface GridOrderListProps {
+  baseToken?: {
+    address: `0x${string}`;
+    symbol: string;
+    decimals: number;
+  };
+  quoteToken?: {
+    address: `0x${string}`;
+    symbol: string;
+    decimals: number;
+  };
+}
+
+export function GridOrderList({ baseToken, quoteToken }: GridOrderListProps) {
   const { t } = useTranslation();
   const { address, chainId } = useAccount();
   const { writeContract, isPending } = useWriteContract();
@@ -70,6 +83,36 @@ export function GridOrderList() {
   const setPage = isMyGrids ? myGridsResult.setPage : allOrdersResult.setPage;
   const grids = myGridsResult.grids;
   const allOrders = allOrdersResult.orders;
+
+  // Filter by current pair when showAllPairs is false
+  // Note: base_token/quote_token are symbols, use base_token_info.address for actual address
+  const filteredGrids = useMemo(() => {
+    if (showAllPairs || !baseToken || !quoteToken) {
+      return grids;
+    }
+    return grids.filter((grid) => {
+      const gridBaseAddress = grid.config.base_token_info.address.toLowerCase();
+      const gridQuoteAddress = grid.config.quote_token_info.address.toLowerCase();
+      return (
+        gridBaseAddress === baseToken.address.toLowerCase() &&
+        gridQuoteAddress === quoteToken.address.toLowerCase()
+      );
+    });
+  }, [grids, showAllPairs, baseToken, quoteToken]);
+
+  const filteredAllOrders = useMemo(() => {
+    if (showAllPairs || !baseToken || !quoteToken) {
+      return allOrders;
+    }
+    return allOrders.filter((order) => {
+      const orderBaseAddress = order.base_token_info.address.toLowerCase();
+      const orderQuoteAddress = order.quote_token_info.address.toLowerCase();
+      return (
+        orderBaseAddress === baseToken.address.toLowerCase() &&
+        orderQuoteAddress === quoteToken.address.toLowerCase()
+      );
+    });
+  }, [allOrders, showAllPairs, baseToken, quoteToken]);
 
   // For My Grids, auto-expand all grids by default (user can manually toggle)
   const expandedGrids = useMemo(() => {
@@ -165,9 +208,10 @@ export function GridOrderList() {
 
   const totalPages = Math.ceil(total / pageSize);
 
-  // Tab buttons component
+  // Tab buttons component - tabs on leftmost, toggles on right
   const tabButtons = (
-    <div className="flex items-center gap-3">
+    <div className="flex items-center gap-3 w-full">
+      {/* My Grids / All Grids tabs - leftmost position */}
       <div className="flex gap-1">
         <button
           type="button"
@@ -192,7 +236,29 @@ export function GridOrderList() {
           {t('grid.tab_all_grids')}
         </button>
       </div>
-      {/* Show cancelled toggle - visible in both tabs */}
+      {/* Show all pairs toggle - rightmost position */}
+      <div className="flex items-center gap-2 ml-auto">
+        <span className="text-[12px] text-(--text-secondary)">
+          {t('grid.order_list.show_all_pairs')}
+        </span>
+        <button
+          onClick={() => setShowAllPairs(!showAllPairs)}
+          className={cn(
+            'relative w-10 h-5.5 rounded-full transition-colors duration-200 shrink-0',
+            showAllPairs ? 'bg-(--accent)' : 'bg-(--bg-elevated) border border-(--border-strong)'
+          )}
+        >
+          <span
+            className={cn(
+              'absolute top-0.75 left-0.75 w-4 h-4 rounded-full transition-transform duration-200',
+              showAllPairs
+                ? 'translate-x-4.5 bg-(--bg-base)'
+                : 'translate-x-0 bg-(--text-disabled)'
+            )}
+          />
+        </button>
+      </div>
+      {/* Show cancelled toggle - rightmost position */}
       <div className="flex items-center gap-2">
         <span className="text-[12px] text-(--text-secondary)">
           {t('grid.order_list.show_cancelled')}
@@ -214,28 +280,6 @@ export function GridOrderList() {
           />
         </button>
       </div>
-      {/* Show all pairs toggle - visible in both tabs */}
-      <div className="flex items-center gap-2">
-        <span className="text-[12px] text-(--text-secondary)">
-          {t('grid.order_list.show_all_pairs')}
-        </span>
-        <button
-          onClick={() => setShowAllPairs(!showAllPairs)}
-          className={cn(
-            'relative w-10 h-5.5 rounded-full transition-colors duration-200 shrink-0',
-            showAllPairs ? 'bg-(--accent)' : 'bg-(--bg-elevated) border border-(--border-strong)'
-          )}
-        >
-          <span
-            className={cn(
-              'absolute top-0.75 left-0.75 w-4 h-4 rounded-full transition-transform duration-200',
-              showAllPairs
-                ? 'translate-x-4.5 bg-(--bg-base)'
-                : 'translate-x-0 bg-(--text-disabled)'
-            )}
-          />
-        </button>
-      </div>
     </div>
   );
 
@@ -243,8 +287,7 @@ export function GridOrderList() {
   if (isMyGrids && !address) {
     return (
       <Card variant="bordered">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>{t('grid.my_orders')}</CardTitle>
+        <CardHeader className="flex flex-row items-center">
           {tabButtons}
         </CardHeader>
         <CardContent>
@@ -258,8 +301,7 @@ export function GridOrderList() {
 
   return (
     <Card variant="bordered">
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>{isMyGrids ? t('grid.my_orders') : t('grid.tab_all_grids')}</CardTitle>
+      <CardHeader className="flex flex-row items-center">
         {tabButtons}
       </CardHeader>
       <CardContent className="p-0">
@@ -267,7 +309,7 @@ export function GridOrderList() {
           <div className="text-center py-10 text-(--text-disabled) text-sm">{t('common.loading')}</div>
         ) : isMyGrids ? (
           // My Grids: Show grids with expandable orders
-          grids.length === 0 ? (
+          filteredGrids.length === 0 ? (
             <div className="text-center py-10 text-(--text-disabled) text-sm">
               {t('grid.order_list.no_orders')}
             </div>
@@ -302,7 +344,7 @@ export function GridOrderList() {
                     </tr>
                   </thead>
                   <tbody>
-                    {grids.map((gridWithOrders) => (
+                    {filteredGrids.map((gridWithOrders) => (
                       <GridRow
                         key={gridWithOrders.config.grid_id}
                         gridWithOrders={gridWithOrders}
@@ -353,7 +395,7 @@ export function GridOrderList() {
           )
         ) : (
           // All Grids: Show flat order list
-          allOrders.length === 0 ? (
+          filteredAllOrders.length === 0 ? (
             <div className="text-center py-10 text-(--text-disabled) text-sm">
               {t('grid.order_list.no_orders')}
             </div>
@@ -387,7 +429,7 @@ export function GridOrderList() {
                     </tr>
                   </thead>
                   <tbody>
-                    {allOrders.map((order) => (
+                    {filteredAllOrders.map((order) => (
                       <FlatOrderRow
                         key={order.order_id}
                         order={order}

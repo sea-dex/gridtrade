@@ -73,63 +73,77 @@ interface GridOrderFormProps {
 }
 
 /**
- * Multiply a human-readable price string by PRICE_MULTIPLIER (10^36).
+ * Convert a human-readable price to contract format, accounting for decimal differences.
  *
- * Uses bignumber.js to avoid floating-point precision issues and to support
- * inputs like scientific notation (e.g. "1e-8").
+ * The contract's calcQuoteAmount formula is: quoteAmt = baseAmt * price / PRICE_MULTIPLIER
+ * This assumes price is scaled such that the result is in quote token units.
+ *
+ * To account for decimal differences:
+ * - If base has 18 decimals and quote has 6 decimals
+ * - 1 base token = 1e18 base units
+ * - 1 quote token = 1e6 quote units
+ * - For a price of 2000 (1 base = 2000 quote):
+ *   - We want: 1e18 base units -> 2000e6 quote units
+ *   - Contract calculates: 1e18 * price / 1e36 = quoteAmt
+ *   - So: price = 2000e6 * 1e36 / 1e18 = 2000 * 1e36 * 1e6 / 1e18
+ *
+ * Formula: contractPrice = humanPrice * PRICE_MULTIPLIER * 10^quoteDecimals / 10^baseDecimals
  */
-function priceToBigInt(priceStr: string): bigint {
+function priceToContractBigInt(
+  priceStr: string,
+  baseDecimals: number,
+  quoteDecimals: number,
+): bigint {
   const s = (priceStr ?? '').trim();
   if (!s) return 0n;
 
   const bn = new BigNumber(s);
   if (!bn.isFinite() || bn.isNaN() || bn.lte(0)) return 0n;
 
-  // Truncate (round down) any precision beyond 36 decimals.
-  const scaled = bn.times(PRICE_MULTIPLIER_BN).integerValue(BigNumber.ROUND_DOWN);
+  // Calculate decimal adjustment: 10^quoteDecimals / 10^baseDecimals
+  const decimalAdjustment = new BigNumber(10).pow(quoteDecimals - baseDecimals);
+  
+  // Scale by PRICE_MULTIPLIER and decimal adjustment
+  const scaled = bn
+    .times(PRICE_MULTIPLIER_BN)
+    .times(decimalAdjustment)
+    .integerValue(BigNumber.ROUND_DOWN);
+  
   return BigInt(scaled.toFixed(0));
 }
 
 /**
- * Replicate the Solidity calcQuoteAmount: quoteAmt = baseAmt * price / PRICE_MULTIPLIER
- * Uses standard bigint division (rounds down, i.e. roundUp = false).
- *
- * IMPORTANT: This function accounts for decimal difference between base and quote tokens.
- * The price is defined as: 1 base token = price quote tokens (in human-readable form).
- * The PRICE_MULTIPLIER (10^36) is used for fixed-point arithmetic.
- *
- * Formula: quoteAmt = baseAmt * price / PRICE_MULTIPLIER * 10^quoteDecimals / 10^baseDecimals
- * Simplified: quoteAmt = baseAmt * price * 10^quoteDecimals / (PRICE_MULTIPLIER * 10^baseDecimals)
+ * Convert a human-readable gap to contract format, accounting for decimal differences.
+ * Same logic as priceToContractBigInt since gap is also a price difference.
  */
-function calcQuoteAmount(
-  baseAmt: bigint,
-  price: bigint,
+function gapToContractBigInt(
+  gapStr: string,
   baseDecimals: number,
   quoteDecimals: number,
 ): bigint {
+  return priceToContractBigInt(gapStr, baseDecimals, quoteDecimals);
+}
+
+/**
+ * Replicate the Solidity calcQuoteAmount: quoteAmt = baseAmt * price / PRICE_MULTIPLIER
+ * Uses ceiling division (rounds up) to ensure sufficient approve/msg.value amounts.
+ *
+ * NOTE: The price parameter should already be in contract format (scaled by PRICE_MULTIPLIER
+ * and adjusted for decimal differences). Use priceToContractBigInt() to convert human-readable
+ * prices before passing them to this function.
+ */
+function calcQuoteAmount(baseAmt: bigint, price: bigint): bigint {
   if (price === 0n) return 0n;
-  
-  // Calculate the decimal adjustment factor
-  // If baseDecimals > quoteDecimals, we need to divide by the difference
-  // If baseDecimals < quoteDecimals, we need to multiply by the difference
-  const decimalDiff = baseDecimals - quoteDecimals;
-  
-  let result = (baseAmt * price) / PRICE_MULTIPLIER;
-  
-  if (decimalDiff > 0) {
-    // Base has more decimals, divide to get correct quote amount
-    result = result / (10n ** BigInt(decimalDiff));
-  } else if (decimalDiff < 0) {
-    // Quote has more decimals, multiply to get correct quote amount
-    result = result * (10n ** BigInt(-decimalDiff));
-  }
-  
-  return result;
+  // Use ceiling division: (a + b - 1) / b to round up
+  // This ensures we have enough tokens for approve/msg.value
+  return (baseAmt * price + PRICE_MULTIPLIER - 1n) / PRICE_MULTIPLIER;
 }
 
 /**
  * Replicate the Solidity calcGridAmount logic.
  * Returns [totalBaseAmt, totalQuoteAmt].
+ *
+ * NOTE: bidPrice and bidGap should already be in contract format.
  */
 function calcGridAmount(
   baseAmt: bigint,
@@ -137,14 +151,12 @@ function calcGridAmount(
   bidGap: bigint,
   askCount: number,
   bidCount: number,
-  baseDecimals: number,
-  quoteDecimals: number,
 ): [bigint, bigint] {
   let quoteAmt = 0n;
   let currentBidPrice = bidPrice;
 
   for (let i = 0; i < bidCount; i++) {
-    const amt = calcQuoteAmount(baseAmt, currentBidPrice, baseDecimals, quoteDecimals);
+    const amt = calcQuoteAmount(baseAmt, currentBidPrice);
     quoteAmt += amt;
     currentBidPrice -= bidGap;
   }
@@ -174,20 +186,20 @@ function calcGeometryPrice(price0: bigint, ratio: bigint, idx: number): bigint {
 }
 
 /**
- * Calculate total quote amount for geometry strategy bid orders
+ * Calculate total quote amount for geometry strategy bid orders.
+ *
+ * NOTE: bidPrice0 should already be in contract format.
  */
 function calcGeometryGridQuoteAmount(
   baseAmt: bigint,
   bidPrice0: bigint,
   bidRatio: bigint,
   bidCount: number,
-  baseDecimals: number,
-  quoteDecimals: number,
 ): bigint {
   let quoteAmt = 0n;
   for (let i = 0; i < bidCount; i++) {
     const price = calcGeometryPrice(bidPrice0, bidRatio, i);
-    const amt = calcQuoteAmount(baseAmt, price, baseDecimals, quoteDecimals);
+    const amt = calcQuoteAmount(baseAmt, price);
     quoteAmt += amt;
   }
   return quoteAmt;
@@ -330,23 +342,25 @@ export function GridOrderForm({ baseToken, quoteToken, onPriceLinesChange, exter
 
     try {
       const baseAmt = parseUnits(formData.amountPerGrid, baseToken.decimals);
-      const bidPrice0 = priceToBigInt(formData.bidPrice0);
+      const bidPrice0 = priceToContractBigInt(formData.bidPrice0, baseToken.decimals, quoteToken.decimals);
 
       let quoteTotal = 0n;
 
       if (formData.bidStrategy === 'linear') {
-        const bidGap = priceToBigInt(formData.bidGap);
-        quoteTotal = calcGridAmount(baseAmt, bidPrice0, bidGap, 0, effectiveBidCount, baseToken.decimals, quoteToken.decimals)[1];
+        const bidGap = priceToContractBigInt(formData.bidGap, baseToken.decimals, quoteToken.decimals);
+        quoteTotal = calcGridAmount(baseAmt, bidPrice0, bidGap, 0, effectiveBidCount)[1];
       } else {
         // Geometry strategy
         const bidRatioBN = new BigNumber(formData.bidRatio || '1').times(RATIO_MULTIPLIER_BN).integerValue(BigNumber.ROUND_DOWN);
         const bidRatio = BigInt(bidRatioBN.toFixed(0));
-        quoteTotal = calcGeometryGridQuoteAmount(baseAmt, bidPrice0, bidRatio, effectiveBidCount, baseToken.decimals, quoteToken.decimals);
+        quoteTotal = calcGeometryGridQuoteAmount(baseAmt, bidPrice0, bidRatio, effectiveBidCount);
       }
 
       const baseTotal = baseAmt * BigInt(effectiveAskCount);
+      console.info('calculate baseTotal or quoteTotal:', baseTotal, quoteTotal)
       return { baseTotal, quoteTotal };
-    } catch {
+    } catch (err) {
+      console.error('calculate baseTotal or quoteTotal failed:', err)
       return { baseTotal: 0n, quoteTotal: 0n };
     }
   }, [
@@ -585,8 +599,10 @@ export function GridOrderForm({ baseToken, quoteToken, onPriceLinesChange, exter
       setSubmitStage('placing');
       updateStep(stepIndexMap.place, { status: 'active' });
 
-      const askPrice0 = priceToBigInt(formData.askPrice0);
-      const bidPrice0 = priceToBigInt(formData.bidPrice0);
+      // Convert prices to contract format, accounting for decimal differences
+      // The contract expects prices scaled by PRICE_MULTIPLIER * 10^(quoteDecimals - baseDecimals)
+      const askPrice0 = priceToContractBigInt(formData.askPrice0, baseToken.decimals, quoteToken.decimals);
+      const bidPrice0 = priceToContractBigInt(formData.bidPrice0, baseToken.decimals, quoteToken.decimals);
 
       // Get strategy addresses
       const linearStrategy = LINEAR_STRATEGY_ADDRESSES[chainId];
@@ -601,46 +617,50 @@ export function GridOrderForm({ baseToken, quoteToken, onPriceLinesChange, exter
 
       // Ask strategy encoding
       if (formData.askStrategy === 'linear') {
-        const askGap = priceToBigInt(formData.askGap);
-        console.info('ask strategy: linear, price:', askPrice0, 'gap:', askGap);
+        const askGap = gapToContractBigInt(formData.askGap, baseToken.decimals, quoteToken.decimals);
+        console.info('ask strategy: linear, price:', askPrice0, 'gap:', askGap, 'baseDecimals:', baseToken.decimals, 'quoteDecimals:', quoteToken.decimals);
         askData = encodeAbiParameters(
           [{ type: 'uint256' }, { type: 'int256' }],
           [askPrice0, askGap],
         );
         askStrategyAddress = linearStrategy;
+        console.log('linear ask price0 gap:', askPrice0, askGap)
       } else {
         // Geometry strategy: ratio is scaled by 10^18
         const askRatioBN = new BigNumber(formData.askRatio || '1').times(RATIO_MULTIPLIER_BN).integerValue(BigNumber.ROUND_DOWN);
         const askRatio = BigInt(askRatioBN.toFixed(0));
-        console.info('ask strategy: geometry, price:', askPrice0, 'ratio:', askRatio);
+        console.info('ask strategy: geometry, price:', askPrice0, 'ratio:', askRatio, 'baseDecimals:', baseToken.decimals, 'quoteDecimals:', quoteToken.decimals);
         askData = encodeAbiParameters(
           [{ type: 'uint256' }, { type: 'uint256' }],
           [askPrice0, askRatio],
         );
         askStrategyAddress = geometryStrategy;
+        console.log('geometry ask price0 gap:', askPrice0, askRatio)
       }
 
       // Bid strategy encoding
       if (formData.bidStrategy === 'linear') {
-        const bidGapPositive = priceToBigInt(formData.bidGap);
+        const bidGapPositive = gapToContractBigInt(formData.bidGap, baseToken.decimals, quoteToken.decimals);
         // Contract expects bid gap as negative (prices decrease for each subsequent bid order)
         const bidGap = bidGapPositive > 0n ? -bidGapPositive : bidGapPositive;
-        console.info('bid strategy: linear, price:', bidPrice0, 'gap:', bidGap);
+        console.info('bid strategy: linear, price:', bidPrice0, 'gap:', bidGap, 'baseDecimals:', baseToken.decimals, 'quoteDecimals:', quoteToken.decimals);
         bidData = encodeAbiParameters(
           [{ type: 'uint256' }, { type: 'int256' }],
           [bidPrice0, bidGap],
         );
         bidStrategyAddress = linearStrategy;
+        console.log('linear bid price0 gap:', bidPrice0, bidGap)
       } else {
         // Geometry strategy: ratio is scaled by 10^18
         const bidRatioBN = new BigNumber(formData.bidRatio || '1').times(RATIO_MULTIPLIER_BN).integerValue(BigNumber.ROUND_DOWN);
         const bidRatio = BigInt(bidRatioBN.toFixed(0));
-        console.info('bid strategy: geometry, price:', bidPrice0, 'ratio:', bidRatio);
+        console.info('bid strategy: geometry, price:', bidPrice0, 'ratio:', bidRatio, 'baseDecimals:', baseToken.decimals, 'quoteDecimals:', quoteToken.decimals);
         bidData = encodeAbiParameters(
           [{ type: 'uint256' }, { type: 'uint256' }],
           [bidPrice0, bidRatio],
         );
         bidStrategyAddress = geometryStrategy;
+        console.log('geometry bid price0 gap:', bidPrice0, bidRatio)
       }
 
       const param = {
@@ -661,6 +681,8 @@ export function GridOrderForm({ baseToken, quoteToken, onPriceLinesChange, exter
         : quoteIsNative
           ? totals.quoteTotal
           : 0n;
+
+      console.log('amount:', param.baseAmount, 'total base:', totals.baseTotal, totals.quoteTotal)
 
       const txHash =
         (baseIsNative || quoteIsNative)

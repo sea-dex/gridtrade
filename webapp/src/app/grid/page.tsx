@@ -176,7 +176,7 @@ function GridTradingPageInner() {
         </div>
 
         {/* Order List */}
-        <GridOrderList />
+        <GridOrderList baseToken={baseToken} quoteToken={quoteToken} />
       </div>
     </div>
   );

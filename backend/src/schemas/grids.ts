@@ -53,8 +53,15 @@ export const gridOrderSchema = z.object({
 export const getGridsQuerySchema = z.object({
   chain_id: chainIdSchema,
   owner: addressSchema.optional(),
+  pair_id: z.coerce.number().optional(),
   status: z.coerce.number().optional(),
   ...paginationSchema.shape,
+});
+
+export const getPairIdQuerySchema = z.object({
+  chain_id: chainIdSchema,
+  base_token: addressSchema,
+  quote_token: addressSchema,
 });
 
 export const getGridDetailQuerySchema = z.object({
@@ -95,6 +102,13 @@ export const gridProfitsResponseSchema = z.object({
   grid_id: z.number(),
   profits: z.string(),
   quote_token: z.string(),
+});
+
+// Pair ID response schema
+export const pairIdResponseSchema = z.object({
+  pair_id: z.number().nullable(),
+  base_token: addressSchema,
+  quote_token: addressSchema,
 });
 
 // Type exports

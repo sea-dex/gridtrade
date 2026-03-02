@@ -8,6 +8,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 interface UseGridOrdersParams {
   owner?: string;
+  pairId?: number;
   status?: number;
   page?: number;
   pageSize?: number;
@@ -52,6 +53,9 @@ export function useGridOrders(params: UseGridOrdersParams = {}): UseGridOrdersRe
       if (params.owner) {
         searchParams.set('owner', params.owner);
       }
+      if (params.pairId !== undefined) {
+        searchParams.set('pair_id', String(params.pairId));
+      }
       if (params.status !== undefined) {
         searchParams.set('status', String(params.status));
       }
@@ -70,7 +74,7 @@ export function useGridOrders(params: UseGridOrdersParams = {}): UseGridOrdersRe
     } finally {
       setIsLoading(false);
     }
-  }, [selectedChainId, page, pageSize, params.owner, params.status, isInitialLoad]);
+  }, [selectedChainId, page, pageSize, params.owner, params.pairId, params.status, isInitialLoad]);
 
   useEffect(() => {
     fetchGridsWithOrders();

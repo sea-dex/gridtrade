@@ -4,12 +4,14 @@ import {
   getGridsQuerySchema,
   getGridDetailQuerySchema,
   getGridDetailParamsSchema,
+  getPairIdQuerySchema,
   gridListResponseSchema,
   gridWithOrdersListResponseSchema,
   gridDetailResponseSchema,
   gridProfitsResponseSchema,
+  pairIdResponseSchema,
 } from '../schemas/grids.js';
-import { getGrids, getGridsWithOrders, getGridDetail, getGridProfits } from '../services/grids.service.js';
+import { getGrids, getGridsWithOrders, getGridDetail, getGridProfits, getPairIdByAddresses } from '../services/grids.service.js';
 
 const gridsRoutes: FastifyPluginAsync = async (fastify) => {
   const app = fastify.withTypeProvider<ZodTypeProvider>();
@@ -29,11 +31,12 @@ const gridsRoutes: FastifyPluginAsync = async (fastify) => {
       },
     },
     async (request, _reply) => {
-      const { chain_id, owner, status, page, page_size } = request.query;
+      const { chain_id, owner, pair_id, status, page, page_size } = request.query;
 
       const result = await getGrids({
         chainId: chain_id,
         owner,
+        pairId: pair_id,
         status,
         page,
         pageSize: page_size,
@@ -58,11 +61,12 @@ const gridsRoutes: FastifyPluginAsync = async (fastify) => {
       },
     },
     async (request, _reply) => {
-      const { chain_id, owner, status, page, page_size } = request.query;
+      const { chain_id, owner, pair_id, status, page, page_size } = request.query;
 
       const result = await getGridsWithOrders({
         chainId: chain_id,
         owner,
+        pairId: pair_id,
         status,
         page,
         pageSize: page_size,
@@ -141,6 +145,33 @@ const gridsRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       return result;
+    }
+  );
+
+  // Get pair ID by base and quote token addresses
+  app.get(
+    '/pair-id',
+    {
+      schema: {
+        tags: ['Grids'],
+        summary: 'Get pair ID by token addresses',
+        description: 'Get pair ID for a given base and quote token address pair. Native token (0x0) addresses are automatically converted to WETH.',
+        querystring: getPairIdQuerySchema,
+        response: {
+          200: pairIdResponseSchema,
+        },
+      },
+    },
+    async (request, _reply) => {
+      const { chain_id, base_token, quote_token } = request.query;
+
+      const result = await getPairIdByAddresses(chain_id, base_token, quote_token);
+
+      return {
+        pair_id: result.pairId,
+        base_token: result.baseTokenAddress,
+        quote_token: result.quoteTokenAddress,
+      };
     }
   );
 };

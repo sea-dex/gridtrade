@@ -294,6 +294,36 @@ const tokensByChain: Record<number, TokenInfo[]> = {
 };
 
 // ---------------------------------------------------------------------------
+// WETH addresses per chain (for native token substitution)
+// ---------------------------------------------------------------------------
+
+export const WETH_ADDRESSES: Record<number, string> = {
+  1: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+  56: '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c', // WBNB on BSC
+  97: '0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd', // WBNB on BSC Testnet
+  8453: '0x4200000000000000000000000000000000000006',
+};
+
+/**
+ * Get WETH address for a chain. Returns undefined if chain not supported.
+ */
+export function getWethAddress(chainId: number): string | undefined {
+  return WETH_ADDRESSES[chainId];
+}
+
+/**
+ * Normalize token address - replace 0x0 address with WETH address for the chain.
+ * This is used when looking up pairs where native ETH (0x0) should match WETH.
+ */
+export function normalizeTokenAddress(address: string, chainId: number): string {
+  const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
+  if (address.toLowerCase() === ZERO_ADDRESS.toLowerCase()) {
+    return WETH_ADDRESSES[chainId]?.toLowerCase() || address.toLowerCase();
+  }
+  return address.toLowerCase();
+}
+
+// ---------------------------------------------------------------------------
 // Public helpers
 // ---------------------------------------------------------------------------
 

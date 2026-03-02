@@ -49,6 +49,9 @@ interface LimitOrderFormProps {
 
 /**
  * Multiply a human-readable price string by PRICE_MULTIPLIER (10^36).
+ *
+ * IMPORTANT: This function does NOT account for decimal differences between base and quote tokens.
+ * Use priceToContractBigInt() for prices that will be sent to the contract.
  */
 function priceToBigInt(priceStr: string): bigint {
   const s = (priceStr ?? '').trim();
@@ -62,11 +65,94 @@ function priceToBigInt(priceStr: string): bigint {
 }
 
 /**
- * Replicate the Solidity calcQuoteAmount: quoteAmt = baseAmt * price / PRICE_MULTIPLIER
+ * Convert a human-readable price to contract format, accounting for decimal differences.
+ *
+ * The contract's calcQuoteAmount formula is: quoteAmt = baseAmt * price / PRICE_MULTIPLIER
+ * This assumes price is scaled such that the result is in quote token units.
+ *
+ * To account for decimal differences:
+ * - If base has 18 decimals and quote has 6 decimals
+ * - 1 base token = 1e18 base units
+ * - 1 quote token = 1e6 quote units
+ * - For a price of 2000 (1 base = 2000 quote):
+ *   - We want: 1e18 base units -> 2000e6 quote units
+ *   - Contract calculates: 1e18 * price / 1e36 = quoteAmt
+ *   - So: price = 2000e6 * 1e36 / 1e18 = 2000 * 1e36 * 1e6 / 1e18
+ *
+ * Formula: contractPrice = humanPrice * PRICE_MULTIPLIER * 10^quoteDecimals / 10^baseDecimals
  */
-function calcQuoteAmount(baseAmt: bigint, price: bigint): bigint {
+function priceToContractBigInt(
+  priceStr: string,
+  baseDecimals: number,
+  quoteDecimals: number,
+): bigint {
+  const s = (priceStr ?? '').trim();
+  if (!s) return 0n;
+
+  const bn = new BigNumber(s);
+  if (!bn.isFinite() || bn.isNaN() || bn.lte(0)) return 0n;
+
+  // Calculate decimal adjustment: 10^quoteDecimals / 10^baseDecimals
+  const decimalAdjustment = new BigNumber(10).pow(quoteDecimals - baseDecimals);
+  
+  // Scale by PRICE_MULTIPLIER and decimal adjustment
+  const scaled = bn
+    .times(PRICE_MULTIPLIER_BN)
+    .times(decimalAdjustment)
+    .integerValue(BigNumber.ROUND_DOWN);
+  
+  return BigInt(scaled.toFixed(0));
+}
+
+/**
+ * Convert a human-readable gap to contract format, accounting for decimal differences.
+ * Same logic as priceToContractBigInt since gap is also a price difference.
+ */
+function gapToContractBigInt(
+  gapStr: string,
+  baseDecimals: number,
+  quoteDecimals: number,
+): bigint {
+  return priceToContractBigInt(gapStr, baseDecimals, quoteDecimals);
+}
+
+/**
+ * Replicate the Solidity calcQuoteAmount: quoteAmt = baseAmt * price / PRICE_MULTIPLIER
+ *
+ * IMPORTANT: This function accounts for decimal difference between base and quote tokens.
+ * The price is defined as: 1 base token = price quote tokens (in human-readable form).
+ * The PRICE_MULTIPLIER (10^36) is used for fixed-point arithmetic.
+ *
+ * Formula: quoteAmt = baseAmt * price / PRICE_MULTIPLIER * 10^quoteDecimals / 10^baseDecimals
+ * Simplified: quoteAmt = baseAmt * price * 10^quoteDecimals / (PRICE_MULTIPLIER * 10^baseDecimals)
+ */
+function calcQuoteAmount(
+  baseAmt: bigint,
+  price: bigint,
+  baseDecimals: number,
+  quoteDecimals: number,
+): bigint {
   if (price === 0n) return 0n;
-  return (baseAmt * price) / PRICE_MULTIPLIER;
+  
+  // Calculate the decimal adjustment factor
+  // If baseDecimals > quoteDecimals, we need to divide by the difference
+  // If baseDecimals < quoteDecimals, we need to multiply by the difference
+  const decimalDiff = baseDecimals - quoteDecimals;
+  
+  // Use ceiling division: (a + b - 1) / b to round up
+  // This ensures we have enough tokens for approve/msg.value
+  let result = (baseAmt * price + PRICE_MULTIPLIER - 1n) / PRICE_MULTIPLIER;
+  
+  if (decimalDiff > 0) {
+    // Base has more decimals, divide to get correct quote amount (round up)
+    const divisor = 10n ** BigInt(decimalDiff);
+    result = (result + divisor - 1n) / divisor;
+  } else if (decimalDiff < 0) {
+    // Quote has more decimals, multiply to get correct quote amount
+    result = result * (10n ** BigInt(-decimalDiff));
+  }
+  
+  return result;
 }
 
 /**
@@ -79,12 +165,14 @@ function calcGridAmount(
   bidGap: bigint,
   askCount: number,
   bidCount: number,
+  baseDecimals: number,
+  quoteDecimals: number,
 ): [bigint, bigint] {
   let quoteAmt = 0n;
   let currentBidPrice = bidPrice;
 
   for (let i = 0; i < bidCount; i++) {
-    const amt = calcQuoteAmount(baseAmt, currentBidPrice);
+    const amt = calcQuoteAmount(baseAmt, currentBidPrice, baseDecimals, quoteDecimals);
     quoteAmt += amt;
     currentBidPrice -= bidGap;
   }
@@ -178,7 +266,7 @@ export function LimitOrderForm({ baseToken, quoteToken, onPriceLinesChange }: Li
 
   // Calculate total base and quote amounts needed
   const totals = useMemo(() => {
-    if (!baseToken || !formData.amountPerGrid) {
+    if (!baseToken || !quoteToken || !formData.amountPerGrid) {
       return { baseTotal: 0n, quoteTotal: 0n };
     }
 
@@ -193,6 +281,8 @@ export function LimitOrderForm({ baseToken, quoteToken, onPriceLinesChange }: Li
         bidGap,
         effectiveAskCount,
         effectiveBidCount,
+        baseToken.decimals,
+        quoteToken.decimals,
       );
 
       return { baseTotal: totalBase, quoteTotal: totalQuote };
@@ -206,6 +296,7 @@ export function LimitOrderForm({ baseToken, quoteToken, onPriceLinesChange }: Li
     effectiveAskCount,
     effectiveBidCount,
     baseToken,
+    quoteToken,
   ]);
 
   const needsBaseApproval =
@@ -384,13 +475,19 @@ export function LimitOrderForm({ baseToken, quoteToken, onPriceLinesChange }: Li
       setSubmitStage('placing');
       updateStep(stepIndexMap.place, { status: 'active' });
 
-      const askPrice0 = priceToBigInt(formData.askPrice0);
-      const askGap = priceToBigInt(formData.askGap);
-      const bidPrice0 = priceToBigInt(formData.bidPrice0);
-      const bidGap = priceToBigInt(formData.bidGap);
+      // Convert prices to contract format, accounting for decimal differences
+      // The contract expects prices scaled by PRICE_MULTIPLIER * 10^(quoteDecimals - baseDecimals)
+      const askPrice0 = priceToContractBigInt(formData.askPrice0, baseToken.decimals, quoteToken.decimals);
+      const askGap = gapToContractBigInt(formData.askGap, baseToken.decimals, quoteToken.decimals);
+      const bidPrice0 = priceToContractBigInt(formData.bidPrice0, baseToken.decimals, quoteToken.decimals);
+      const bidGap = gapToContractBigInt(formData.bidGap, baseToken.decimals, quoteToken.decimals);
 
       const linearStrategy = LINEAR_STRATEGY_ADDRESSES[chainId];
       if (!linearStrategy) return;
+
+      console.info('limit order - baseDecimals:', baseToken.decimals, 'quoteDecimals:', quoteToken.decimals);
+      console.info('limit order - askPrice0:', askPrice0, 'askGap:', askGap);
+      console.info('limit order - bidPrice0:', bidPrice0, 'bidGap:', bidGap);
 
       const askData = encodeAbiParameters(
         [{ type: 'uint256' }, { type: 'uint256' }],
