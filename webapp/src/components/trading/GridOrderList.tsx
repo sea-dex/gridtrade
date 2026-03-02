@@ -162,7 +162,8 @@ export function GridOrderList({ baseToken, quoteToken }: GridOrderListProps) {
     });
   };
 
-  const getStatusBadge = (status: number) => {
+  // Grid status badge: 1=active, 2=cancelled
+  const getGridStatusBadge = (status: number) => {
     switch (status) {
       case 1:
         return (
@@ -179,6 +180,22 @@ export function GridOrderList({ baseToken, quoteToken }: GridOrderListProps) {
       default:
         return null;
     }
+  };
+
+  // Order status badge: 0=active, 1=filled/cancelled
+  const getOrderStatusBadge = (status: number) => {
+    if (status === 0) {
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-medium bg-(--green-dim) text-(--green) border border-[rgba(52,211,153,0.15)] rounded-sm">
+          {t('grid.order_list.status_active')}
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-medium bg-[rgba(136,150,171,0.06)] text-(--text-disabled) border border-(--border-subtle) rounded-sm">
+        {t('grid.order_list.status_cancelled')}
+      </span>
+    );
   };
 
   const totalPages = Math.ceil(total / pageSize);
@@ -328,7 +345,7 @@ export function GridOrderList({ baseToken, quoteToken }: GridOrderListProps) {
                         onWithdraw={handleWithdraw}
                         onCancel={handleCancel}
                         isPending={isPending}
-                        getStatusBadge={getStatusBadge}
+                        getGridStatusBadge={getGridStatusBadge}
                         showActions={true}
                         showOwner={false}
                         t={t}
@@ -408,7 +425,7 @@ export function GridOrderList({ baseToken, quoteToken }: GridOrderListProps) {
                       <FlatOrderRow
                         key={order.order_id}
                         order={order}
-                        getStatusBadge={getStatusBadge}
+                        getOrderStatusBadge={getOrderStatusBadge}
                         t={t}
                       />
                     ))}
@@ -460,7 +477,7 @@ function GridRow({
   onWithdraw,
   onCancel,
   isPending,
-  getStatusBadge,
+  getGridStatusBadge,
   showActions,
   showOwner,
   t,
@@ -471,7 +488,7 @@ function GridRow({
   onWithdraw: (gridId: number, quoteToken: string) => void;
   onCancel: (gridId: number, baseToken: string, quoteToken: string) => void;
   isPending: boolean;
-  getStatusBadge: (status: number) => React.ReactNode;
+  getGridStatusBadge: (status: number) => React.ReactNode;
   showActions: boolean;
   showOwner: boolean;
   t: (key: string) => string;
@@ -538,7 +555,7 @@ function GridRow({
             {formatNumber(Number(config.profits) / Math.pow(10, quoteDecimals), 4)} {config.quote_token}
           </span>
         </td>
-        <td className="py-3 px-5">{getStatusBadge(config.status)}</td>
+        <td className="py-3 px-5">{getGridStatusBadge(config.status)}</td>
         {showActions && (
           <td className="py-3 px-5">
             <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
@@ -713,11 +730,11 @@ function OrderRow({
 /** A flat order row for All Grids view */
 function FlatOrderRow({
   order,
-  getStatusBadge,
+  getOrderStatusBadge,
   t,
 }: {
   order: OrderWithGridInfo;
-  getStatusBadge: (status: number) => React.ReactNode;
+  getOrderStatusBadge: (status: number) => React.ReactNode;
   t: (key: string) => string;
 }) {
   // Use token info from API response (accurate decimals by token address)
@@ -761,7 +778,7 @@ function FlatOrderRow({
           {formatNumber(Number(order.amount) / Math.pow(10, amountDecimals), 4)} {order.is_ask ? order.base_token : order.quote_token}
         </span>
       </td>
-      <td className="py-3 px-5">{getStatusBadge(order.status)}</td>
+      <td className="py-3 px-5">{getOrderStatusBadge(order.status)}</td>
     </tr>
   );
 }

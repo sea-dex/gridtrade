@@ -180,8 +180,15 @@ export async function getOrdersWithGridInfo(params: GetOrdersWithGridInfoParams)
   if (gridId !== undefined) {
     conditions.push(eq(orders.gridId, gridId));
   }
+  // Filter by order status (not grid status)
+  // Grid status: 1=active, 2=cancelled
+  // Order status: 0=active, 1=filled/cancelled
+  // Map grid status to order status for filtering
   if (status !== undefined) {
-    conditions.push(eq(grids.status, status));
+    // If filtering for active grids (status=1), show active orders (status=0)
+    // If filtering for cancelled grids (status=2), show filled/cancelled orders (status=1)
+    const orderStatus = status === 1 ? 0 : 1;
+    conditions.push(eq(orders.status, orderStatus));
   }
 
   // Filter by base_token and quote_token addresses
