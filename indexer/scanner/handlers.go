@@ -301,11 +301,11 @@ func (s *Scanner) handleGridOrderCreated(ctx context.Context, tx pgx.Tx, log typ
 
 	// Adjust for decimal difference between base and quote tokens
 	// The contract's PRICE_MULTIPLIER doesn't account for different token decimals
-	if quoteInfo.Decimals > baseInfo.Decimals {
-		decimalDiff := quoteInfo.Decimals - baseInfo.Decimals
-		adjustment := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(decimalDiff)), nil)
-		initQuote.Mul(initQuote, adjustment)
-	}
+	// if quoteInfo.Decimals > baseInfo.Decimals {
+	// 	decimalDiff := quoteInfo.Decimals - baseInfo.Decimals
+	// 	adjustment := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(decimalDiff)), nil)
+	// 	initQuote.Mul(initQuote, adjustment)
+	// }
 
 	initialBaseAmountStr := initBase.String()
 	initialQuoteAmountStr := initQuote.String()
@@ -378,8 +378,7 @@ func (s *Scanner) handleGridOrderCreated(ctx context.Context, tx pgx.Tx, log typ
 
 		orderMsgs, err := s.computeAndInsertOrder(ctx, tx, log, gridOrderID, gridID,
 			int(event.PairID), true, event.Compound, event.Oneshot, int(event.Fee),
-			event.Amount, askStratInfo, i, baseInfo.Decimals, quoteInfo.Decimals,
-		)
+			event.Amount, askStratInfo, i)
 		if err != nil {
 			return nil, fmt.Errorf("insert ask order %d: %w", i, err)
 		}
@@ -393,8 +392,7 @@ func (s *Scanner) handleGridOrderCreated(ctx context.Context, tx pgx.Tx, log typ
 
 		orderMsgs, err := s.computeAndInsertOrder(ctx, tx, log, gridOrderID, gridID,
 			int(event.PairID), false, event.Compound, event.Oneshot, int(event.Fee),
-			event.Amount, bidStratInfo, i, baseInfo.Decimals, quoteInfo.Decimals,
-		)
+			event.Amount, bidStratInfo, i)
 		if err != nil {
 			return nil, fmt.Errorf("insert bid order %d: %w", i, err)
 		}
@@ -422,7 +420,7 @@ func (s *Scanner) handleGridOrderCreated(ctx context.Context, tx pgx.Tx, log typ
 func (s *Scanner) computeAndInsertOrder(ctx context.Context, tx pgx.Tx, log types.Log,
 	gridOrderID uint64, gridID int64, pairID int, isAsk, compound, oneshot bool,
 	fee int, baseAmt *big.Int, strat *linearStrategyInfo, orderIndex uint32,
-	baseDecimals, quoteDecimals uint8) ([]*kafka.Message, error) {
+) ([]*kafka.Message, error) {
 
 	var (
 		price, revPrice, amount               *big.Int
@@ -432,12 +430,12 @@ func (s *Scanner) computeAndInsertOrder(ctx context.Context, tx pgx.Tx, log type
 
 	// Calculate decimal adjustment factor for quote amount calculation
 	// The contract's PRICE_MULTIPLIER doesn't account for different token decimals
-	var decimalAdjustment *big.Int
-	if quoteDecimals > baseDecimals {
-		decimalAdjustment = new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(quoteDecimals-baseDecimals)), nil)
-	} else {
-		decimalAdjustment = big.NewInt(1)
-	}
+	// var decimalAdjustment *big.Int
+	// if quoteDecimals > baseDecimals {
+	// 	decimalAdjustment = new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(quoteDecimals-baseDecimals)), nil)
+	// } else {
+	// 	decimalAdjustment = big.NewInt(1)
+	// }
 
 	if isAsk {
 		// Determine strategy type for ask orders
@@ -504,7 +502,7 @@ func (s *Scanner) computeAndInsertOrder(ctx context.Context, tx pgx.Tx, log type
 		// Bid order amount = calcQuoteAmount(baseAmt, price) (quote token)
 		// Apply decimal adjustment for tokens with different decimals
 		amount = calcQuoteAmount(baseAmt, price)
-		amount.Mul(amount, decimalAdjustment)
+		// amount.Mul(amount, decimalAdjustment)
 		initialBaseAmount = "0"
 		initialQuoteAmount = amount.String()
 	}
