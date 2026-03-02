@@ -7,39 +7,41 @@ export interface GetGridsParams {
   chainId: number;
   owner?: string;
   pairId?: number;
+  baseToken?: string;
+  quoteToken?: string;
   status?: number;
   page: number;
   pageSize: number;
 }
 
 // Helper function to fetch token info by symbol
-async function getTokenInfoBySymbol(chainId: number, symbol: string): Promise<GridTokenInfo> {
-  const result = await db
-    .select()
-    .from(tokens)
-    .where(and(eq(tokens.chainId, chainId), eq(tokens.symbol, symbol)))
-    .limit(1);
+// async function getTokenInfoBySymbol(chainId: number, symbol: string): Promise<GridTokenInfo> {
+//   const result = await db
+//     .select()
+//     .from(tokens)
+//     .where(and(eq(tokens.chainId, chainId), eq(tokens.symbol, symbol)))
+//     .limit(1);
   
-  if (result.length === 0) {
-    // Return default token info if not found
-    return {
-      address: '',
-      symbol,
-      name: symbol,
-      decimals: 18,
-      logo: '',
-    };
-  }
+//   if (result.length === 0) {
+//     // Return default token info if not found
+//     return {
+//       address: '',
+//       symbol,
+//       name: symbol,
+//       decimals: 18,
+//       logo: '',
+//     };
+//   }
   
-  const t = result[0];
-  return {
-    address: t.address,
-    symbol: t.symbol,
-    name: t.name,
-    decimals: t.decimals,
-    logo: t.logo,
-  };
-}
+//   const t = result[0];
+//   return {
+//     address: t.address,
+//     symbol: t.symbol,
+//     name: t.name,
+//     decimals: t.decimals,
+//     logo: t.logo,
+//   };
+// }
 
 // Helper function to fetch token info by address
 async function getTokenInfoByAddress(chainId: number, address: string): Promise<GridTokenInfo> {
@@ -89,7 +91,7 @@ async function getPairTokenAddresses(chainId: number, pairId: number): Promise<{
 }
 
 export async function getGrids(params: GetGridsParams): Promise<GridListResponse> {
-  const { chainId, owner, pairId, status, page, pageSize } = params;
+  const { chainId, owner, pairId, baseToken, quoteToken, status, page, pageSize } = params;
 
   // Build where conditions
   const conditions = [eq(grids.chainId, chainId)];
@@ -101,9 +103,36 @@ export async function getGrids(params: GetGridsParams): Promise<GridListResponse
   if (pairId !== undefined) {
     conditions.push(eq(grids.pairId, pairId));
   }
+
+  // Filter by base_token and quote_token addresses
+  // Need to join with pairs table to get token addresses
+  // Normalize addresses (replace 0x0 with WETH)
+  let pairIdsByTokens: number[] | undefined;
+  if (baseToken && quoteToken) {
+    const normalizedBase = normalizeTokenAddress(baseToken, chainId);
+    const normalizedQuote = normalizeTokenAddress(quoteToken, chainId);
+    const pairResults = await db
+      .select({ pairId: pairs.pairId })
+      .from(pairs)
+      .where(and(
+        eq(pairs.chainId, chainId),
+        eq(pairs.baseTokenAddress, normalizedBase),
+        eq(pairs.quoteTokenAddress, normalizedQuote)
+      ));
+    pairIdsByTokens = pairResults.map(p => p.pairId);
+    if (pairIdsByTokens.length === 0) {
+      // No matching pair found, return empty result
+      return { grids: [], total: 0, page, page_size: pageSize };
+    }
+  }
   
   if (status !== undefined) {
     conditions.push(eq(grids.status, status));
+  }
+
+  // Add pair filter from token addresses
+  if (pairIdsByTokens && pairIdsByTokens.length > 0) {
+    conditions.push(inArray(grids.pairId, pairIdsByTokens));
   }
 
   // Get total count
@@ -139,11 +168,12 @@ export async function getGrids(params: GetGridsParams): Promise<GridListResponse
         getTokenInfoByAddress(chainId, pairAddresses.quoteTokenAddress),
       ]);
     } else {
+      throw new Error('use token address instead of symbol')
       // Fallback to symbol lookup
-      [baseTokenInfo, quoteTokenInfo] = await Promise.all([
-        getTokenInfoBySymbol(chainId, g.baseToken),
-        getTokenInfoBySymbol(chainId, g.quoteToken),
-      ]);
+      // [baseTokenInfo, quoteTokenInfo] = await Promise.all([
+      //   getTokenInfoBySymbol(chainId, g.baseToken),
+      //   getTokenInfoBySymbol(chainId, g.quoteToken),
+      // ]);
     }
     
     return {
@@ -176,7 +206,7 @@ export async function getGrids(params: GetGridsParams): Promise<GridListResponse
 }
 
 export async function getGridsWithOrders(params: GetGridsParams): Promise<GridWithOrdersListResponse> {
-  const { chainId, owner, pairId, status, page, pageSize } = params;
+  const { chainId, owner, pairId, baseToken, quoteToken, status, page, pageSize } = params;
 
   // Build where conditions
   const conditions = [eq(grids.chainId, chainId)];
@@ -189,8 +219,34 @@ export async function getGridsWithOrders(params: GetGridsParams): Promise<GridWi
     conditions.push(eq(grids.pairId, pairId));
   }
 
+  // Filter by base_token and quote_token addresses
+  // Normalize addresses (replace 0x0 with WETH)
+  let pairIdsByTokens: number[] | undefined;
+  if (baseToken && quoteToken) {
+    const normalizedBase = normalizeTokenAddress(baseToken, chainId);
+    const normalizedQuote = normalizeTokenAddress(quoteToken, chainId);
+    const pairResults = await db
+      .select({ pairId: pairs.pairId })
+      .from(pairs)
+      .where(and(
+        eq(pairs.chainId, chainId),
+        eq(pairs.baseTokenAddress, normalizedBase),
+        eq(pairs.quoteTokenAddress, normalizedQuote)
+      ));
+    pairIdsByTokens = pairResults.map(p => p.pairId);
+    if (pairIdsByTokens.length === 0) {
+      // No matching pair found, return empty result
+      return { grids: [], total: 0, page, page_size: pageSize };
+    }
+  }
+
   if (status !== undefined) {
     conditions.push(eq(grids.status, status));
+  }
+
+  // Add pair filter from token addresses
+  if (pairIdsByTokens && pairIdsByTokens.length > 0) {
+    conditions.push(inArray(grids.pairId, pairIdsByTokens));
   }
 
   // Get total count
@@ -257,10 +313,11 @@ export async function getGridsWithOrders(params: GetGridsParams): Promise<GridWi
       ]);
     } else {
       // Fallback to symbol lookup
-      [baseTokenInfo, quoteTokenInfo] = await Promise.all([
-        getTokenInfoBySymbol(chainId, g.baseToken),
-        getTokenInfoBySymbol(chainId, g.quoteToken),
-      ]);
+      throw new Error('use token address instead of symbol')
+      // [baseTokenInfo, quoteTokenInfo] = await Promise.all([
+      //   getTokenInfoBySymbol(chainId, g.baseToken),
+      //   getTokenInfoBySymbol(chainId, g.quoteToken),
+      // ]);
     }
     
     return {
@@ -330,10 +387,11 @@ export async function getGridDetail(chainId: number, gridId: number): Promise<Gr
     ]);
   } else {
     // Fallback to symbol lookup
-    [baseTokenInfo, quoteTokenInfo] = await Promise.all([
-      getTokenInfoBySymbol(chainId, g.baseToken),
-      getTokenInfoBySymbol(chainId, g.quoteToken),
-    ]);
+      throw new Error('use token address instead of symbol')
+    // [baseTokenInfo, quoteTokenInfo] = await Promise.all([
+    //   getTokenInfoBySymbol(chainId, g.baseToken),
+    //   getTokenInfoBySymbol(chainId, g.quoteToken),
+    // ]);
   }
 
   const gridConfig: GridConfig = {

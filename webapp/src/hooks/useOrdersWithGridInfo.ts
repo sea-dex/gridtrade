@@ -9,6 +9,8 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 interface UseOrdersWithGridInfoParams {
   owner?: string;
   gridId?: number;
+  baseToken?: string;
+  quoteToken?: string;
   status?: number;
   page?: number;
   pageSize?: number;
@@ -55,6 +57,12 @@ export function useOrdersWithGridInfo(params: UseOrdersWithGridInfoParams = {}):
       if (params.gridId !== undefined) {
         searchParams.set('grid_id', String(params.gridId));
       }
+      if (params.baseToken) {
+        searchParams.set('base_token', params.baseToken);
+      }
+      if (params.quoteToken) {
+        searchParams.set('quote_token', params.quoteToken);
+      }
       if (params.status !== undefined) {
         searchParams.set('status', String(params.status));
       }
@@ -73,7 +81,7 @@ export function useOrdersWithGridInfo(params: UseOrdersWithGridInfoParams = {}):
     } finally {
       setIsLoading(false);
     }
-  }, [selectedChainId, page, pageSize, params.owner, params.gridId, params.status, isInitialLoad]);
+  }, [selectedChainId, page, pageSize, params.owner, params.gridId, params.baseToken, params.quoteToken, params.status, isInitialLoad]);
 
   useEffect(() => {
     fetchOrders();

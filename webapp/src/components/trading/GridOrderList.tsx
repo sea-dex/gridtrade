@@ -41,16 +41,21 @@ export function GridOrderList({ baseToken, quoteToken }: GridOrderListProps) {
 
   // My grids: filtered by connected wallet owner
   // status=1 for active, status=2 for cancelled, undefined for all
+  // When showAllPairs is false, filter by selected trading pair
   const myGridsResult = useGridOrders({
     owner: address?.toLowerCase(),
     refreshInterval: 10_000,
     status: statusFilter === 'all' ? undefined : statusFilter === 'active' ? 1 : 2,
+    baseToken: showAllPairs ? undefined : baseToken?.address,
+    quoteToken: showAllPairs ? undefined : quoteToken?.address,
   });
 
   // All grids: flat order list with grid info
   const allOrdersResult = useOrdersWithGridInfo({
     refreshInterval: 10_000,
     status: statusFilter === 'all' ? undefined : statusFilter === 'active' ? 1 : 2,
+    baseToken: showAllPairs ? undefined : baseToken?.address,
+    quoteToken: showAllPairs ? undefined : quoteToken?.address,
   });
 
   // Token lists for symbol-to-address mapping (used for cancel/withdraw actions)
@@ -83,36 +88,6 @@ export function GridOrderList({ baseToken, quoteToken }: GridOrderListProps) {
   const setPage = isMyGrids ? myGridsResult.setPage : allOrdersResult.setPage;
   const grids = myGridsResult.grids;
   const allOrders = allOrdersResult.orders;
-
-  // Filter by current pair when showAllPairs is false
-  // Note: base_token/quote_token are symbols, use base_token_info.address for actual address
-  const filteredGrids = useMemo(() => {
-    if (showAllPairs || !baseToken || !quoteToken) {
-      return grids;
-    }
-    return grids.filter((grid) => {
-      const gridBaseAddress = grid.config.base_token_info.address.toLowerCase();
-      const gridQuoteAddress = grid.config.quote_token_info.address.toLowerCase();
-      return (
-        gridBaseAddress === baseToken.address.toLowerCase() &&
-        gridQuoteAddress === quoteToken.address.toLowerCase()
-      );
-    });
-  }, [grids, showAllPairs, baseToken, quoteToken]);
-
-  const filteredAllOrders = useMemo(() => {
-    if (showAllPairs || !baseToken || !quoteToken) {
-      return allOrders;
-    }
-    return allOrders.filter((order) => {
-      const orderBaseAddress = order.base_token_info.address.toLowerCase();
-      const orderQuoteAddress = order.quote_token_info.address.toLowerCase();
-      return (
-        orderBaseAddress === baseToken.address.toLowerCase() &&
-        orderQuoteAddress === quoteToken.address.toLowerCase()
-      );
-    });
-  }, [allOrders, showAllPairs, baseToken, quoteToken]);
 
   // For My Grids, auto-expand all grids by default (user can manually toggle)
   const expandedGrids = useMemo(() => {
@@ -309,7 +284,7 @@ export function GridOrderList({ baseToken, quoteToken }: GridOrderListProps) {
           <div className="text-center py-10 text-(--text-disabled) text-sm">{t('common.loading')}</div>
         ) : isMyGrids ? (
           // My Grids: Show grids with expandable orders
-          filteredGrids.length === 0 ? (
+          grids.length === 0 ? (
             <div className="text-center py-10 text-(--text-disabled) text-sm">
               {t('grid.order_list.no_orders')}
             </div>
@@ -344,7 +319,7 @@ export function GridOrderList({ baseToken, quoteToken }: GridOrderListProps) {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredGrids.map((gridWithOrders) => (
+                    {grids.map((gridWithOrders: GridWithOrders) => (
                       <GridRow
                         key={gridWithOrders.config.grid_id}
                         gridWithOrders={gridWithOrders}
@@ -395,7 +370,7 @@ export function GridOrderList({ baseToken, quoteToken }: GridOrderListProps) {
           )
         ) : (
           // All Grids: Show flat order list
-          filteredAllOrders.length === 0 ? (
+          allOrders.length === 0 ? (
             <div className="text-center py-10 text-(--text-disabled) text-sm">
               {t('grid.order_list.no_orders')}
             </div>
@@ -429,7 +404,7 @@ export function GridOrderList({ baseToken, quoteToken }: GridOrderListProps) {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredAllOrders.map((order) => (
+                    {allOrders.map((order: OrderWithGridInfo) => (
                       <FlatOrderRow
                         key={order.order_id}
                         order={order}

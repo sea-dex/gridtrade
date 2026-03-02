@@ -115,6 +115,8 @@ export interface GetOrdersWithGridInfoParams {
   chainId: number;
   owner?: string;
   gridId?: number;
+  baseToken?: string;
+  quoteToken?: string;
   status?: number;
   page: number;
   pageSize: number;
@@ -168,7 +170,7 @@ async function getPairTokenAddresses(chainId: number, pairId: number): Promise<{
 }
 
 export async function getOrdersWithGridInfo(params: GetOrdersWithGridInfoParams): Promise<OrderWithGridInfoListResponse> {
-  const { chainId, owner, gridId, status, page, pageSize } = params;
+  const { chainId, owner, gridId, baseToken, quoteToken, status, page, pageSize } = params;
 
   // Build where conditions
   const conditions = [eq(orders.chainId, chainId)];
@@ -180,6 +182,30 @@ export async function getOrdersWithGridInfo(params: GetOrdersWithGridInfoParams)
   }
   if (status !== undefined) {
     conditions.push(eq(grids.status, status));
+  }
+
+  // Filter by base_token and quote_token addresses
+  // Need to find pair IDs that match the token addresses
+  let pairIdsByTokens: number[] | undefined;
+  if (baseToken && quoteToken) {
+    const pairResults = await db
+      .select({ pairId: pairs.pairId })
+      .from(pairs)
+      .where(and(
+        eq(pairs.chainId, chainId),
+        eq(pairs.baseTokenAddress, baseToken.toLowerCase()),
+        eq(pairs.quoteTokenAddress, quoteToken.toLowerCase())
+      ));
+    pairIdsByTokens = pairResults.map(p => p.pairId);
+    if (pairIdsByTokens.length === 0) {
+      // No matching pair found, return empty result
+      return { orders: [], total: 0, page, page_size: pageSize };
+    }
+  }
+
+  // Add pair filter from token addresses
+  if (pairIdsByTokens && pairIdsByTokens.length > 0) {
+    conditions.push(sql`${orders.pairId} IN (${pairIdsByTokens.join(',')})`);
   }
 
   // Count total

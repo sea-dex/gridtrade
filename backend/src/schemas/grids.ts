@@ -54,6 +54,8 @@ export const getGridsQuerySchema = z.object({
   chain_id: chainIdSchema,
   owner: addressSchema.optional(),
   pair_id: z.coerce.number().optional(),
+  base_token: addressSchema.optional(),
+  quote_token: addressSchema.optional(),
   status: z.coerce.number().optional(),
   ...paginationSchema.shape,
 });

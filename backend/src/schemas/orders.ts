@@ -88,6 +88,8 @@ export const getOrdersWithGridInfoQuerySchema = z.object({
   chain_id: chainIdSchema,
   owner: z.string().regex(/^0x[a-fA-F0-9]{40}$/, 'Invalid address').optional(),
   grid_id: z.coerce.number().optional(),
+  base_token: z.string().regex(/^0x[a-fA-F0-9]{40}$/, 'Invalid address').optional(),
+  quote_token: z.string().regex(/^0x[a-fA-F0-9]{40}$/, 'Invalid address').optional(),
   status: z.coerce.number().optional(),
   ...paginationSchema.shape,
 });
