@@ -24,6 +24,20 @@ export interface FeeInfo {
 
 const defaultFees: FeeInfo[] = [
   {
+    value: 10,
+    label: '0.001%',
+    description: 'Lowest fee – best for stable pairs with tight spreads',
+    isDefault: false,
+    priority: 1,
+  },
+  {
+    value: 50,
+    label: '0.005%',
+    description: 'Lowest fee – best for stable pairs with tight spreads',
+    isDefault: false,
+    priority: 1,
+  },
+  {
     value: 100,
     label: '0.010%',
     description: 'Lowest fee – best for stable pairs with tight spreads',
