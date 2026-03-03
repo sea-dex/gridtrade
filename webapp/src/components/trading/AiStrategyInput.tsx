@@ -82,11 +82,11 @@ export function AiStrategyInput({
   }, [analysis, questions]);
 
   return (
-    <div className="mt-3 space-y-2">
+    <div className="mt-2 sm:mt-3 space-y-2">
       {/* Input area */}
       <div className="relative">
-        <div className="absolute left-3 top-3 text-(--text-disabled)">
-          <Sparkles size={16} />
+        <div className="absolute left-2.5 sm:left-3 top-2.5 sm:top-3 text-(--text-disabled)">
+          <Sparkles size={14} />
         </div>
         <textarea
           ref={textareaRef}
@@ -95,22 +95,22 @@ export function AiStrategyInput({
           onKeyDown={handleKeyDown}
           placeholder={t('ai.input_placeholder')}
           disabled={isLoading}
-          rows={4}
+          rows={3}
           className={cn(
-            'w-full rounded-md border bg-(--bg-inset) pl-9 pr-3.5 py-2.5',
-            'text-sm text-(--text-primary) placeholder-(--text-disabled)',
+            'w-full rounded-md border bg-(--bg-inset) pl-8 sm:pl-9 pr-2.5 sm:pr-3.5 py-2 sm:py-2.5',
+            'text-xs sm:text-sm text-(--text-primary) placeholder-(--text-disabled)',
             'border-(--accent-muted) transition-colors duration-150',
             'focus:border-(--accent-muted) focus:outline-none',
             'disabled:opacity-50 disabled:cursor-not-allowed',
             'resize-none',
           )}
         />
-        <div className="absolute right-2 bottom-4">
+        <div className="absolute right-2 bottom-3">
           <button
             onClick={handleSubmit}
             disabled={!canSubmit}
             className={cn(
-              'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-150',
+              'flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all duration-150',
               canSubmit
                 ? 'bg-(--accent) text-(--bg-base) hover:opacity-90 active:scale-[0.97]'
                 : 'bg-(--bg-elevated) text-(--text-disabled) cursor-not-allowed border border-(--border-default)',
@@ -118,12 +118,13 @@ export function AiStrategyInput({
           >
             {isLoading ? (
               <>
-                <Sparkles size={14} className="animate-spin" />
-                <span>{t('ai.generating')}</span>
+                <Sparkles size={12} className="animate-spin" />
+                <span className="hidden sm:inline">{t('ai.generating')}</span>
+                <span className="sm:hidden">...</span>
               </>
             ) : (
               <>
-                <Send size={14} />
+                <Send size={12} />
                 <span>{t('ai.generate')}</span>
               </>
             )}

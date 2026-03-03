@@ -139,23 +139,29 @@ function GridTradingPageInner() {
   }, [updateUrl]);
 
   return (
-    <div className="p-5">
+    <div className="p-3 sm:p-5">
       <div className="max-w-7xl mx-auto">
-        {/* Top Section: Chart + Order Form */}
-        <div className="grid lg:grid-cols-3 gap-5 mb-5">
-          {/* Chart + AI Input */}
-          <div className="lg:col-span-2">
+        {/* Mobile Layout: K线 -> AI Form -> Grid Order Form -> Order List */}
+        {/* Desktop Layout: Chart+AI (2 cols) | Order Form (1 col) */}
+        
+        {/* Main grid: Chart+AI on left, Order Form on right (desktop) */}
+        <div className="grid lg:grid-cols-3 gap-3 sm:gap-5 mb-3 sm:mb-5">
+          {/* Left column: K线 Chart + AI Input */}
+          <div className="lg:col-span-2 flex flex-col gap-3 sm:gap-5">
+            {/* K线 Chart - first on both mobile and desktop */}
             <KlinePanel
               onBaseTokenChange={handleBaseTokenChange}
               onQuoteTokenChange={handleQuoteTokenChange}
               onCurrentPriceChange={setCurrentPrice}
-              chartHeight={500}
+              chartHeight={350}
               priceLines={priceLines}
               initialBaseAddress={urlBase}
               initialQuoteAddress={urlQuote}
               initialInterval={interval}
               onIntervalChange={handleIntervalChange}
             />
+
+            {/* AI Input - second on mobile, below chart on desktop */}
             <AiStrategyInput
               baseToken={baseToken}
               quoteToken={quoteToken}
@@ -164,7 +170,7 @@ function GridTradingPageInner() {
             />
           </div>
 
-          {/* Order Form */}
+          {/* Right column: Order Form - third on mobile, right side on desktop */}
           <div className="lg:col-span-1">
             <GridOrderForm
               baseToken={baseToken}

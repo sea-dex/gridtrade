@@ -22,6 +22,11 @@ export const metadata: Metadata = {
     "crypto",
     "trading",
     "blockchain",
+    "grid trade",
+    "grid order",
+    "gridtrade",
+    "stablecoin LP",
+    "grid dex",
   ],
 };
 

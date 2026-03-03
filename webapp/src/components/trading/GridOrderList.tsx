@@ -202,7 +202,7 @@ export function GridOrderList({ baseToken, quoteToken }: GridOrderListProps) {
 
   // Tab buttons component - tabs on leftmost, toggles on right
   const tabButtons = (
-    <div className="flex items-center gap-3 w-full">
+    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 w-full">
       {/* My Grids / All Grids tabs - leftmost position */}
       <div className="flex gap-1">
         <button
@@ -228,49 +228,52 @@ export function GridOrderList({ baseToken, quoteToken }: GridOrderListProps) {
           {t('grid.tab_all_grids')}
         </button>
       </div>
-      {/* Show all pairs toggle - rightmost position */}
-      <div className="flex items-center gap-2 ml-auto">
-        <span className="text-[12px] text-(--text-secondary)">
-          {t('grid.order_list.show_all_pairs')}
-        </span>
-        <button
-          onClick={() => setShowAllPairs(!showAllPairs)}
-          className={cn(
-            'relative w-10 h-5.5 rounded-full transition-colors duration-200 shrink-0',
-            showAllPairs ? 'bg-(--accent)' : 'bg-(--bg-elevated) border border-(--border-strong)'
-          )}
-        >
-          <span
+      {/* Toggles row - on mobile, show in a row below tabs */}
+      <div className="flex items-center gap-3 sm:gap-4 sm:ml-auto">
+        {/* Show all pairs toggle */}
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <span className="text-[11px] sm:text-[12px] text-(--text-secondary)">
+            {t('grid.order_list.show_all_pairs')}
+          </span>
+          <button
+            onClick={() => setShowAllPairs(!showAllPairs)}
             className={cn(
-              'absolute top-0.75 left-0.75 w-4 h-4 rounded-full transition-transform duration-200',
-              showAllPairs
-                ? 'translate-x-4.5 bg-(--bg-base)'
-                : 'translate-x-0 bg-(--text-disabled)'
+              'relative w-9 h-5 sm:w-10 sm:h-5.5 rounded-full transition-colors duration-200 shrink-0',
+              showAllPairs ? 'bg-(--accent)' : 'bg-(--bg-elevated) border border-(--border-strong)'
             )}
-          />
-        </button>
-      </div>
-      {/* Show cancelled toggle - rightmost position */}
-      <div className="flex items-center gap-2">
-        <span className="text-[12px] text-(--text-secondary)">
-          {t('grid.order_list.show_cancelled')}
-        </span>
-        <button
-          onClick={() => setStatusFilter(statusFilter === 'all' ? 'active' : 'all')}
-          className={cn(
-            'relative w-10 h-5.5 rounded-full transition-colors duration-200 shrink-0',
-            statusFilter === 'all' ? 'bg-(--accent)' : 'bg-(--bg-elevated) border border-(--border-strong)'
-          )}
-        >
-          <span
+          >
+            <span
+              className={cn(
+                'absolute top-0.5 left-0.5 sm:top-0.75 sm:left-0.75 w-4 h-4 rounded-full transition-transform duration-200',
+                showAllPairs
+                  ? 'translate-x-4 sm:translate-x-4.5 bg-(--bg-base)'
+                  : 'translate-x-0 bg-(--text-disabled)'
+              )}
+            />
+          </button>
+        </div>
+        {/* Show cancelled toggle */}
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <span className="text-[11px] sm:text-[12px] text-(--text-secondary)">
+            {t('grid.order_list.show_cancelled')}
+          </span>
+          <button
+            onClick={() => setStatusFilter(statusFilter === 'all' ? 'active' : 'all')}
             className={cn(
-              'absolute top-0.75 left-0.75 w-4 h-4 rounded-full transition-transform duration-200',
-              statusFilter === 'all'
-                ? 'translate-x-4.5 bg-(--bg-base)'
-                : 'translate-x-0 bg-(--text-disabled)'
+              'relative w-9 h-5 sm:w-10 sm:h-5.5 rounded-full transition-colors duration-200 shrink-0',
+              statusFilter === 'all' ? 'bg-(--accent)' : 'bg-(--bg-elevated) border border-(--border-strong)'
             )}
-          />
-        </button>
+          >
+            <span
+              className={cn(
+                'absolute top-0.5 left-0.5 sm:top-0.75 sm:left-0.75 w-4 h-4 rounded-full transition-transform duration-200',
+                statusFilter === 'all'
+                  ? 'translate-x-4 sm:translate-x-4.5 bg-(--bg-base)'
+                  : 'translate-x-0 bg-(--text-disabled)'
+              )}
+            />
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -307,30 +310,30 @@ export function GridOrderList({ baseToken, quoteToken }: GridOrderListProps) {
             </div>
           ) : (
             <>
-              <div className="overflow-x-auto">
-                <table className="w-full">
+              <div className="overflow-x-auto -mx-4 sm:mx-0">
+                <table className="w-full min-w-[640px]">
                   <thead>
                     <tr className="border-b border-(--border-subtle)">
-                      <th className="w-8 py-2.5 px-3"></th>
-                      <th className="text-left py-2.5 px-5 text-[11px] font-medium text-(--text-disabled) uppercase tracking-wider">
+                      <th className="w-8 py-2 sm:py-2.5 px-2 sm:px-3"></th>
+                      <th className="text-left py-2 sm:py-2.5 px-3 sm:px-5 text-[10px] sm:text-[11px] font-medium text-(--text-disabled) uppercase tracking-wider">
                         {t('grid.order_list.grid_id')}
                       </th>
-                      <th className="text-left py-2.5 px-5 text-[11px] font-medium text-(--text-disabled) uppercase tracking-wider">
+                      <th className="text-left py-2 sm:py-2.5 px-3 sm:px-5 text-[10px] sm:text-[11px] font-medium text-(--text-disabled) uppercase tracking-wider">
                         {t('grid.order_list.pair')}
                       </th>
-                      <th className="text-left py-2.5 px-5 text-[11px] font-medium text-(--text-disabled) uppercase tracking-wider">
+                      <th className="text-left py-2 sm:py-2.5 px-3 sm:px-5 text-[10px] sm:text-[11px] font-medium text-(--text-disabled) uppercase tracking-wider">
                         {t('grid.order_list.orders')}
                       </th>
-                      <th className="text-left py-2.5 px-5 text-[11px] font-medium text-(--text-disabled) uppercase tracking-wider">
+                      <th className="text-left py-2 sm:py-2.5 px-3 sm:px-5 text-[10px] sm:text-[11px] font-medium text-(--text-disabled) uppercase tracking-wider">
                         {t('grid.order_list.initial_investment')}
                       </th>
-                      <th className="text-left py-2.5 px-5 text-[11px] font-medium text-(--text-disabled) uppercase tracking-wider">
+                      <th className="text-left py-2 sm:py-2.5 px-3 sm:px-5 text-[10px] sm:text-[11px] font-medium text-(--text-disabled) uppercase tracking-wider">
                         {t('grid.order_list.profit')}
                       </th>
-                      <th className="text-left py-2.5 px-5 text-[11px] font-medium text-(--text-disabled) uppercase tracking-wider">
+                      <th className="text-left py-2 sm:py-2.5 px-3 sm:px-5 text-[10px] sm:text-[11px] font-medium text-(--text-disabled) uppercase tracking-wider">
                         {t('grid.order_list.status')}
                       </th>
-                      <th className="text-right py-2.5 px-5 text-[11px] font-medium text-(--text-disabled) uppercase tracking-wider">
+                      <th className="text-right py-2 sm:py-2.5 px-3 sm:px-5 text-[10px] sm:text-[11px] font-medium text-(--text-disabled) uppercase tracking-wider">
                         {t('grid.order_list.actions')}
                       </th>
                     </tr>
@@ -393,29 +396,29 @@ export function GridOrderList({ baseToken, quoteToken }: GridOrderListProps) {
             </div>
           ) : (
             <>
-              <div className="overflow-x-auto">
-                <table className="w-full">
+              <div className="overflow-x-auto -mx-4 sm:mx-0">
+                <table className="w-full min-w-[640px]">
                   <thead>
                     <tr className="border-b border-(--border-subtle)">
-                      <th className="text-left py-2.5 px-5 text-[11px] font-medium text-(--text-disabled) uppercase tracking-wider">
+                      <th className="text-left py-2 sm:py-2.5 px-3 sm:px-5 text-[10px] sm:text-[11px] font-medium text-(--text-disabled) uppercase tracking-wider">
                         {t('grid.order_list.grid_id')}
                       </th>
-                      <th className="text-left py-2.5 px-5 text-[11px] font-medium text-(--text-disabled) uppercase tracking-wider">
+                      <th className="text-left py-2 sm:py-2.5 px-3 sm:px-5 text-[10px] sm:text-[11px] font-medium text-(--text-disabled) uppercase tracking-wider">
                         {t('grid.order_list.owner')}
                       </th>
-                      <th className="text-left py-2.5 px-5 text-[11px] font-medium text-(--text-disabled) uppercase tracking-wider">
+                      <th className="text-left py-2 sm:py-2.5 px-3 sm:px-5 text-[10px] sm:text-[11px] font-medium text-(--text-disabled) uppercase tracking-wider">
                         {t('grid.order_list.pair')}
                       </th>
-                      <th className="text-left py-2.5 px-5 text-[11px] font-medium text-(--text-disabled) uppercase tracking-wider">
+                      <th className="text-left py-2 sm:py-2.5 px-3 sm:px-5 text-[10px] sm:text-[11px] font-medium text-(--text-disabled) uppercase tracking-wider">
                         {t('grid.order_list.side')}
                       </th>
-                      <th className="text-left py-2.5 px-5 text-[11px] font-medium text-(--text-disabled) uppercase tracking-wider">
+                      <th className="text-left py-2 sm:py-2.5 px-3 sm:px-5 text-[10px] sm:text-[11px] font-medium text-(--text-disabled) uppercase tracking-wider">
                         {t('grid.order_list.price')}
                       </th>
-                      <th className="text-left py-2.5 px-5 text-[11px] font-medium text-(--text-disabled) uppercase tracking-wider">
+                      <th className="text-left py-2 sm:py-2.5 px-3 sm:px-5 text-[10px] sm:text-[11px] font-medium text-(--text-disabled) uppercase tracking-wider">
                         {t('grid.order_list.amount')}
                       </th>
-                      <th className="text-left py-2.5 px-5 text-[11px] font-medium text-(--text-disabled) uppercase tracking-wider">
+                      <th className="text-left py-2 sm:py-2.5 px-3 sm:px-5 text-[10px] sm:text-[11px] font-medium text-(--text-disabled) uppercase tracking-wider">
                         {t('grid.order_list.status')}
                       </th>
                     </tr>
@@ -506,7 +509,7 @@ function GridRow({
         className="border-b border-(--border-subtle) last:border-0 hover:bg-[rgba(136,150,171,0.02)] transition-colors cursor-pointer"
         onClick={onToggle}
       >
-        <td className="py-3 px-3">
+        <td className="py-2 sm:py-3 px-2 sm:px-3">
           {orders.length > 0 && (
             isExpanded ? (
               <ChevronDown size={14} className="text-(--text-disabled)" />
@@ -515,32 +518,32 @@ function GridRow({
             )
           )}
         </td>
-        <td className="py-3 px-5">
-          <span className="font-mono text-[13px] text-(--text-secondary)">#{config.grid_id}</span>
+        <td className="py-2 sm:py-3 px-3 sm:px-5">
+          <span className="font-mono text-[12px] sm:text-[13px] text-(--text-secondary)">#{config.grid_id}</span>
         </td>
         {showOwner && (
-          <td className="py-3 px-5">
-            <span className="font-mono text-[11px] text-(--text-disabled)">
+          <td className="py-2 sm:py-3 px-3 sm:px-5">
+            <span className="font-mono text-[10px] sm:text-[11px] text-(--text-disabled)">
               {config.owner
                 ? `${config.owner.slice(0, 6)}...${config.owner.slice(-4)}`
                 : '-'}
             </span>
           </td>
         )}
-        <td className="py-3 px-5">
-          <span className="text-sm font-semibold text-(--text-primary)">
+        <td className="py-2 sm:py-3 px-3 sm:px-5">
+          <span className="text-xs sm:text-sm font-semibold text-(--text-primary)">
             {config.base_token}/{config.quote_token}
           </span>
         </td>
-        <td className="py-3 px-5">
-          <div className="text-[13px] flex items-center gap-1.5">
+        <td className="py-2 sm:py-3 px-3 sm:px-5">
+          <div className="text-[12px] sm:text-[13px] flex items-center gap-1.5">
             <span className="text-(--red)">{config.ask_order_count}</span>
             <span className="text-(--text-disabled)">/</span>
             <span className="text-(--green)">{config.bid_order_count}</span>
           </div>
         </td>
-        <td className="py-3 px-5">
-          <div className="text-[12px] text-(--text-secondary)">
+        <td className="py-2 sm:py-3 px-3 sm:px-5">
+          <div className="text-[11px] sm:text-[12px] text-(--text-secondary)">
             <span>{formatNumber(Number(config.initial_base_amount) / Math.pow(10, baseDecimals), 4)} {config.base_token}</span>
             {config.initial_quote_amount !== '0' && (
               <>
@@ -550,14 +553,14 @@ function GridRow({
             )}
           </div>
         </td>
-        <td className="py-3 px-5">
-          <span className="text-[13px] font-medium text-(--green)">
+        <td className="py-2 sm:py-3 px-3 sm:px-5">
+          <span className="text-[12px] sm:text-[13px] font-medium text-(--green)">
             {formatNumber(Number(config.profits) / Math.pow(10, quoteDecimals), 4)} {config.quote_token}
           </span>
         </td>
-        <td className="py-3 px-5">{getGridStatusBadge(config.status)}</td>
+        <td className="py-2 sm:py-3 px-3 sm:px-5">{getGridStatusBadge(config.status)}</td>
         {showActions && (
-          <td className="py-3 px-5">
+          <td className="py-2 sm:py-3 px-3 sm:px-5">
             <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
               {config.status === 1 && (
                 <>
@@ -592,7 +595,7 @@ function GridRow({
         <tr>
           <td colSpan={colSpan} className="p-0">
             <div className="bg-[rgba(136,150,171,0.03)] border-b border-(--border-subtle)">
-              <div className="px-8 py-3">
+              <div className="px-4 sm:px-8 py-2 sm:py-3">
                 <table className="w-full">
                   <thead>
                     <tr>
@@ -746,39 +749,39 @@ function FlatOrderRow({
 
   return (
     <tr className="border-b border-(--border-subtle) last:border-0 hover:bg-[rgba(136,150,171,0.02)] transition-colors">
-      <td className="py-3 px-5">
-        <span className="font-mono text-[13px] text-(--text-secondary)">#{order.grid_id}</span>
+      <td className="py-2 sm:py-3 px-3 sm:px-5">
+        <span className="font-mono text-[12px] sm:text-[13px] text-(--text-secondary)">#{order.grid_id}</span>
       </td>
-      <td className="py-3 px-5">
-        <span className="font-mono text-[11px] text-(--text-disabled)">
+      <td className="py-2 sm:py-3 px-3 sm:px-5">
+        <span className="font-mono text-[10px] sm:text-[11px] text-(--text-disabled)">
           {order.owner
             ? `${order.owner.slice(0, 6)}...${order.owner.slice(-4)}`
             : '-'}
         </span>
       </td>
-      <td className="py-3 px-5">
-        <span className="text-sm font-semibold text-(--text-primary)">
+      <td className="py-2 sm:py-3 px-3 sm:px-5">
+        <span className="text-xs sm:text-sm font-semibold text-(--text-primary)">
           {order.base_token}/{order.quote_token}
         </span>
       </td>
-      <td className="py-3 px-5">
+      <td className="py-2 sm:py-3 px-3 sm:px-5">
         {order.is_ask ? (
-          <span className="text-[11px] font-medium text-(--red)">{t('grid.order_list.ask')}</span>
+          <span className="text-[10px] sm:text-[11px] font-medium text-(--red)">{t('grid.order_list.ask')}</span>
         ) : (
-          <span className="text-[11px] font-medium text-(--green)">{t('grid.order_list.bid')}</span>
+          <span className="text-[10px] sm:text-[11px] font-medium text-(--green)">{t('grid.order_list.bid')}</span>
         )}
       </td>
-      <td className="py-3 px-5">
-        <span className="font-mono text-[11px] text-(--text-secondary)">
+      <td className="py-2 sm:py-3 px-3 sm:px-5">
+        <span className="font-mono text-[10px] sm:text-[11px] text-(--text-secondary)">
           {formatNumber(Number(order.price) / 1e36, 6)} {order.quote_token}
         </span>
       </td>
-      <td className="py-3 px-5">
-        <span className="font-mono text-[11px] text-(--text-secondary)">
+      <td className="py-2 sm:py-3 px-3 sm:px-5">
+        <span className="font-mono text-[10px] sm:text-[11px] text-(--text-secondary)">
           {formatNumber(Number(order.amount) / Math.pow(10, amountDecimals), 4)} {order.is_ask ? order.base_token : order.quote_token}
         </span>
       </td>
-      <td className="py-3 px-5">{getOrderStatusBadge(order.status)}</td>
+      <td className="py-2 sm:py-3 px-3 sm:px-5">{getOrderStatusBadge(order.status)}</td>
     </tr>
   );
 }

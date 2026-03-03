@@ -728,9 +728,9 @@ export function GridOrderForm({ baseToken, quoteToken, onPriceLinesChange, exter
       <CardHeader>
         <CardTitle>{t('grid.place_order')}</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-3 sm:space-y-4">
         {/* Ask Strategy Selection */}
-        <div className="space-y-2">
+        <div className="space-y-1.5 sm:space-y-2">
           <label className="text-xs font-medium text-(--text-secondary) tracking-wide uppercase">
             {t('grid.order_form.ask_settings')}
           </label>
@@ -746,7 +746,7 @@ export function GridOrderForm({ baseToken, quoteToken, onPriceLinesChange, exter
               <SelectItem value="geometry">Geometry (Ratio)</SelectItem>
             </SelectContent>
           </Select>
-          <div className="grid grid-cols-2 gap-2.5 mt-2">
+          <div className="grid grid-cols-2 gap-2 sm:gap-2.5 mt-1.5 sm:mt-2">
             <Input
               placeholder={t('grid.order_form.ask_price0')}
               value={formData.askPrice0}
@@ -775,7 +775,7 @@ export function GridOrderForm({ baseToken, quoteToken, onPriceLinesChange, exter
         </div>
 
         {/* Bid Strategy Selection */}
-        <div className="space-y-2">
+        <div className="space-y-1.5 sm:space-y-2">
           <label className="text-xs font-medium text-(--text-secondary) tracking-wide uppercase">
             {t('grid.order_form.bid_settings')}
           </label>
@@ -791,7 +791,7 @@ export function GridOrderForm({ baseToken, quoteToken, onPriceLinesChange, exter
               <SelectItem value="geometry">Geometry (Ratio)</SelectItem>
             </SelectContent>
           </Select>
-          <div className="grid grid-cols-2 gap-2.5 mt-2">
+          <div className="grid grid-cols-2 gap-2 sm:gap-2.5 mt-1.5 sm:mt-2">
             <Input
               placeholder={t('grid.order_form.bid_price0')}
               value={formData.bidPrice0}
@@ -820,7 +820,7 @@ export function GridOrderForm({ baseToken, quoteToken, onPriceLinesChange, exter
         </div>
 
         {/* Grid Count */}
-        <div className="grid grid-cols-2 gap-2.5">
+        <div className="grid grid-cols-2 gap-2 sm:gap-2.5">
           <Input
             label={t('grid.order_form.ask_orders')}
             value={formData.askOrderCount}

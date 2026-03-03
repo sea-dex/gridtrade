@@ -291,26 +291,26 @@ function KlinePanelInner({
   return (
     <div className="rounded-lg border border-(--border-default) bg-(--bg-surface) overflow-hidden">
       {/* Top bar: Base / Quote selectors + interval + price */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-(--border-subtle) bg-(--bg-surface)">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between px-3 sm:px-4 py-2.5 sm:py-3 border-b border-(--border-subtle) bg-(--bg-surface) gap-2 sm:gap-0">
         {/* Left: Base + Quote pair display */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2">
           {/* Base token button – opens dialog */}
           <button
             onClick={() => setBaseDialogOpen(true)}
             className={cn(
-              'flex items-center gap-2 px-3 py-2 rounded-md border border-(--border-default) bg-(--bg-elevated) transition-colors duration-150',
+              'flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-md border border-(--border-default) bg-(--bg-elevated) transition-colors duration-150',
               'hover:border-(--border-strong) hover:bg-(--bg-inset)'
             )}
           >
             {baseResolved ? (
               <>
-                <TokenIcon token={baseResolved} size={20} />
-                <span className="text-sm font-semibold text-(--text-primary)">
+                <TokenIcon token={baseResolved} size={18} />
+                <span className="text-xs sm:text-sm font-semibold text-(--text-primary)">
                   {baseResolved.symbol}
                 </span>
               </>
             ) : (
-              <span className="text-sm text-(--text-disabled)">
+              <span className="text-xs sm:text-sm text-(--text-disabled)">
                 {baseLoading ? 'Loading...' : 'Select Base'}
               </span>
             )}
@@ -318,7 +318,7 @@ function KlinePanelInner({
           </button>
 
           {/* Separator */}
-          <span className="text-lg text-(--text-disabled) font-light select-none">/</span>
+          <span className="text-base sm:text-lg text-(--text-disabled) font-light select-none">/</span>
 
           {/* Quote token dropdown */}
           <QuoteTokenDropdown
@@ -327,35 +327,35 @@ function KlinePanelInner({
             tokens={quoteTokens}
             isLoading={quoteLoading}
           />
+        </div>
 
-          {/* Interval selector */}
-          <div className="flex items-center gap-0.5 ml-3 px-1 py-0.5 rounded-md bg-(--bg-inset)">
-            {INTERVAL_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                onClick={() => handleIntervalChange(opt.value)}
-                className={cn(
-                  'px-2 py-1 text-xs rounded transition-colors',
-                  interval === opt.value
-                    ? 'bg-(--bg-elevated) text-(--text-primary) font-medium shadow-sm'
-                    : 'text-(--text-tertiary) hover:text-(--text-secondary)'
-                )}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
+        {/* Interval selector - scrollable on mobile */}
+        <div className="flex items-center gap-0.5 px-1 py-0.5 rounded-md bg-(--bg-inset) overflow-x-auto max-w-full sm:max-w-none">
+          {INTERVAL_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => handleIntervalChange(opt.value)}
+              className={cn(
+                'px-2 py-1 text-xs rounded transition-colors whitespace-nowrap',
+                interval === opt.value
+                  ? 'bg-(--bg-elevated) text-(--text-primary) font-medium shadow-sm'
+                  : 'text-(--text-tertiary) hover:text-(--text-secondary)'
+              )}
+            >
+              {opt.label}
+            </button>
+          ))}
         </div>
 
         {/* Right: Current price */}
         {baseResolved && quoteResolvedWithSwap && (
-          <div className="text-right">
+          <div className="text-left sm:text-right flex sm:block items-center gap-2">
             <div className="text-xs text-(--text-disabled)">
               {baseResolved.symbol}/{quoteResolvedWithSwap.symbol}
             </div>
             {currentPrice !== null && (
               <div className="flex items-center gap-1.5">
-                <span className="text-sm font-semibold text-(--text-primary)">
+                <span className="text-xs sm:text-sm font-semibold text-(--text-primary)">
                   {currentPrice.toLocaleString(undefined, {
                     minimumFractionDigits: Math.min(pricePrecision, 2),
                     maximumFractionDigits: pricePrecision,

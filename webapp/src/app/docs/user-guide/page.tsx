@@ -227,6 +227,8 @@ Oneshot:          No`}</DocCodeBlock>
       <DocTable
         headers={['Fee Value', 'Fee Rate', 'Best For']}
         rows={[
+          ['10', '0.001%', 'Stablecoin pairs with tight spreads'],
+          ['50', '0.005%', 'Stablecoin pairs with tight spreads'],
           ['100', '0.01%', 'Stablecoin pairs with tight spreads'],
           ['1000', '0.1%', 'Major token pairs (e.g. ETH/USDT)'],
           ['10000', '1.0%', 'Volatile or low-liquidity pairs'],
