@@ -231,11 +231,12 @@ func InsertOrder(ctx context.Context, tx pgx.Tx, chainID int64, orderID string,
 // InsertOrderFill inserts an order fill record within a transaction.
 func InsertOrderFill(ctx context.Context, tx pgx.Tx, chainID int64,
 	txHash, taker, orderID, filledAmount, filledVolume string, isAsk bool, pairID int, ts time.Time,
+	gridID int64, quoteAddress, priceGap, gridProfit, orderFee string, isReverse bool,
 	blockNumber uint64) error {
 	_, err := tx.Exec(ctx, `
-		INSERT INTO order_fills (chain_id, tx_hash, taker, order_id, filled_amount, filled_volume, is_ask, pair_id, timestamp, create_block, update_block)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10)
-	`, chainID, txHash, taker, orderID, filledAmount, filledVolume, isAsk, pairID, ts, int64(blockNumber))
+		INSERT INTO order_fills (chain_id, tx_hash, taker, order_id, filled_amount, filled_volume, is_ask, pair_id, timestamp, grid_id, quote_address, price_gap, grid_profit, order_fee, is_reverse, create_block, update_block)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $16)
+	`, chainID, txHash, taker, orderID, filledAmount, filledVolume, isAsk, pairID, ts, gridID, quoteAddress, priceGap, gridProfit, orderFee, isReverse, int64(blockNumber))
 	if err != nil {
 		return fmt.Errorf("insert order fill: %w", err)
 	}
@@ -316,6 +317,20 @@ func UpdateGridProfits(ctx context.Context, tx pgx.Tx, chainID int64, gridID int
 	return nil
 }
 
+// UpdateGridTotalProfit adds to a grid's total_profit field.
+// total_profit accumulates gridProfit + orderFee from each fill.
+func UpdateGridTotalProfit(ctx context.Context, tx pgx.Tx, chainID int64, gridID int64, profitToAdd string, blockNumber uint64) error {
+	_, err := tx.Exec(ctx, `
+		UPDATE grids SET total_profit = (CAST(COALESCE(total_profit, '0') AS NUMERIC) + CAST($1 AS NUMERIC))::TEXT,
+		    update_block = $4, updated_at = NOW()
+		WHERE chain_id = $2 AND grid_id = $3
+	`, profitToAdd, chainID, gridID, int64(blockNumber))
+	if err != nil {
+		return fmt.Errorf("update grid total_profit: %w", err)
+	}
+	return nil
+}
+
 // IncrementPairActiveGrids increments the active_grids count for a pair.
 func IncrementPairActiveGrids(ctx context.Context, tx pgx.Tx, chainID int64, pairID int, blockNumber uint64) error {
 	_, err := tx.Exec(ctx, `
@@ -392,6 +407,68 @@ func GetOrderGridID(ctx context.Context, tx pgx.Tx, chainID int64, orderID strin
 		return 0, fmt.Errorf("get order grid_id: %w", err)
 	}
 	return gridID, nil
+}
+
+// OrderInfo holds order details needed for fill processing.
+type OrderInfo struct {
+	GridID   int64
+	PairID   int
+	IsAsk    bool
+	Compound bool
+	Price    string
+	RevPrice string
+	Fee      int
+}
+
+// GetOrderInfo returns order details for a given order.
+func GetOrderInfo(ctx context.Context, tx pgx.Tx, chainID int64, orderID string) (*OrderInfo, error) {
+	var info OrderInfo
+	err := tx.QueryRow(ctx,
+		`SELECT grid_id, pair_id, is_ask, compound, price, rev_price, fee FROM orders WHERE chain_id = $1 AND order_id = $2`,
+		chainID, orderID,
+	).Scan(&info.GridID, &info.PairID, &info.IsAsk, &info.Compound, &info.Price, &info.RevPrice, &info.Fee)
+	if err != nil {
+		return nil, fmt.Errorf("get order info: %w", err)
+	}
+	return &info, nil
+}
+
+// GridStrategyInfo holds grid strategy details needed for priceGap calculation.
+type GridStrategyInfo struct {
+	AskStrategy string
+	BidStrategy string
+	AskPrice0   string
+	AskGap      string
+	BidPrice0   string
+	BidGap      string
+	AskRatio    string
+	BidRatio    string
+	Fee         int
+}
+
+// GetGridStrategyInfo returns grid strategy info for priceGap calculation.
+func GetGridStrategyInfo(ctx context.Context, tx pgx.Tx, chainID int64, gridID int64) (*GridStrategyInfo, error) {
+	var info GridStrategyInfo
+	err := tx.QueryRow(ctx,
+		`SELECT ask_strategy, bid_strategy, ask_price0, ask_gap, bid_price0, bid_gap, ask_ratio, bid_ratio, fee FROM grids WHERE chain_id = $1 AND grid_id = $2`,
+		chainID, gridID,
+	).Scan(&info.AskStrategy, &info.BidStrategy, &info.AskPrice0, &info.AskGap, &info.BidPrice0, &info.BidGap, &info.AskRatio, &info.BidRatio, &info.Fee)
+	if err != nil {
+		return nil, fmt.Errorf("get grid strategy info: %w", err)
+	}
+	return &info, nil
+}
+
+// GetPairQuoteAddress returns the quote token address for a pair.
+func GetPairQuoteAddress(ctx context.Context, tx pgx.Tx, chainID int64, pairID int) (string, error) {
+	var quoteAddr string
+	err := tx.QueryRow(ctx,
+		`SELECT quote_token_address FROM pairs WHERE chain_id = $1 AND pair_id = $2`, chainID, pairID,
+	).Scan(&quoteAddr)
+	if err != nil {
+		return "", fmt.Errorf("get pair quote address: %w", err)
+	}
+	return quoteAddr, nil
 }
 
 // ProtocolStats holds aggregated protocol statistics.

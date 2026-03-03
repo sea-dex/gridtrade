@@ -15,53 +15,28 @@
 init_usd = init_base_amount * init_base_price + init_quote_amount * init_quote_price
 ```
 
-## 1. HODL 收益率
 
-如果不做网格，只是持有初始仓位不动的收益率：
+## 实际收益
 
-```
-hodl_usd = init_base_amount * current_base_price + init_quote_amount * current_quote_price
-hodl_profit_rate = hodl_usd / init_usd - 1
-```
+current_usd = total_base_amt * current_base_price + (total_quote_amount + grid_profit) * current_quote_price
 
-## 2. Grid 收益率 (exclude IL)
+## 无网格收益
+1. 先根据当前价格，计算理论的 total_base_amount, total_quote_amount, 计算方法如下：
 
-用初始价格来估值当前持仓 + 网格利润，排除价格波动的影响，纯看网格策略赚了多少：
+ask 网格单，当前价格 > 网格价格，amount = 0, rev_amount(quote) = amount * order.price
+ask 网格单， 当前价格 <= 网格价格, amount = grid_base_amt, rev_amount(quote) = 0
 
-```
-grid_value_exclude_il = current_base_amount * init_base_price + current_quote_amount * init_quote_price + grid_profit * init_quote_price
-grid_profit_rate_exclude_il = grid_value_exclude_il / init_usd - 1
-```
+bid 网格单, 当前价格 >= 网格价格, amount(quote) = grid_base_amt * order.price, rev_amount(base) = 0
+bid 网格单, 当前价格 < 网格价格, amount = 0, rev_amount = grid_base_amt
 
-## 3. Grid 收益率 (real)
+2. 计算当前理论usd
 
-用当前价格估值当前持仓 + 网格利润，反映真实的总收益：
+tvl_usd = total_base_amount * current_base_price + total_quote_amount * current_quote_price
 
-```
-grid_value_real = current_base_amount * current_base_price + current_quote_amount * current_quote_price + grid_profit * current_quote_price
-grid_profit_rate_real = grid_value_real / init_usd - 1
-```
 
-## 4. 年化收益率
+## 根据上述公式
 
-```
-elapsed_days = (current_time - init_time) / 86400
-```
+实际收益 APY = (current_usd / init_usd) ** (8760/运行小时) - 1
+理论收益 APY = (tvl_usd / init_usd) ** (8760/运行小时) - 1
 
-### 非 compound 模式 — 简单年化 (APR)
 
-利润不会自动复投，收益线性增长：
-
-```
-apr_exclude_il = grid_profit_rate_exclude_il / elapsed_days * 365
-apr_real = grid_profit_rate_real / elapsed_days * 365
-```
-
-### compound 模式 — 复利年化 (APY)
-
-利润自动复投到网格中，收益按复利增长：
-
-```
-apy_exclude_il = (1 + grid_profit_rate_exclude_il) ^ (365 / elapsed_days) - 1
-apy_real = (1 + grid_profit_rate_real) ^ (365 / elapsed_days) - 1
-```

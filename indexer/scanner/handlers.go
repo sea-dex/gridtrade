@@ -545,23 +545,58 @@ func (s *Scanner) handleFilledOrder(ctx context.Context, tx pgx.Tx, log types.Lo
 	// In v2, orderId is uint64 and we need to look up grid_id from the orders table
 	orderIDStr := fmt.Sprintf("%d", event.OrderID)
 
-	// Get grid_id for this order from the database
-	gridID, err := db.GetOrderGridID(ctx, tx, s.cfg.ChainID, orderIDStr)
+	// Extract gridID from orderID directly: gridOrderId = (gridId << 16) | orderId
+	// gridId is the upper 48 bits, orderId is the lower 16 bits
+	gridID := int64(event.OrderID >> 16)
+
+	// Get order info from database
+	orderInfo, err := db.GetOrderInfo(ctx, tx, s.cfg.ChainID, orderIDStr)
 	if err != nil {
-		return nil, fmt.Errorf("get grid_id for filled order: %w", err)
+		return nil, fmt.Errorf("get order info for filled order: %w", err)
 	}
+
+	// isReverse: true if order's isAsk differs from event's isAsk
+	isReverse := orderInfo.IsAsk != event.IsAsk
 
 	s.logger.Info("FilledOrder",
 		"order_id", orderIDStr,
 		"grid_id", gridID,
 		"taker", event.Taker.Hex(),
 		"is_ask", event.IsAsk,
+		"order_is_ask", orderInfo.IsAsk,
+		"is_reverse", isReverse,
 	)
 
 	// Get pair_id for this grid
-	pairID, err := db.GetGridPairID(ctx, tx, s.cfg.ChainID, gridID)
+	pairID := orderInfo.PairID
+
+	// Get grid strategy info for priceGap calculation
+	strategyInfo, err := db.GetGridStrategyInfo(ctx, tx, s.cfg.ChainID, gridID)
 	if err != nil {
-		return nil, fmt.Errorf("get pair_id for filled order: %w", err)
+		return nil, fmt.Errorf("get grid strategy info for filled order: %w", err)
+	}
+
+	// Get quote address from pair
+	quoteAddress, err := db.GetPairQuoteAddress(ctx, tx, s.cfg.ChainID, pairID)
+	if err != nil {
+		return nil, fmt.Errorf("get pair quote address for filled order: %w", err)
+	}
+
+	// Calculate priceGap based on strategy type
+	// priceGap = |price - revPrice| for the order
+	priceGap := calcPriceGap(orderInfo.Price, orderInfo.RevPrice)
+
+	// Calculate orderFee: event.QuoteVol * fee / 1000000 - event.QuoteVol * fee / 4000000
+	// = event.QuoteVol * fee * (1/1000000 - 1/4000000)
+	// = event.QuoteVol * fee * 3/4000000
+	orderFee := calcOrderFee(event.QuoteVol, strategyInfo.Fee)
+
+	// Calculate gridProfit
+	// If isReverse is false, gridProfit = 0
+	// If isReverse is true, gridProfit = priceGap * event.BaseAmt / 10^36
+	gridProfit := "0"
+	if isReverse {
+		gridProfit = calcGridProfit(priceGap, event.BaseAmt)
 	}
 
 	// Get block timestamp
@@ -575,11 +610,13 @@ func (s *Scanner) handleFilledOrder(ctx context.Context, tx pgx.Tx, log types.Lo
 		ts = time.Unix(int64(block.Time()), 0).UTC()
 	}
 
-	// Insert order fill
+	// Insert order fill with new fields
 	if err := db.InsertOrderFill(ctx, tx, s.cfg.ChainID,
 		log.TxHash.Hex(), strings.ToLower(event.Taker.Hex()),
 		orderIDStr, event.BaseAmt.String(), event.QuoteVol.String(),
-		event.IsAsk, pairID, ts, log.BlockNumber); err != nil {
+		event.IsAsk, pairID, ts,
+		gridID, quoteAddress, priceGap, gridProfit, orderFee, isReverse,
+		log.BlockNumber); err != nil {
 		return nil, err
 	}
 
@@ -588,6 +625,15 @@ func (s *Scanner) handleFilledOrder(ctx context.Context, tx pgx.Tx, log types.Lo
 		orderIDStr, event.OrderAmt.String(), event.OrderRevAmt.String(),
 		log.BlockNumber); err != nil {
 		return nil, err
+	}
+
+	// Update grid's total_profit: total_profit += gridProfit + orderFee
+	// Only update for non-compound orders
+	if !orderInfo.Compound {
+		totalProfitAdd := addBigStrings(gridProfit, orderFee)
+		if err := db.UpdateGridTotalProfit(ctx, tx, s.cfg.ChainID, gridID, totalProfitAdd, log.BlockNumber); err != nil {
+			return nil, fmt.Errorf("update grid total_profit: %w", err)
+		}
 	}
 
 	msg := s.makeBaseMsg(log, kafka.EventOrderFilled)
@@ -823,4 +869,77 @@ func calcInitialAmounts(baseAmt *big.Int, bidPrice0, bidGap, bidRatio *big.Int, 
 	}
 	// Default to Linear strategy (or fallback if geometry params missing)
 	return calcInitialAmountsLinear(baseAmt, bidPrice0, bidGap, askCount, bidCount)
+}
+
+// calcPriceGap calculates the price gap for an order based on its strategy.
+// For Linear strategy: priceGap = |price - revPrice| = |gap|
+// For Geometry strategy: priceGap = |price - revPrice| = |price * (1 - RATIO_MULTIPLIER/ratio)|
+func calcPriceGap(priceStr, revPriceStr string) string {
+	price, ok := new(big.Int).SetString(priceStr, 10)
+	if !ok {
+		return "0"
+	}
+	revPrice, ok := new(big.Int).SetString(revPriceStr, 10)
+	if !ok {
+		return "0"
+	}
+
+	// priceGap = |price - revPrice|
+	priceGap := new(big.Int).Sub(price, revPrice)
+	if priceGap.Sign() < 0 {
+		priceGap.Neg(priceGap)
+	}
+
+	return priceGap.String()
+}
+
+// calcOrderFee calculates the order fee.
+// orderFee = quoteVol * fee / 1000000 - quoteVol * fee / 4000000
+//
+//	= quoteVol * fee * (1/1000000 - 1/4000000)
+//	= quoteVol * fee * 3/4000000
+func calcOrderFee(quoteVol *big.Int, fee int) string {
+	if quoteVol == nil || quoteVol.Sign() <= 0 || fee <= 0 {
+		return "0"
+	}
+
+	// orderFee = quoteVol * fee * 3 / 4000000
+	feeBig := big.NewInt(int64(fee))
+	numerator := new(big.Int).Mul(quoteVol, feeBig)
+	numerator.Mul(numerator, big.NewInt(3))
+	orderFee := new(big.Int).Div(numerator, big.NewInt(4000000))
+
+	return orderFee.String()
+}
+
+// calcGridProfit calculates the grid profit for a reverse fill.
+// gridProfit = priceGap * baseAmt / 10^36
+func calcGridProfit(priceGapStr string, baseAmt *big.Int) string {
+	priceGap, ok := new(big.Int).SetString(priceGapStr, 10)
+	if !ok || priceGap.Sign() <= 0 {
+		return "0"
+	}
+	if baseAmt == nil || baseAmt.Sign() <= 0 {
+		return "0"
+	}
+
+	// gridProfit = priceGap * baseAmt / 10^36
+	numerator := new(big.Int).Mul(priceGap, baseAmt)
+	gridProfit := new(big.Int).Div(numerator, priceMultiplier)
+
+	return gridProfit.String()
+}
+
+// addBigStrings adds two big integer strings and returns the result as a string.
+func addBigStrings(a, b string) string {
+	aInt, ok := new(big.Int).SetString(a, 10)
+	if !ok {
+		aInt = new(big.Int)
+	}
+	bInt, ok := new(big.Int).SetString(b, 10)
+	if !ok {
+		bInt = new(big.Int)
+	}
+	result := new(big.Int).Add(aInt, bInt)
+	return result.String()
 }

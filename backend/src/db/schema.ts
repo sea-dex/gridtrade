@@ -34,6 +34,8 @@ export const grids = pgTable('grids', {
   initQuotePrice: varchar('init_quote_price', { length: 78 }).notNull().default(''),
   aprExcludeIl: varchar('apr_exclude_il', { length: 78 }).notNull().default(''),
   aprReal: varchar('apr_real', { length: 78 }).notNull().default(''),
+  // Total profit from grid trading (gridProfit + orderFee accumulated from fills)
+  totalProfit: varchar('total_profit', { length: 78 }).notNull().default('0'),
   status: integer('status').notNull().default(1),
   createBlock: bigint('create_block', { mode: 'number' }).notNull().default(0),
   updateBlock: bigint('update_block', { mode: 'number' }).notNull().default(0),
@@ -93,6 +95,13 @@ export const orderFills = pgTable('order_fills', {
   filledVolume: varchar('filled_volume', { length: 78 }).notNull(),
   isAsk: boolean('is_ask').notNull(),
   pairId: integer('pair_id').notNull().default(0),
+  // Additional grid context fields
+  gridId: bigint('grid_id', { mode: 'number' }),
+  quoteAddress: varchar('quote_address', { length: 42 }),
+  priceGap: varchar('price_gap', { length: 78 }),
+  gridProfit: varchar('grid_profit', { length: 78 }),
+  orderFee: varchar('order_fee', { length: 78 }),
+  isReverse: boolean('is_reverse'),
   timestamp: timestamp('timestamp').notNull(),
   createBlock: bigint('create_block', { mode: 'number' }).notNull().default(0),
   updateBlock: bigint('update_block', { mode: 'number' }).notNull().default(0),
@@ -102,6 +111,7 @@ export const orderFills = pgTable('order_fills', {
   index('order_fills_chain_id_tx_hash_idx').on(t.chainId, t.txHash),
   index('order_fills_chain_id_taker_idx').on(t.chainId, t.taker),
   index('order_fills_chain_id_pair_id_idx').on(t.chainId, t.pairId),
+  index('order_fills_chain_id_grid_id_idx').on(t.chainId, t.gridId),
 ]);
 
 // Tokens table
