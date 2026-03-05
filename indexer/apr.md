@@ -39,4 +39,4 @@ tvl_usd = total_base_amount * current_base_price + total_quote_amount * current_
 实际收益 APY = (current_usd / init_usd) ** (8760/运行小时) - 1
 理论收益 APY = (tvl_usd / init_usd) ** (8760/运行小时) - 1
 
-
+网格收益APY = 实际收益 APY - 理论收益 APY

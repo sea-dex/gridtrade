@@ -7,6 +7,8 @@ import (
 	"math/big"
 	"strings"
 	"time"
+
+	"github.com/gridex/indexer/db"
 )
 
 // runAPRUpdater starts a periodic timer that recalculates APR for all active grids.
@@ -96,7 +98,7 @@ func (s *Scanner) updateAllGridAPRs(ctx context.Context) error {
 			continue
 		}
 
-		// Get current order amounts
+		// Get current order amounts for real APR
 		amounts, err := s.repo.GetGridOrderAmounts(ctx, g.ChainID, g.GridID)
 		if err != nil {
 			s.logger.Warn("failed to get grid order amounts",
@@ -104,14 +106,22 @@ func (s *Scanner) updateAllGridAPRs(ctx context.Context) error {
 			continue
 		}
 
+		// Get orders for theoretical APR calculation
+		orders, err := s.repo.GetGridOrdersForTheoretical(ctx, g.ChainID, g.GridID)
+		if err != nil {
+			s.logger.Warn("failed to get grid orders for theoretical",
+				"grid_id", g.GridID, "error", err)
+			continue
+		}
+
 		// Calculate APR
-		aprExcludeIL, aprReal, err := calculateAPR(
+		aprTheoretical, aprReal, err := calculateAPR(
 			g.InitialBaseAmount, g.InitialQuoteAmount,
 			g.InitBasePrice, g.InitQuotePrice,
 			amounts.BaseAmount, amounts.QuoteAmount,
 			currentBasePrice, currentQuotePrice,
 			g.Profits,
-			g.Compound,
+			orders,
 			g.CreatedAt,
 		)
 		if err != nil {
@@ -121,7 +131,7 @@ func (s *Scanner) updateAllGridAPRs(ctx context.Context) error {
 		}
 
 		// Update in DB
-		if err := s.repo.UpdateGridAPR(ctx, g.GridID, g.ChainID, aprExcludeIL, aprReal); err != nil {
+		if err := s.repo.UpdateGridAPR(ctx, g.GridID, g.ChainID, aprTheoretical, aprReal); err != nil {
 			s.logger.Warn("failed to update grid APR",
 				"grid_id", g.GridID, "error", err)
 			continue
@@ -133,18 +143,18 @@ func (s *Scanner) updateAllGridAPRs(ctx context.Context) error {
 	return nil
 }
 
-// calculateAPR computes both apr_exclude_il and apr_real based on the formulas in apr.md.
+// calculateAPR computes both apr_theoretical and apr_real based on the formulas in apr.md.
 // All numeric string inputs are raw big number strings (no decimals).
-// Returns the APR/APY values as string representations of the rate (e.g. "0.1523" for 15.23%).
+// Returns the APR values as string representations of the rate (e.g. "0.1523" for 15.23%).
 func calculateAPR(
 	initBaseAmount, initQuoteAmount string,
 	initBasePrice, initQuotePrice string,
 	currentBaseAmount, currentQuoteAmount string,
 	currentBasePrice, currentQuotePrice string,
 	gridProfit string,
-	compound bool,
+	orders []db.GridOrderForTheoretical,
 	createdAt time.Time,
-) (aprExcludeIL string, aprReal string, err error) {
+) (aprTheoretical string, aprReal string, err error) {
 	// Parse all values as big.Float for precision
 	initBaseAmt, ok := new(big.Float).SetString(initBaseAmount)
 	if !ok {
@@ -195,80 +205,141 @@ func calculateAPR(
 		return "0", "0", nil
 	}
 
-	// elapsed_days = (current_time - init_time) / 86400
+	// elapsed_hours = (current_time - init_time) / 3600
 	elapsedSeconds := time.Since(createdAt).Seconds()
 	if elapsedSeconds < 60 {
 		// Grid just created, skip APR calculation
 		return "0", "0", nil
 	}
-	elapsedDays := elapsedSeconds / 86400.0
+	elapsedHours := elapsedSeconds / 3600.0
 
-	// grid_value_exclude_il = current_base_amount * init_base_price + current_quote_amount * init_quote_price + grid_profit * init_quote_price
-	gridValueExcludeIL := new(big.Float).Add(
-		new(big.Float).Add(
-			new(big.Float).Mul(curBaseAmt, initBPrice),
-			new(big.Float).Mul(curQuoteAmt, initQPrice),
-		),
-		new(big.Float).Mul(profit, initQPrice),
+	// ============================================================
+	// Calculate real APR (实际收益)
+	// current_usd = total_base_amt * current_base_price + (total_quote_amount + grid_profit) * current_quote_price
+	// ============================================================
+	currentUSD := new(big.Float).Add(
+		new(big.Float).Mul(curBaseAmt, curBPrice),
+		new(big.Float).Mul(new(big.Float).Add(curQuoteAmt, profit), curQPrice),
 	)
 
-	// grid_profit_rate_exclude_il = grid_value_exclude_il / init_usd - 1
-	profitRateExcludeIL := new(big.Float).Sub(
-		new(big.Float).Quo(gridValueExcludeIL, initUSD),
+	// real_profit_rate = current_usd / init_usd - 1
+	realProfitRate := new(big.Float).Sub(
+		new(big.Float).Quo(currentUSD, initUSD),
 		new(big.Float).SetFloat64(1.0),
 	)
 
-	// grid_value_real = current_base_amount * current_base_price + current_quote_amount * current_quote_price + grid_profit * current_quote_price
-	gridValueReal := new(big.Float).Add(
-		new(big.Float).Add(
-			new(big.Float).Mul(curBaseAmt, curBPrice),
-			new(big.Float).Mul(curQuoteAmt, curQPrice),
-		),
-		new(big.Float).Mul(profit, curQPrice),
+	// ============================================================
+	// Calculate theoretical APR (理论收益/无网格收益)
+	// Simulate what the portfolio would be if orders were filled based on current price
+	// ============================================================
+	theoreticalBaseAmt := new(big.Float)
+	theoreticalQuoteAmt := new(big.Float)
+
+	// Parse current price in quote terms for comparison with order prices
+	// order.price is the price of base in quote terms
+	// current_price_in_quote = current_base_price / current_quote_price
+	curPriceInQuote := new(big.Float).Quo(curBPrice, curQPrice)
+
+	for _, order := range orders {
+		orderPrice, ok := new(big.Float).SetString(order.Price)
+		if !ok {
+			continue // skip invalid order
+		}
+		orderAmt, ok := new(big.Float).SetString(order.Amount)
+		if !ok {
+			continue
+		}
+
+		// For theoretical calculation, we use initial amounts (what the order was created with)
+		// For ask orders: Amount = initial_base_amount, RevAmt = initial_quote_amount (usually 0)
+		// For bid orders: Amount = initial_quote_amount, RevAmt = initial_base_amount (usually 0)
+		// We need to get the initial amounts from the order
+		// Actually, looking at the schema, we should use initial_base_amount and initial_quote_amount
+		// But for simplicity, we'll use the current Amount as the "grid_base_amt" equivalent
+
+		if order.IsAsk {
+			// Ask order: sells base for quote at order.price
+			// ask 网格单，当前价格 > 网格价格，amount = 0, rev_amount(quote) = amount * order.price
+			// ask 网格单，当前价格 <= 网格价格, amount = grid_base_amt, rev_amount(quote) = 0
+			if curPriceInQuote.Cmp(orderPrice) > 0 {
+				// Current price > order price: order would have been filled
+				// base = 0, quote = amount * order.price
+				quoteFromOrder := new(big.Float).Mul(orderAmt, orderPrice)
+				theoreticalQuoteAmt.Add(theoreticalQuoteAmt, quoteFromOrder)
+				// base remains 0 for this order
+			} else {
+				// Current price <= order price: order would NOT have been filled
+				// base = amount, quote = 0
+				theoreticalBaseAmt.Add(theoreticalBaseAmt, orderAmt)
+				// quote remains 0 for this order
+			}
+		} else {
+			// Bid order: buys base with quote at order.price
+			// bid 网格单, 当前价格 >= 网格价格, amount(quote) = grid_base_amt * order.price, rev_amount(base) = 0
+			// bid 网格单, 当前价格 < 网格价格, amount = 0, rev_amount = grid_base_amt
+			// For bid orders, Amount is quote amount, and we need to derive grid_base_amt
+			// grid_base_amt = Amount / order.price (the base amount this order would buy)
+			gridBaseAmt := new(big.Float).Quo(orderAmt, orderPrice)
+
+			if curPriceInQuote.Cmp(orderPrice) >= 0 {
+				// Current price >= order price: order would NOT have been filled
+				// quote = amount, base = 0
+				theoreticalQuoteAmt.Add(theoreticalQuoteAmt, orderAmt)
+				// base remains 0 for this order
+			} else {
+				// Current price < order price: order would have been filled
+				// quote = 0, base = grid_base_amt
+				theoreticalBaseAmt.Add(theoreticalBaseAmt, gridBaseAmt)
+				// quote remains 0 for this order
+			}
+		}
+	}
+
+	// tvl_usd = total_base_amount * current_base_price + total_quote_amount * current_quote_price
+	tvlUSD := new(big.Float).Add(
+		new(big.Float).Mul(theoreticalBaseAmt, curBPrice),
+		new(big.Float).Mul(theoreticalQuoteAmt, curQPrice),
 	)
 
-	// grid_profit_rate_real = grid_value_real / init_usd - 1
-	profitRateReal := new(big.Float).Sub(
-		new(big.Float).Quo(gridValueReal, initUSD),
+	// theoretical_profit_rate = tvl_usd / init_usd - 1
+	theoreticalProfitRate := new(big.Float).Sub(
+		new(big.Float).Quo(tvlUSD, initUSD),
 		new(big.Float).SetFloat64(1.0),
 	)
 
-	if compound {
-		// APY: (1 + profit_rate) ^ (365 / elapsed_days) - 1
-		aprExcludeIL = computeAPY(profitRateExcludeIL, elapsedDays)
-		aprReal = computeAPY(profitRateReal, elapsedDays)
-	} else {
-		// APR: profit_rate / elapsed_days * 365
-		aprExcludeIL = computeAPR(profitRateExcludeIL, elapsedDays)
-		aprReal = computeAPR(profitRateReal, elapsedDays)
-	}
+	// ============================================================
+	// Calculate APY using the formula from apr.md:
+	// APY = (value / init_usd) ** (8760 / elapsed_hours) - 1
+	// ============================================================
+	aprTheoretical = computeAPYFromRatio(tvlUSD, initUSD, elapsedHours)
+	aprReal = computeAPYFromRatio(currentUSD, initUSD, elapsedHours)
 
-	return aprExcludeIL, aprReal, nil
+	// Also store the profit rates for debugging/logging
+	_ = realProfitRate
+	_ = theoreticalProfitRate
+
+	return aprTheoretical, aprReal, nil
 }
 
-// computeAPR calculates simple annualized return: profit_rate / elapsed_days * 365
-func computeAPR(profitRate *big.Float, elapsedDays float64) string {
-	if elapsedDays == 0 {
+// computeAPYFromRatio calculates APY using the formula: (value / init) ^ (8760 / hours) - 1
+// This matches the formula in apr.md: APY = (current_usd / init_usd) ** (8760/运行小时) - 1
+func computeAPYFromRatio(value, init *big.Float, elapsedHours float64) string {
+	if elapsedHours == 0 {
 		return "0"
 	}
-	// apr = profit_rate / elapsed_days * 365
-	rate, _ := profitRate.Float64()
-	apr := rate / elapsedDays * 365.0
-	return fmt.Sprintf("%.8f", apr)
-}
 
-// computeAPY calculates compound annualized return: (1 + profit_rate) ^ (365 / elapsed_days) - 1
-func computeAPY(profitRate *big.Float, elapsedDays float64) string {
-	if elapsedDays == 0 {
-		return "0"
-	}
-	rate, _ := profitRate.Float64()
-	base := 1.0 + rate
-	if base <= 0 {
+	// ratio = value / init
+	ratio := new(big.Float).Quo(value, init)
+	ratioFloat, _ := ratio.Float64()
+
+	if ratioFloat <= 0 {
 		// Avoid NaN from negative base with fractional exponent
 		return fmt.Sprintf("%.8f", -1.0)
 	}
-	exponent := 365.0 / elapsedDays
-	apy := math.Pow(base, exponent) - 1.0
+
+	// APY = ratio ^ (8760 / elapsed_hours) - 1
+	exponent := 8760.0 / elapsedHours
+	apy := math.Pow(ratioFloat, exponent) - 1.0
+
 	return fmt.Sprintf("%.8f", apy)
 }

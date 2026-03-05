@@ -179,7 +179,7 @@ func InsertGrid(ctx context.Context, tx pgx.Tx, chainID int64, gridID int64,
 			ask_price0, ask_gap, bid_price0, bid_gap,
 			ask_ratio, bid_ratio,
 			init_price,
-			init_base_price, init_quote_price, apr_exclude_il, apr_real,
+			init_base_price, init_quote_price, apr_theoretical, apr_real,
 			create_block, update_block)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 1,
 			$14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, '', '', $25, $25)
@@ -893,12 +893,44 @@ func (r *Repository) GetGridOrderAmounts(ctx context.Context, chainID int64, gri
 	return amounts, nil
 }
 
-// UpdateGridAPR updates the apr_exclude_il and apr_real fields for a grid.
-func (r *Repository) UpdateGridAPR(ctx context.Context, gridID int64, chainID int64, aprExcludeIL, aprReal string) error {
+// GridOrderForTheoretical holds order data needed for theoretical TVL calculation.
+type GridOrderForTheoretical struct {
+	IsAsk  bool
+	Price  string // order price (in quote token)
+	Amount string // for ask: base amount, for bid: quote amount
+	RevAmt string // for ask: quote amount (rev_amount), for bid: base amount (rev_amount)
+}
+
+// GetGridOrdersForTheoretical returns all orders for a grid with their price and amounts.
+// This is used to calculate theoretical TVL (what the portfolio would be without grid trading).
+func (r *Repository) GetGridOrdersForTheoretical(ctx context.Context, chainID int64, gridID int64) ([]GridOrderForTheoretical, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT is_ask, price, amount, rev_amount
+		FROM orders
+		WHERE chain_id = $1 AND grid_id = $2
+	`, chainID, gridID)
+	if err != nil {
+		return nil, fmt.Errorf("get grid orders for theoretical: %w", err)
+	}
+	defer rows.Close()
+
+	var orders []GridOrderForTheoretical
+	for rows.Next() {
+		var o GridOrderForTheoretical
+		if err := rows.Scan(&o.IsAsk, &o.Price, &o.Amount, &o.RevAmt); err != nil {
+			return nil, fmt.Errorf("scan order: %w", err)
+		}
+		orders = append(orders, o)
+	}
+	return orders, nil
+}
+
+// UpdateGridAPR updates the apr_theoretical and apr_real fields for a grid.
+func (r *Repository) UpdateGridAPR(ctx context.Context, gridID int64, chainID int64, aprTheoretical, aprReal string) error {
 	_, err := r.pool.Exec(ctx, `
-		UPDATE grids SET apr_exclude_il = $1, apr_real = $2
+		UPDATE grids SET apr_theoretical = $1, apr_real = $2
 		WHERE grid_id = $3 AND chain_id = $4
-	`, aprExcludeIL, aprReal, gridID, chainID)
+	`, aprTheoretical, aprReal, gridID, chainID)
 	if err != nil {
 		return fmt.Errorf("update grid APR: %w", err)
 	}
