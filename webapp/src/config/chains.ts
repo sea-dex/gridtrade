@@ -12,10 +12,10 @@ export const CHAIN_NAMES: Record<number, string> = {
 // v2 contract addresses - same across all EVM chains
 // Updated: Router (GridEx), Vault, Linear, Geometry
 export const GRIDEX_ADDRESSES: Record<number, `0x${string}`> = {
-  [mainnet.id]: '0xa91a5AAa0BC042200a3391eDb7b02d5B4aa804dB',
-  [bsc.id]: '0xa91a5AAa0BC042200a3391eDb7b02d5B4aa804dB',
-  [base.id]: '0xa91a5AAa0BC042200a3391eDb7b02d5B4aa804dB',
-  [bscTestnet.id]: '0xa91a5AAa0BC042200a3391eDb7b02d5B4aa804dB',
+  [mainnet.id]: '0xcBeA520552AC3bf1412D8516e2f35bfaC2c30680',
+  [bsc.id]: '0xcBeA520552AC3bf1412D8516e2f35bfaC2c30680',
+  [base.id]: '0xcBeA520552AC3bf1412D8516e2f35bfaC2c30680',
+  [bscTestnet.id]: '0xcBeA520552AC3bf1412D8516e2f35bfaC2c30680',
 };
 
 export const VAULT_ADDRESSES: Record<number, `0x${string}`> = {
@@ -26,17 +26,17 @@ export const VAULT_ADDRESSES: Record<number, `0x${string}`> = {
 };
 
 export const LINEAR_STRATEGY_ADDRESSES: Record<number, `0x${string}`> = {
-  [mainnet.id]: '0x9D403942473B39123e8dAbeC529011Ae8636e61D',
-  [bsc.id]: '0x9D403942473B39123e8dAbeC529011Ae8636e61D',
-  [base.id]: '0x9D403942473B39123e8dAbeC529011Ae8636e61D',
-  [bscTestnet.id]: '0x9D403942473B39123e8dAbeC529011Ae8636e61D',
+  [mainnet.id]: '0x15A29412d8a97AB171BFe1f5Dc97B30F8F207AAa',
+  [bsc.id]: '0x15A29412d8a97AB171BFe1f5Dc97B30F8F207AAa',
+  [base.id]: '0x15A29412d8a97AB171BFe1f5Dc97B30F8F207AAa',
+  [bscTestnet.id]: '0x15A29412d8a97AB171BFe1f5Dc97B30F8F207AAa',
 };
 
 export const GEOMETRY_STRATEGY_ADDRESSES: Record<number, `0x${string}`> = {
-  [mainnet.id]: '0xB0281fE94d7f739142ec89c633AFaEACBd3b08e8',
-  [bsc.id]: '0xB0281fE94d7f739142ec89c633AFaEACBd3b08e8',
-  [base.id]: '0xB0281fE94d7f739142ec89c633AFaEACBd3b08e8',
-  [bscTestnet.id]: '0xB0281fE94d7f739142ec89c633AFaEACBd3b08e8',
+  [mainnet.id]: '0xAF12c459B97659C61084976a7969c80aB726a4Ba',
+  [bsc.id]: '0xAF12c459B97659C61084976a7969c80aB726a4Ba',
+  [base.id]: '0xAF12c459B97659C61084976a7969c80aB726a4Ba',
+  [bscTestnet.id]: '0xAF12c459B97659C61084976a7969c80aB726a4Ba',
 };
 
 export const NATIVE_TOKENS: Record<number, { symbol: string; name: string; decimals: number }> = {

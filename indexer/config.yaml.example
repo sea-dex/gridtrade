@@ -3,9 +3,9 @@ chains:
   - name: "bsc-testnet"
     chain_id: 97
     rpc_url: "${RPC_URL:-https://rpc.ankr.com/bsc_testnet_chapel}"
-    gridex_address: "0xa91a5AAa0BC042200a3391eDb7b02d5B4aa804dB"  # Router
-    linear_strategy_address: "0x9D403942473B39123e8dAbeC529011Ae8636e61D"
-    geometry_strategy_address: "0xB0281fE94d7f739142ec89c633AFaEACBd3b08e8"
+    gridex_address: "0xcBeA520552AC3bf1412D8516e2f35bfaC2c30680"  # Router
+    linear_strategy_address: "0x15A29412d8a97AB171BFe1f5Dc97B30F8F207AAa"
+    geometry_strategy_address: "0xAF12c459B97659C61084976a7969c80aB726a4Ba"
     start_block: ${START_BLOCK:-0}
     block_batch_size: 100
     poll_interval_ms: 2000
