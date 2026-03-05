@@ -32,7 +32,7 @@ export const grids = pgTable('grids', {
   // APR calculation fields (from migration 010)
   initBasePrice: varchar('init_base_price', { length: 78 }).notNull().default(''),
   initQuotePrice: varchar('init_quote_price', { length: 78 }).notNull().default(''),
-  aprExcludeIl: varchar('apr_exclude_il', { length: 78 }).notNull().default(''),
+  aprTheoretical: varchar('apr_theoretical', { length: 78 }).notNull().default(''),
   aprReal: varchar('apr_real', { length: 78 }).notNull().default(''),
   // Total profit from grid trading (gridProfit + orderFee accumulated from fills)
   totalProfit: varchar('total_profit', { length: 78 }).notNull().default('0'),
@@ -231,6 +231,30 @@ export const pairDailyStats = pgTable('pair_daily_stats', {
   index('pair_daily_stats_chain_id_date_idx').on(t.chainId, t.date),
 ]);
 
+// Grid APR history table — stores periodic APR snapshots for historical tracking
+export const gridAprHistory = pgTable('grid_apr_history', {
+  id: serial('id').primaryKey(),
+  timestamp: timestamp('timestamp').notNull().defaultNow(),
+  chainId: integer('chain_id').notNull(),
+  gridId: bigint('grid_id', { mode: 'number' }).notNull(),
+  pairId: integer('pair_id').notNull(),
+  initBaseAmount: varchar('init_base_amount', { length: 78 }).notNull(),
+  initQuoteAmount: varchar('init_quote_amount', { length: 78 }).notNull(),
+  currentBaseAmount: varchar('current_base_amount', { length: 78 }).notNull(),
+  currentQuoteAmount: varchar('current_quote_amount', { length: 78 }).notNull(),
+  initBasePrice: varchar('init_base_price', { length: 78 }).notNull(),
+  initQuotePrice: varchar('init_quote_price', { length: 78 }).notNull(),
+  currentBasePrice: varchar('current_base_price', { length: 78 }).notNull(),
+  currentQuotePrice: varchar('current_quote_price', { length: 78 }).notNull(),
+  profits: varchar('profits', { length: 78 }).notNull(),
+  aprReal: varchar('apr_real', { length: 78 }).notNull(),
+  aprTheoretical: varchar('apr_theoretical', { length: 78 }).notNull(),
+}, (t) => [
+  index('idx_grid_apr_history_grid').on(t.chainId, t.gridId),
+  index('idx_grid_apr_history_timestamp').on(t.timestamp),
+  index('idx_grid_apr_history_pair').on(t.chainId, t.pairId),
+]);
+
 // Type exports
 export type Grid = typeof grids.$inferSelect;
 export type NewGrid = typeof grids.$inferInsert;
@@ -250,3 +274,5 @@ export type IndexerState = typeof indexerState.$inferSelect;
 export type NewIndexerState = typeof indexerState.$inferInsert;
 export type PairDailyStat = typeof pairDailyStats.$inferSelect;
 export type NewPairDailyStat = typeof pairDailyStats.$inferInsert;
+export type GridAprHistory = typeof gridAprHistory.$inferSelect;
+export type NewGridAprHistory = typeof gridAprHistory.$inferInsert;

@@ -936,3 +936,45 @@ func (r *Repository) UpdateGridAPR(ctx context.Context, gridID int64, chainID in
 	}
 	return nil
 }
+
+// APRHistoryRow holds the data for inserting an APR history record.
+type APRHistoryRow struct {
+	Timestamp          time.Time
+	ChainID            int64
+	GridID             int64
+	PairID             int
+	InitBaseAmount     string
+	InitQuoteAmount    string
+	CurrentBaseAmount  string
+	CurrentQuoteAmount string
+	InitBasePrice      string
+	InitQuotePrice     string
+	CurrentBasePrice   string
+	CurrentQuotePrice  string
+	Profits            string
+	APRReal            string
+	APRTheoretical     string
+}
+
+// InsertAPRHistory inserts a new APR history record for a grid.
+func (r *Repository) InsertAPRHistory(ctx context.Context, row APRHistoryRow) error {
+	_, err := r.pool.Exec(ctx, `
+		INSERT INTO grid_apr_history (
+			timestamp, chain_id, grid_id, pair_id,
+			init_base_amount, init_quote_amount,
+			current_base_amount, current_quote_amount,
+			init_base_price, init_quote_price,
+			current_base_price, current_quote_price,
+			profits, apr_real, apr_theoretical
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+	`, row.Timestamp, row.ChainID, row.GridID, row.PairID,
+		row.InitBaseAmount, row.InitQuoteAmount,
+		row.CurrentBaseAmount, row.CurrentQuoteAmount,
+		row.InitBasePrice, row.InitQuotePrice,
+		row.CurrentBasePrice, row.CurrentQuotePrice,
+		row.Profits, row.APRReal, row.APRTheoretical)
+	if err != nil {
+		return fmt.Errorf("insert APR history: %w", err)
+	}
+	return nil
+}

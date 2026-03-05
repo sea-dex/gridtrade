@@ -136,6 +136,30 @@ func (s *Scanner) updateAllGridAPRs(ctx context.Context) error {
 				"grid_id", g.GridID, "error", err)
 			continue
 		}
+
+		// Insert APR history record
+		historyRow := db.APRHistoryRow{
+			Timestamp:          time.Now().UTC(),
+			ChainID:            g.ChainID,
+			GridID:             g.GridID,
+			PairID:             g.PairID,
+			InitBaseAmount:     g.InitialBaseAmount,
+			InitQuoteAmount:    g.InitialQuoteAmount,
+			CurrentBaseAmount:  amounts.BaseAmount,
+			CurrentQuoteAmount: amounts.QuoteAmount,
+			InitBasePrice:      g.InitBasePrice,
+			InitQuotePrice:     g.InitQuotePrice,
+			CurrentBasePrice:   currentBasePrice,
+			CurrentQuotePrice:  currentQuotePrice,
+			Profits:            g.Profits,
+			APRReal:            aprReal,
+			APRTheoretical:     aprTheoretical,
+		}
+		if err := s.repo.InsertAPRHistory(ctx, historyRow); err != nil {
+			s.logger.Warn("failed to insert APR history",
+				"grid_id", g.GridID, "error", err)
+			// Don't continue here, the APR update itself succeeded
+		}
 		updated++
 	}
 
