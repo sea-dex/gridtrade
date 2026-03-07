@@ -10,7 +10,7 @@ import {
   useWriteContract,
 } from 'wagmi';
 import { useConnectModal } from '@rainbow-me/rainbowkit';
-import { parseUnits, encodeAbiParameters, formatUnits, zeroAddress } from 'viem';
+import { parseUnits, encodeAbiParameters, formatUnits, parseEventLogs, zeroAddress } from 'viem';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useFees } from '@/hooks/useFees';
 import { Button } from '@/components/ui/Button';
@@ -71,6 +71,25 @@ interface GridOrderFormProps {
   onPriceLinesChange?: (lines: PriceLine[]) => void;
   externalFormData?: ExternalGridFormData;
 }
+
+const GRID_ORDER_CREATED_EVENT_ABI = [
+  {
+    type: 'event',
+    name: 'GridOrderCreated',
+    anonymous: false,
+    inputs: [
+      { indexed: true, name: 'owner', type: 'address' },
+      { indexed: false, name: 'pairId', type: 'uint64' },
+      { indexed: false, name: 'amount', type: 'uint256' },
+      { indexed: false, name: 'gridId', type: 'uint48' },
+      { indexed: false, name: 'asks', type: 'uint32' },
+      { indexed: false, name: 'bids', type: 'uint32' },
+      { indexed: false, name: 'fee', type: 'uint32' },
+      { indexed: false, name: 'compound', type: 'bool' },
+      { indexed: false, name: 'oneshot', type: 'bool' },
+    ],
+  },
+] as const;
 
 /**
  * Convert a human-readable price to contract format, accounting for decimal differences.
@@ -228,6 +247,22 @@ export function GridOrderForm({ baseToken, quoteToken, onPriceLinesChange, exter
     (index: number, patch: Partial<TxStep>) =>
       setTxSteps((prev) => prev.map((s, i) => (i === index ? { ...s, ...patch } : s))),
     [],
+  );
+
+  const waitForSuccessfulReceipt = useCallback(
+    async (hash: `0x${string}`) => {
+      if (!publicClient) {
+        throw new Error('Missing public client');
+      }
+
+      const receipt = await publicClient.waitForTransactionReceipt({ hash });
+      if (receipt.status !== 'success') {
+        throw new Error('Transaction reverted');
+      }
+
+      return receipt;
+    },
+    [publicClient],
   );
 
   const { fees, defaultFee, isLoading: isFeesLoading } = useFees();
@@ -561,7 +596,7 @@ export function GridOrderForm({ baseToken, quoteToken, onPriceLinesChange, exter
           args: [gridexAddress, 0n],
         });
         updateStep(stepIdx, { hash: hash0 });
-        await publicClient.waitForTransactionReceipt({ hash: hash0 });
+        await waitForSuccessfulReceipt(hash0);
       }
 
       const hash1 = await writeContractAsync({
@@ -571,7 +606,7 @@ export function GridOrderForm({ baseToken, quoteToken, onPriceLinesChange, exter
         args: [gridexAddress, requiredAmount],
       });
       updateStep(stepIdx, { hash: hash1 });
-      await publicClient.waitForTransactionReceipt({ hash: hash1 });
+      await waitForSuccessfulReceipt(hash1);
       updateStep(stepIdx, { status: 'done' });
     };
 
@@ -607,7 +642,9 @@ export function GridOrderForm({ baseToken, quoteToken, onPriceLinesChange, exter
       // Get strategy addresses
       const linearStrategy = LINEAR_STRATEGY_ADDRESSES[chainId];
       const geometryStrategy = GEOMETRY_STRATEGY_ADDRESSES[chainId];
-      if (!linearStrategy || !geometryStrategy) return;
+      if (!linearStrategy || !geometryStrategy) {
+        throw new Error(`Missing strategy address for chain ${chainId}`);
+      }
 
       // Encode strategy data based on selected strategy type
       let askData: `0x${string}`;
@@ -702,10 +739,20 @@ export function GridOrderForm({ baseToken, quoteToken, onPriceLinesChange, exter
 
       updateStep(stepIndexMap.place, { hash: txHash, status: 'active' });
 
-      // Wait for the place-order tx to be confirmed
-      if (publicClient) {
-        await publicClient.waitForTransactionReceipt({ hash: txHash });
+      const receipt = await waitForSuccessfulReceipt(txHash);
+      const gridOrderCreatedLogs = parseEventLogs({
+        abi: GRID_ORDER_CREATED_EVENT_ABI,
+        logs: receipt.logs.filter(
+          (log) => log.address.toLowerCase() === gridexAddress.toLowerCase(),
+        ),
+        eventName: 'GridOrderCreated',
+        strict: false,
+      });
+
+      if (gridOrderCreatedLogs.length === 0) {
+        throw new Error('GridOrderCreated event not found in transaction receipt');
       }
+
       updateStep(stepIndexMap.place, { status: 'done' });
     } catch (err: unknown) {
       console.error('Error placing grid order:', err);
