@@ -15,13 +15,10 @@ GridEx is a decentralized grid trading protocol that allows traders to automate 
 
 | Contract | Address |
 |----------|---------|
-| AdminFacet | `0xe65587895ad87dd67a36ffd80551fecd088e4b41` |
-| TradeFacet | `0xdf56923d7fe9fc431d2182d2a53f9fca6d3bcadc` |
-| CancelFacet | `0x3533135ab7a9ae91a626e1aff8a8ae5205ab6664` |
-| ViewFacet | `0xcc4d49cd07437f1c812a0d701f5069ea569b9b60` |
-| GridExRouter | `0xb2efe2c5291c5fc8189eced4d1aee6069c7fbc5e` |
-| Vault | `0x346482688ecce24433e3af57cb7e63d3ab617284` |
-| Linear | `0xa7a92fdbfeac632c45f4aad466e0ae0a430a8ddd` |
+| GridExRouter | `0x4F805a66448F53Fb6bFa5A7E29dBaE36c158aacF` |
+| Vault | `0xe09799B35B5f54D7d529F4Ed3599149346Fcd403` |
+| Linear | `0xbD1d3a308F5e1B0E464fB488746C179805F0ADCf` |
+| Geometry | `0xBEe9A1ED1fB177f0A055803fa7aa9fa2ea888414` |
 
 ## Project Structure
 
@@ -81,7 +78,7 @@ make all
 
 ## Contract Addresses
 
-GridEx: `0x5F7943e9424eF9370392570D06fFA630a5124e9A`
+GridEx: `0x4F805a66448F53Fb6bFa5A7E29dBaE36c158aacF`
 
 ## Documentation
 

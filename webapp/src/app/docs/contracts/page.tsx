@@ -37,18 +37,23 @@ const CONTRACT_ADDRESSES = [
   },
   {
     name: 'GridExRouter',
-    address: '0xb2efe2c5291c5fc8189eced4d1aee6069c7fbc5e',
+    address: '0x4F805a66448F53Fb6bFa5A7E29dBaE36c158aacF',
     description: 'Main entry point (Diamond proxy) that routes calls to the appropriate facet.',
   },
   {
     name: 'Vault',
-    address: '0x346482688ecce24433e3af57cb7e63d3ab617284',
+    address: '0xe09799B35B5f54D7d529F4Ed3599149346Fcd403',
     description: 'Holds user funds and manages token deposits / withdrawals.',
   },
   {
     name: 'Linear',
-    address: '0xa7a92fdbfeac632c45f4aad466e0ae0a430a8ddd',
+    address: '0xbD1d3a308F5e1B0E464fB488746C179805F0ADCf',
     description: 'Linear grid strategy contract for evenly-spaced price levels.',
+  },
+  {
+    name: 'Geometry',
+    address: '0xBEe9A1ED1fB177f0A055803fa7aa9fa2ea888414',
+    description: 'Geometry grid strategy contract for ratio-based price progression.',
   },
 ];
 

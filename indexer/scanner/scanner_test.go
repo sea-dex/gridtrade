@@ -79,8 +79,8 @@ func TestIsLimitExceededErr(t *testing.T) {
 
 func TestFetchLogsAdaptive_NoSplit(t *testing.T) {
 	ctx := context.Background()
-	grid := common.HexToAddress("0x5F7943e9424eF9370392570D06fFA630a5124e9A")
-	strategy := common.HexToAddress("0x1cf9a206c9e416d39332530277D26090AC2692A0")
+	grid := common.HexToAddress("0x4F805a66448F53Fb6bFa5A7E29dBaE36c158aacF")
+	strategy := common.HexToAddress("0xbD1d3a308F5e1B0E464fB488746C179805F0ADCf")
 
 	// var gotQuery ethereum.FilterQuery
 	// gotQuery.FromBlock = 89563281

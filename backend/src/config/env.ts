@@ -43,7 +43,7 @@ const envSchema = z.object({
   BASE_RPC_URL: z.string().default('https://mainnet.base.org'),
   BSC_TESTNET_RPC_URL: z.string().default('https://data-seed-prebsc-1-s1.binance.org:8545'),
 
-  GRIDEX_ADDRESS: z.string().default('0x5F7943e9424eF9370392570D06fFA630a5124e9A'),
+  GRIDEX_ADDRESS: z.string().default('0x4F805a66448F53Fb6bFa5A7E29dBaE36c158aacF'),
 
   // Moralis API key (optional – used for token metadata of long-tail tokens)
   MORALIS_API_KEY: z.string().optional(),

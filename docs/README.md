@@ -75,7 +75,7 @@ gridtrade/
 
 ## Contract Address
 
-GridEx Contract: `0x5F7943e9424eF9370392570D06fFA630a5124e9A`
+GridEx Contract: `0x4F805a66448F53Fb6bFa5A7E29dBaE36c158aacF`
 
 ## Languages
 
