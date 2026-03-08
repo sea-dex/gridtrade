@@ -8,10 +8,11 @@ import {
   gridListResponseSchema,
   gridWithOrdersListResponseSchema,
   gridDetailResponseSchema,
+  gridFillsResponseSchema,
   gridProfitsResponseSchema,
   pairIdResponseSchema,
 } from '../schemas/grids.js';
-import { getGrids, getGridsWithOrders, getGridDetail, getGridProfits, getPairIdByAddresses } from '../services/grids.service.js';
+import { getGrids, getGridsWithOrders, getGridDetail, getGridFills, getGridProfits, getPairIdByAddresses } from '../services/grids.service.js';
 
 const gridsRoutes: FastifyPluginAsync = async (fastify) => {
   const app = fastify.withTypeProvider<ZodTypeProvider>();
@@ -107,6 +108,42 @@ const gridsRoutes: FastifyPluginAsync = async (fastify) => {
       const { chain_id } = request.query;
 
       const result = await getGridDetail(chain_id, grid_id);
+
+      if (!result) {
+        return reply.status(404).send({ error: 'Grid not found' });
+      }
+
+      return result;
+    }
+  );
+
+  // Get grid fills
+  app.get(
+    '/:grid_id/fills',
+    {
+      schema: {
+        tags: ['Grids'],
+        summary: 'Get grid fills',
+        description: 'Get fill history for a specific grid',
+        params: getGridDetailParamsSchema,
+        querystring: getGridDetailQuerySchema,
+        response: {
+          200: gridFillsResponseSchema,
+          404: {
+            type: 'object',
+            properties: {
+              error: { type: 'string' },
+            },
+            required: ['error'],
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const { grid_id } = request.params;
+      const { chain_id } = request.query;
+
+      const result = await getGridFills(chain_id, grid_id);
 
       if (!result) {
         return reply.status(404).send({ error: 'Grid not found' });

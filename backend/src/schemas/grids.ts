@@ -40,6 +40,7 @@ export const gridConfigSchema = z.object({
 // Grid order schema
 export const gridOrderSchema = z.object({
   order_id: z.string(),
+  hex_order_id: z.string().nullable().optional(),
   grid_id: z.number(),
   is_ask: z.boolean(),
   price: z.string(),
@@ -47,6 +48,22 @@ export const gridOrderSchema = z.object({
   rev_amount: z.string(),
   rev_price: z.string(),
   status: z.number(),
+});
+
+export const gridFillSchema = z.object({
+  tx_hash: z.string(),
+  taker: addressSchema,
+  order_id: z.string(),
+  hex_order_id: z.string().nullable().optional(),
+  grid_id: z.number(),
+  is_ask: z.boolean(),
+  filled_amount: z.string(),
+  filled_volume: z.string(),
+  price_gap: z.string().nullable().optional(),
+  grid_profit: z.string().nullable().optional(),
+  order_fee: z.string().nullable().optional(),
+  is_reverse: z.boolean().nullable().optional(),
+  timestamp: z.string().datetime(),
 });
 
 // Query schemas
@@ -106,6 +123,12 @@ export const gridProfitsResponseSchema = z.object({
   quote_token: z.string(),
 });
 
+export const gridFillsResponseSchema = z.object({
+  grid_id: z.number(),
+  fills: z.array(gridFillSchema),
+  total: z.number(),
+});
+
 // Pair ID response schema
 export const pairIdResponseSchema = z.object({
   pair_id: z.number().nullable(),
@@ -116,6 +139,7 @@ export const pairIdResponseSchema = z.object({
 // Type exports
 export type GridConfig = z.infer<typeof gridConfigSchema>;
 export type GridOrder = z.infer<typeof gridOrderSchema>;
+export type GridFill = z.infer<typeof gridFillSchema>;
 export type GridWithOrders = z.infer<typeof gridWithOrdersSchema>;
 export type GetGridsQuery = z.infer<typeof getGridsQuerySchema>;
 export type GetGridDetailQuery = z.infer<typeof getGridDetailQuerySchema>;
@@ -124,3 +148,4 @@ export type GridListResponse = z.infer<typeof gridListResponseSchema>;
 export type GridWithOrdersListResponse = z.infer<typeof gridWithOrdersListResponseSchema>;
 export type GridDetailResponse = z.infer<typeof gridDetailResponseSchema>;
 export type GridProfitsResponse = z.infer<typeof gridProfitsResponseSchema>;
+export type GridFillsResponse = z.infer<typeof gridFillsResponseSchema>;

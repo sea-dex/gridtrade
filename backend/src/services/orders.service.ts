@@ -1,5 +1,6 @@
 import { eq, and, sql, desc } from 'drizzle-orm';
 import { db, orders, orderFills, grids, tokens, pairs } from '../db/index.js';
+import { normalizeTokenAddress } from '../config/tokens.js';
 import type { OrderInfo, OrderFill, OrderListResponse, OrderFillsResponse, OrderWithGridInfo, OrderWithGridInfoListResponse } from '../schemas/orders.js';
 import type { GridTokenInfo } from '../schemas/grids.js';
 
@@ -180,28 +181,25 @@ export async function getOrdersWithGridInfo(params: GetOrdersWithGridInfoParams)
   if (gridId !== undefined) {
     conditions.push(eq(orders.gridId, gridId));
   }
-  // Filter by order status (not grid status)
-  // Grid status: 1=active, 2=cancelled
-  // Order status: 0=active, 1=filled/cancelled
-  // Map grid status to order status for filtering
+  // Match My Grids semantics: the tab-level filter is based on grid status,
+  // not per-order lifecycle state.
   if (status !== undefined) {
-    // If filtering for active grids (status=1), show active orders (status=0)
-    // If filtering for cancelled grids (status=2), show filled/cancelled orders (status=1)
-    const orderStatus = status === 1 ? 0 : 1;
-    conditions.push(eq(orders.status, orderStatus));
+    conditions.push(eq(grids.status, status));
   }
 
   // Filter by base_token and quote_token addresses
   // Need to find pair IDs that match the token addresses
   let pairIdsByTokens: number[] | undefined;
   if (baseToken && quoteToken) {
+    const normalizedBase = normalizeTokenAddress(baseToken, chainId);
+    const normalizedQuote = normalizeTokenAddress(quoteToken, chainId);
     const pairResults = await db
       .select({ pairId: pairs.pairId })
       .from(pairs)
       .where(and(
         eq(pairs.chainId, chainId),
-        eq(pairs.baseTokenAddress, baseToken.toLowerCase()),
-        eq(pairs.quoteTokenAddress, quoteToken.toLowerCase())
+        eq(pairs.baseTokenAddress, normalizedBase),
+        eq(pairs.quoteTokenAddress, normalizedQuote)
       ));
     pairIdsByTokens = pairResults.map(p => p.pairId);
     if (pairIdsByTokens.length === 0) {
@@ -229,6 +227,7 @@ export async function getOrdersWithGridInfo(params: GetOrdersWithGridInfoParams)
   const results = await db
     .select({
       orderId: orders.orderId,
+      hexOrderId: orders.hexOrderId,
       gridId: orders.gridId,
       pairId: orders.pairId,
       isAsk: orders.isAsk,
@@ -275,6 +274,7 @@ export async function getOrdersWithGridInfo(params: GetOrdersWithGridInfoParams)
     
     return {
       order_id: o.orderId,
+      hex_order_id: o.hexOrderId,
       grid_id: o.gridId,
       pair_id: o.pairId,
       is_ask: o.isAsk,

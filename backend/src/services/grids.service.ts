@@ -1,7 +1,7 @@
 import { eq, and, desc, sql, inArray } from 'drizzle-orm';
-import { db, grids, orders, tokens, pairs } from '../db/index.js';
+import { db, grids, orders, orderFills, tokens, pairs } from '../db/index.js';
 import { normalizeTokenAddress } from '../config/tokens.js';
-import type { GridConfig, GridOrder, GridWithOrders, GridListResponse, GridWithOrdersListResponse, GridDetailResponse, GridProfitsResponse, GridTokenInfo } from '../schemas/grids.js';
+import type { GridConfig, GridFill, GridOrder, GridWithOrders, GridListResponse, GridWithOrdersListResponse, GridDetailResponse, GridFillsResponse, GridProfitsResponse, GridTokenInfo } from '../schemas/grids.js';
 
 export interface GetGridsParams {
   chainId: number;
@@ -284,6 +284,7 @@ export async function getGridsWithOrders(params: GetGridsParams): Promise<GridWi
   for (const o of orderResults) {
     const gridOrder: GridOrder = {
       order_id: o.orderId,
+      hex_order_id: o.hexOrderId,
       grid_id: o.gridId,
       is_ask: o.isAsk,
       price: o.price,
@@ -416,6 +417,7 @@ export async function getGridDetail(chainId: number, gridId: number): Promise<Gr
 
   const gridOrders: GridOrder[] = orderResults.map((o) => ({
     order_id: o.orderId,
+    hex_order_id: o.hexOrderId,
     grid_id: o.gridId,
     is_ask: o.isAsk,
     price: o.price,
@@ -452,6 +454,64 @@ export async function getGridProfits(chainId: number, gridId: number): Promise<G
     grid_id: g.gridId,
     profits: g.profits,
     quote_token: g.quoteToken,
+  };
+}
+
+export async function getGridFills(chainId: number, gridId: number): Promise<GridFillsResponse | null> {
+  const gridExists = await db
+    .select({ gridId: grids.gridId })
+    .from(grids)
+    .where(and(eq(grids.chainId, chainId), eq(grids.gridId, gridId)))
+    .limit(1);
+
+  if (gridExists.length === 0) {
+    return null;
+  }
+
+  const results = await db
+    .select({
+      txHash: orderFills.txHash,
+      taker: orderFills.taker,
+      orderId: orderFills.orderId,
+      hexOrderId: orders.hexOrderId,
+      gridId: orderFills.gridId,
+      isAsk: orderFills.isAsk,
+      filledAmount: orderFills.filledAmount,
+      filledVolume: orderFills.filledVolume,
+      priceGap: orderFills.priceGap,
+      gridProfit: orderFills.gridProfit,
+      orderFee: orderFills.orderFee,
+      isReverse: orderFills.isReverse,
+      timestamp: orderFills.timestamp,
+    })
+    .from(orderFills)
+    .leftJoin(
+      orders,
+      and(eq(orderFills.chainId, orders.chainId), eq(orderFills.orderId, orders.orderId))
+    )
+    .where(and(eq(orderFills.chainId, chainId), eq(orderFills.gridId, gridId)))
+    .orderBy(desc(orderFills.timestamp), desc(orderFills.id));
+
+  const fills: GridFill[] = results.map((f) => ({
+    tx_hash: f.txHash,
+    taker: f.taker,
+    order_id: f.orderId,
+    hex_order_id: f.hexOrderId,
+    grid_id: Number(f.gridId ?? gridId),
+    is_ask: f.isAsk,
+    filled_amount: f.filledAmount,
+    filled_volume: f.filledVolume,
+    price_gap: f.priceGap,
+    grid_profit: f.gridProfit,
+    order_fee: f.orderFee,
+    is_reverse: f.isReverse,
+    timestamp: f.timestamp.toISOString(),
+  }));
+
+  return {
+    grid_id: gridId,
+    fills,
+    total: fills.length,
   };
 }
 

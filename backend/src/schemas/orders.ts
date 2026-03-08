@@ -64,6 +64,7 @@ export const orderFillsResponseSchema = z.object({
 // Flat order with grid info schema (for "All Grids" flat order view)
 export const orderWithGridInfoSchema = z.object({
   order_id: z.string(),
+  hex_order_id: z.string().nullable().optional(),
   grid_id: z.number(),
   pair_id: z.number(),
   is_ask: z.boolean(),

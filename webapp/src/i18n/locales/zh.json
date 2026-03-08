@@ -126,7 +126,43 @@
       "owner": "拥有者",
       "show_cancelled": "显示已取消",
       "show_all_pairs": "显示所有交易对",
-      "status_all": "全部"
+      "status_all": "全部",
+      "view_history": "成交历史",
+      "view_order_history": "订单历史",
+      "view_grid_history": "网格历史"
+    },
+    "order_history": {
+      "title": "订单成交历史",
+      "subtitle": "把当前网格订单的每次成交集中展示出来。",
+      "back_to_grid": "返回 Grid",
+      "summary": "成交汇总",
+      "recent_fills": "最近成交",
+      "fill_count": "成交次数",
+      "filled_amount": "成交数量",
+      "filled_volume": "成交额",
+      "order_size": "订单规模",
+      "network": "网络",
+      "tx_hash": "交易哈希",
+      "taker": "吃单地址",
+      "timestamp": "成交时间",
+      "no_fills": "这个订单还没有成交记录。"
+    },
+    "grid_history": {
+      "title": "网格成交历史",
+      "subtitle": "把这个 grid 产生的全部成交按时间线汇总展示。",
+      "back_to_grid": "返回 Grid",
+      "summary": "网格汇总",
+      "recent_fills": "网格成交",
+      "fill_count": "成交次数",
+      "base_turnover": "Base 成交量",
+      "quote_turnover": "Quote 成交额",
+      "fee_collected": "累计手续费",
+      "filled_base": "成交 Base",
+      "filled_quote": "成交 Quote",
+      "network": "网络",
+      "tx_hash": "交易哈希",
+      "timestamp": "成交时间",
+      "no_fills": "这个网格还没有成交记录。"
     }
   },
   "limit": {

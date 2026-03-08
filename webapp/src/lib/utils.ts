@@ -24,6 +24,41 @@ export function formatAddress(address: string, chars: number = 4): string {
   return `${address.slice(0, chars + 2)}...${address.slice(-chars)}`;
 }
 
+export function formatScaledAmount(
+  value: string | bigint,
+  decimals: number,
+  maxFractionDigits: number = 6,
+): string {
+  const raw = typeof value === 'bigint' ? value : BigInt(value || '0');
+  const negative = raw < 0n;
+  const abs = negative ? -raw : raw;
+
+  if (decimals <= 0) {
+    return `${negative ? '-' : ''}${abs.toString()}`;
+  }
+
+  const divisor = 10n ** BigInt(decimals);
+  const integerPart = abs / divisor;
+  const fractionalPart = abs % divisor;
+  const fractionalStr = fractionalPart
+    .toString()
+    .padStart(decimals, '0')
+    .slice(0, Math.max(0, maxFractionDigits))
+    .replace(/0+$/, '');
+
+  return `${negative ? '-' : ''}${integerPart.toString()}${fractionalStr ? `.${fractionalStr}` : ''}`;
+}
+
+export function formatContractPrice(
+  rawPrice: string | bigint,
+  baseDecimals: number,
+  quoteDecimals: number,
+  maxFractionDigits: number = 6,
+): string {
+  const displayDecimals = 36 + quoteDecimals - baseDecimals;
+  return formatScaledAmount(rawPrice, displayDecimals, maxFractionDigits);
+}
+
 export function formatPrice(price: bigint, decimals: number = 18): string {
   const divisor = BigInt(10 ** decimals);
   const integerPart = price / divisor;

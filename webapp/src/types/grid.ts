@@ -45,6 +45,7 @@ export interface GridConfig {
 /** Individual order within a grid */
 export interface GridOrder {
   order_id: string;
+  hex_order_id?: string | null;
   grid_id: number;
   is_ask: boolean;
   price: string;
@@ -68,9 +69,40 @@ export interface GridWithOrdersListResponse {
   page_size: number;
 }
 
+/** Response from GET /grids/:grid_id */
+export interface GridDetailResponse {
+  config: GridConfig;
+  orders: GridOrder[];
+}
+
+/** Individual fill within a grid */
+export interface GridFill {
+  tx_hash: string;
+  taker: string;
+  order_id: string;
+  hex_order_id?: string | null;
+  grid_id: number;
+  is_ask: boolean;
+  filled_amount: string;
+  filled_volume: string;
+  price_gap?: string | null;
+  grid_profit?: string | null;
+  order_fee?: string | null;
+  is_reverse?: boolean | null;
+  timestamp: string;
+}
+
+/** Response from GET /grids/:grid_id/fills */
+export interface GridFillsResponse {
+  grid_id: number;
+  fills: GridFill[];
+  total: number;
+}
+
 /** Flat order with grid-level info from GET /orders/with-grid-info */
 export interface OrderWithGridInfo {
   order_id: string;
+  hex_order_id?: string | null;
   grid_id: number;
   pair_id: number;
   is_ask: boolean;

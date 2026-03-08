@@ -1,17 +1,19 @@
 'use client';
 
+import Link from 'next/link';
 import { useState, useMemo } from 'react';
 import { useAccount, useWriteContract } from 'wagmi';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useGridOrders } from '@/hooks/useGridOrders';
 import { useOrdersWithGridInfo } from '@/hooks/useOrdersWithGridInfo';
 import { useBaseTokens, useQuoteTokens } from '@/hooks/useTokens';
+import { useStore } from '@/store/useStore';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardContent } from '@/components/ui/Card';
 import { GRIDEX_ABI } from '@/config/abi/GridEx';
 import { GRIDEX_ADDRESSES, WETH_ADDRESSES } from '@/config/chains';
-import { formatNumber, cn } from '@/lib/utils';
-import { Trash2, Download, ChevronDown, ChevronRight } from 'lucide-react';
+import { formatContractPrice, formatNumber, cn } from '@/lib/utils';
+import { Trash2, Download, ChevronDown, ChevronRight, History } from 'lucide-react';
 import type { GridWithOrders, GridOrder, OrderWithGridInfo } from '@/types/grid';
 
 type OrderTab = 'my_grids' | 'all_grids';
@@ -30,9 +32,53 @@ interface GridOrderListProps {
   };
 }
 
+function buildOrderHistoryHref({
+  orderId,
+  chainId,
+  displayOrderId,
+  baseToken,
+  quoteToken,
+  baseDecimals,
+  quoteDecimals,
+}: {
+  orderId: string;
+  chainId: number;
+  displayOrderId: string;
+  baseToken: string;
+  quoteToken: string;
+  baseDecimals: number;
+  quoteDecimals: number;
+}) {
+  const searchParams = new URLSearchParams({
+    chainId: String(chainId),
+    displayOrderId,
+    baseToken,
+    quoteToken,
+    baseDecimals: String(baseDecimals),
+    quoteDecimals: String(quoteDecimals),
+  });
+
+  return `/grid/order/${encodeURIComponent(orderId)}?${searchParams.toString()}`;
+}
+
+function buildGridHistoryHref({
+  gridId,
+  chainId,
+}: {
+  gridId: number;
+  chainId: number;
+}) {
+  const searchParams = new URLSearchParams({
+    chainId: String(chainId),
+  });
+
+  return `/grid/history/${gridId}?${searchParams.toString()}`;
+}
+
 export function GridOrderList({ baseToken, quoteToken }: GridOrderListProps) {
   const { t } = useTranslation();
   const { address, chainId } = useAccount();
+  const selectedChainId = useStore((s) => s.selectedChainId);
   const { writeContract, isPending } = useWriteContract();
   const [manuallyToggledGrids, setManuallyToggledGrids] = useState<Set<number>>(new Set());
   const [activeTab, setActiveTab] = useState<OrderTab>(address ? 'my_grids' : 'all_grids');
@@ -311,7 +357,7 @@ export function GridOrderList({ baseToken, quoteToken }: GridOrderListProps) {
           ) : (
             <>
               <div className="overflow-x-auto -mx-4 sm:mx-0">
-                <table className="w-full min-w-[640px]">
+                <table className="w-full min-w-[760px]">
                   <thead>
                     <tr className="border-b border-(--border-subtle)">
                       <th className="w-8 py-2 sm:py-2.5 px-2 sm:px-3"></th>
@@ -351,6 +397,7 @@ export function GridOrderList({ baseToken, quoteToken }: GridOrderListProps) {
                         getGridStatusBadge={getGridStatusBadge}
                         showActions={true}
                         showOwner={false}
+                        chainId={selectedChainId}
                         t={t}
                       />
                     ))}
@@ -421,6 +468,9 @@ export function GridOrderList({ baseToken, quoteToken }: GridOrderListProps) {
                       <th className="text-left py-2 sm:py-2.5 px-3 sm:px-5 text-[10px] sm:text-[11px] font-medium text-(--text-disabled) uppercase tracking-wider">
                         {t('grid.order_list.status')}
                       </th>
+                      <th className="text-right py-2 sm:py-2.5 px-3 sm:px-5 text-[10px] sm:text-[11px] font-medium text-(--text-disabled) uppercase tracking-wider">
+                        {t('grid.order_list.actions')}
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -429,6 +479,7 @@ export function GridOrderList({ baseToken, quoteToken }: GridOrderListProps) {
                         key={order.order_id}
                         order={order}
                         getOrderStatusBadge={getOrderStatusBadge}
+                        chainId={selectedChainId}
                         t={t}
                       />
                     ))}
@@ -483,6 +534,7 @@ function GridRow({
   getGridStatusBadge,
   showActions,
   showOwner,
+  chainId,
   t,
 }: {
   gridWithOrders: GridWithOrders;
@@ -494,6 +546,7 @@ function GridRow({
   getGridStatusBadge: (status: number) => React.ReactNode;
   showActions: boolean;
   showOwner: boolean;
+  chainId: number;
   t: (key: string) => string;
 }) {
   const { config, orders } = gridWithOrders;
@@ -501,6 +554,10 @@ function GridRow({
   // Use token info from API response (accurate decimals by token address)
   const baseDecimals = config.base_token_info?.decimals ?? 18;
   const quoteDecimals = config.quote_token_info?.decimals ?? 18;
+  const gridHistoryHref = buildGridHistoryHref({
+    gridId: config.grid_id,
+    chainId,
+  });
 
   return (
     <>
@@ -562,6 +619,7 @@ function GridRow({
         {showActions && (
           <td className="py-2 sm:py-3 px-3 sm:px-5">
             <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+              <OrderHistoryLink href={gridHistoryHref} label={t('grid.order_list.view_grid_history')} />
               {config.status === 1 && (
                 <>
                   <Button
@@ -595,8 +653,8 @@ function GridRow({
         <tr>
           <td colSpan={colSpan} className="p-0">
             <div className="bg-[rgba(136,150,171,0.03)] border-b border-(--border-subtle)">
-              <div className="px-4 sm:px-8 py-2 sm:py-3">
-                <table className="w-full">
+              <div className="overflow-x-auto px-4 sm:px-8 py-2 sm:py-3">
+                <table className="w-full min-w-[760px]">
                   <thead>
                     <tr>
                       <th className="text-left py-1.5 px-3 text-[10px] font-medium text-(--text-disabled) uppercase tracking-wider">
@@ -620,6 +678,9 @@ function GridRow({
                       <th className="text-left py-1.5 px-3 text-[10px] font-medium text-(--text-disabled) uppercase tracking-wider">
                         {t('grid.order_list.status')}
                       </th>
+                      <th className="text-right py-1.5 px-3 text-[10px] font-medium text-(--text-disabled) uppercase tracking-wider">
+                        {t('grid.order_list.actions')}
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -631,6 +692,7 @@ function GridRow({
                         quoteToken={config.quote_token}
                         baseDecimals={baseDecimals}
                         quoteDecimals={quoteDecimals}
+                        chainId={chainId}
                         t={t}
                       />
                     ))}
@@ -652,6 +714,7 @@ function OrderRow({
   quoteToken,
   baseDecimals,
   quoteDecimals,
+  chainId,
   t,
 }: {
   order: GridOrder;
@@ -659,33 +722,31 @@ function OrderRow({
   quoteToken: string;
   baseDecimals: number;
   quoteDecimals: number;
+  chainId: number;
   t: (key: string) => string;
 }) {
   // For ask orders: amount is in base token, rev_amount is in quote token
   // For bid orders: amount is in quote token, rev_amount is in base token
   const amountDecimals = order.is_ask ? baseDecimals : quoteDecimals;
   const revAmountDecimals = order.is_ask ? quoteDecimals : baseDecimals;
-  
-  // Debug logging
-  console.log('OrderRow debug:', {
+  const displayOrderId = order.hex_order_id || order.order_id;
+  const historyHref = buildOrderHistoryHref({
     orderId: order.order_id,
-    isAsk: order.is_ask,
+    chainId,
+    displayOrderId,
     baseToken,
     quoteToken,
     baseDecimals,
     quoteDecimals,
-    amountDecimals,
-    rawAmount: order.amount,
-    parsedAmount: Number(order.amount) / Math.pow(10, amountDecimals),
   });
 
   return (
     <tr className="border-t border-[rgba(136,150,171,0.08)] hover:bg-[rgba(136,150,171,0.03)] transition-colors">
       <td className="py-1.5 px-3">
         <span className="font-mono text-[11px] text-(--text-disabled)">
-          {order.order_id.length > 12
-            ? `${order.order_id.slice(0, 6)}...${order.order_id.slice(-4)}`
-            : order.order_id}
+          {displayOrderId.length > 12
+            ? `${displayOrderId.slice(0, 6)}...${displayOrderId.slice(-4)}`
+            : displayOrderId}
         </span>
       </td>
       <td className="py-1.5 px-3">
@@ -697,7 +758,7 @@ function OrderRow({
       </td>
       <td className="py-1.5 px-3">
         <span className="font-mono text-[11px] text-(--text-secondary)">
-          {formatNumber(Number(order.price) / 1e36, 6)} {quoteToken}
+          {formatContractPrice(order.price, baseDecimals, quoteDecimals)} {quoteToken}
         </span>
       </td>
       <td className="py-1.5 px-3">
@@ -707,7 +768,7 @@ function OrderRow({
       </td>
       <td className="py-1.5 px-3">
         <span className="font-mono text-[11px] text-(--text-secondary)">
-          {formatNumber(Number(order.rev_price) / 1e36, 6)} {quoteToken}
+          {formatContractPrice(order.rev_price, baseDecimals, quoteDecimals)} {quoteToken}
         </span>
       </td>
       <td className="py-1.5 px-3">
@@ -726,6 +787,9 @@ function OrderRow({
           </span>
         )}
       </td>
+      <td className="py-1.5 px-3 text-right">
+        <OrderHistoryLink href={historyHref} label={t('grid.order_list.view_order_history')} />
+      </td>
     </tr>
   );
 }
@@ -734,10 +798,12 @@ function OrderRow({
 function FlatOrderRow({
   order,
   getOrderStatusBadge,
+  chainId,
   t,
 }: {
   order: OrderWithGridInfo;
   getOrderStatusBadge: (status: number) => React.ReactNode;
+  chainId: number;
   t: (key: string) => string;
 }) {
   // Use token info from API response (accurate decimals by token address)
@@ -746,6 +812,10 @@ function FlatOrderRow({
   // For ask orders: amount is in base token
   // For bid orders: amount is in quote token
   const amountDecimals = order.is_ask ? baseDecimals : quoteDecimals;
+  const historyHref = buildGridHistoryHref({
+    gridId: order.grid_id,
+    chainId,
+  });
 
   return (
     <tr className="border-b border-(--border-subtle) last:border-0 hover:bg-[rgba(136,150,171,0.02)] transition-colors">
@@ -773,7 +843,7 @@ function FlatOrderRow({
       </td>
       <td className="py-2 sm:py-3 px-3 sm:px-5">
         <span className="font-mono text-[10px] sm:text-[11px] text-(--text-secondary)">
-          {formatNumber(Number(order.price) / 1e36, 6)} {order.quote_token}
+          {formatContractPrice(order.price, baseDecimals, quoteDecimals)} {order.quote_token}
         </span>
       </td>
       <td className="py-2 sm:py-3 px-3 sm:px-5">
@@ -782,6 +852,27 @@ function FlatOrderRow({
         </span>
       </td>
       <td className="py-2 sm:py-3 px-3 sm:px-5">{getOrderStatusBadge(order.status)}</td>
+      <td className="py-2 sm:py-3 px-3 sm:px-5 text-right">
+        <OrderHistoryLink href={historyHref} label={t('grid.order_list.view_grid_history')} />
+      </td>
     </tr>
+  );
+}
+
+function OrderHistoryLink({
+  href,
+  label,
+}: {
+  href: string;
+  label: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="inline-flex items-center gap-1 rounded-(--radius-sm) px-2.5 py-1.5 text-[11px] font-medium text-(--accent) hover:bg-(--accent-dim) transition-colors"
+    >
+      <History size={13} />
+      <span>{label}</span>
+    </Link>
   );
 }
