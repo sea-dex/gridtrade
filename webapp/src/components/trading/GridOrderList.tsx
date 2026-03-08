@@ -13,11 +13,43 @@ import { Card, CardHeader, CardContent } from '@/components/ui/Card';
 import { GRIDEX_ABI } from '@/config/abi/GridEx';
 import { GRIDEX_ADDRESSES, WETH_ADDRESSES } from '@/config/chains';
 import { formatContractPrice, formatNumber, cn } from '@/lib/utils';
-import { Trash2, Download, ChevronDown, ChevronRight, History } from 'lucide-react';
+import { Trash2, Download, ChevronDown, ChevronRight, History, HelpCircle } from 'lucide-react';
 import type { GridWithOrders, GridOrder, OrderWithGridInfo } from '@/types/grid';
 
 type OrderTab = 'my_grids' | 'all_grids';
 type StatusFilter = 'active' | 'cancelled' | 'all';
+
+function CompoundProfitValue({
+  compound,
+  value,
+  quoteToken,
+  t,
+}: {
+  compound: boolean;
+  value: string;
+  quoteToken: string;
+  t: (key: string) => string;
+}) {
+  if (!compound) {
+    return (
+      <span className="text-[12px] sm:text-[13px] font-medium text-(--green)">
+        {value} {quoteToken}
+      </span>
+    );
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1 text-[12px] sm:text-[13px] font-medium text-(--text-secondary)">
+      <span>-</span>
+      <span
+        className="text-(--text-disabled)"
+        title={`${t('grid.order_list.compound')}: ${t('grid.order_form.compound_desc')}`}
+      >
+        <HelpCircle size={13} />
+      </span>
+    </span>
+  );
+}
 
 interface GridOrderListProps {
   baseToken?: {
@@ -611,9 +643,12 @@ function GridRow({
           </div>
         </td>
         <td className="py-2 sm:py-3 px-3 sm:px-5">
-          <span className="text-[12px] sm:text-[13px] font-medium text-(--green)">
-            {formatNumber(Number(config.profits) / Math.pow(10, quoteDecimals), 4)} {config.quote_token}
-          </span>
+          <CompoundProfitValue
+            compound={config.compound}
+            value={formatNumber(Number(config.profits) / Math.pow(10, quoteDecimals), 4)}
+            quoteToken={config.quote_token}
+            t={t}
+          />
         </td>
         <td className="py-2 sm:py-3 px-3 sm:px-5">{getGridStatusBadge(config.status)}</td>
         {showActions && (

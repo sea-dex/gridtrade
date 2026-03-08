@@ -1,9 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { Suspense, useMemo } from 'react';
+import { Suspense, useMemo, type ReactNode } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
-import { Activity, ArrowLeft, Clock3, DollarSign, Hash, Wallet } from 'lucide-react';
+import { Activity, ArrowLeft, Clock3, DollarSign, Hash, Wallet, HelpCircle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { CHAIN_NAMES } from '@/config/chains';
 import { useGridDetail } from '@/hooks/useGridDetail';
@@ -33,6 +33,34 @@ function formatDateTime(value: string): string {
     minute: '2-digit',
     second: '2-digit',
   }).format(date);
+}
+
+function isEffectiveAsk(isAsk: boolean, isReverse?: boolean | null): boolean {
+  return isReverse ? !isAsk : isAsk;
+}
+
+function renderProfitValue({
+  compound,
+  value,
+  t,
+}: {
+  compound?: boolean;
+  value: string;
+  t: (key: string) => string;
+}) {
+  if (!compound) return value;
+
+  return (
+    <span className="inline-flex items-center gap-1">
+      <span>-</span>
+      <span
+        className="text-(--text-disabled)"
+        title={`${t('grid.order_list.compound')}: ${t('grid.order_form.compound_desc')}`}
+      >
+        <HelpCircle size={13} />
+      </span>
+    </span>
+  );
 }
 
 function GridHistoryPageInner() {
@@ -66,14 +94,14 @@ function GridHistoryPageInner() {
 
   const baseTurnover = useMemo(
     () => fills.reduce(
-      (sum, fill) => sum + (fill.is_ask ? BigInt(fill.filled_amount) : BigInt(fill.filled_volume)),
+      (sum, fill) => sum + (isEffectiveAsk(fill.is_ask, fill.is_reverse) ? BigInt(fill.filled_amount) : BigInt(fill.filled_volume)),
       0n,
     ),
     [fills]
   );
   const quoteTurnover = useMemo(
     () => fills.reduce(
-      (sum, fill) => sum + (fill.is_ask ? BigInt(fill.filled_volume) : BigInt(fill.filled_amount)),
+      (sum, fill) => sum + (isEffectiveAsk(fill.is_ask, fill.is_reverse) ? BigInt(fill.filled_volume) : BigInt(fill.filled_amount)),
       0n,
     ),
     [fills]
@@ -129,7 +157,15 @@ function GridHistoryPageInner() {
               <SummaryTile icon={Hash} label={t('grid.order_list.grid_id')} value={gridId !== undefined ? `#${gridId}` : '-'} />
               <SummaryTile icon={Wallet} label={t('grid.order_list.owner')} value={ownerLabel} />
               <SummaryTile icon={Activity} label={t('grid.grid_history.fill_count')} value={String(total)} />
-              <SummaryTile icon={DollarSign} label={t('grid.order_list.profit')} value={gridProfit} />
+              <SummaryTile
+                icon={DollarSign}
+                label={t('grid.order_list.profit')}
+                value={renderProfitValue({
+                  compound: config?.compound,
+                  value: gridProfit,
+                  t,
+                })}
+              />
               <SummaryTile icon={Clock3} label={t('grid.grid_history.network')} value={CHAIN_NAMES[chainId] ?? `Chain ${chainId}`} />
             </CardContent>
           </Card>
@@ -214,8 +250,9 @@ function GridHistoryPageInner() {
                   <tbody>
                     {orderedFills.map((fill) => {
                       const displayOrderId = fill.hex_order_id || fill.order_id;
-                      const filledBase = fill.is_ask ? fill.filled_amount : fill.filled_volume;
-                      const filledQuote = fill.is_ask ? fill.filled_volume : fill.filled_amount;
+                      const effectiveAsk = isEffectiveAsk(fill.is_ask, fill.is_reverse);
+                      const filledBase = effectiveAsk ? fill.filled_amount : fill.filled_volume;
+                      const filledQuote = effectiveAsk ? fill.filled_volume : fill.filled_amount;
 
                       return (
                         <tr
@@ -267,7 +304,7 @@ function SummaryTile({
 }: {
   icon: typeof Hash;
   label: string;
-  value: string;
+  value: ReactNode;
 }) {
   return (
     <div className="rounded-(--radius-md) border border-(--border-subtle) bg-[rgba(136,150,171,0.04)] p-4">
