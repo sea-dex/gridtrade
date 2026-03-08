@@ -151,6 +151,7 @@ backend-ts/
 | `RATE_LIMIT_MAX` | Max requests per window | `100` |
 | `RATE_LIMIT_WINDOW_MS` | Rate limit window (ms) | `60000` |
 | `LOG_LEVEL` | Logging level | `info` |
+| `LOG_FORMAT` | Log format (`text` or `json`) | `text` in development, `json` in production |
 
 ## Docker
 

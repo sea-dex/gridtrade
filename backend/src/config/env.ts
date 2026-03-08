@@ -58,6 +58,7 @@ const envSchema = z.object({
   LLM_MODEL: z.string().default('gpt-4o-mini'),
 
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
+  LOG_FORMAT: z.enum(['text', 'json']).optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
