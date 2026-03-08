@@ -32,6 +32,7 @@ export const docsNavigation: NavPage[] = [
       { id: 'getting-started', title: 'Getting Started' },
       { id: 'connecting-your-wallet', title: 'Connecting Your Wallet' },
       { id: 'creating-a-grid-order', title: 'Creating a Grid Order' },
+      { id: 'grid-strategies', title: 'Grid Strategies' },
       { id: 'managing-your-grids', title: 'Managing Your Grids' },
       { id: 'limit-orders', title: 'Limit Orders' },
       { id: 'understanding-fees', title: 'Understanding Fees' },

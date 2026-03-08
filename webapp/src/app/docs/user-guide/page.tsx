@@ -113,6 +113,8 @@ export default function UserGuidePage() {
       <DocTable
         headers={['Parameter', 'Type', 'Description']}
         rows={[
+          ['Ask Strategy', 'enum', 'Choose how ask-side prices progress: Linear uses a fixed gap, Geometry uses a multiplicative ratio.'],
+          ['Bid Strategy', 'enum', 'Choose how bid-side prices progress: Linear uses a fixed gap, Geometry uses a multiplicative ratio.'],
           ['Ask Price₀', 'number', 'The lowest sell price — the starting price for ask orders. Higher ask orders are placed upward from this price using the ask gap.'],
           ['Bid Price₀', 'number', 'The highest buy price — the starting price for bid orders. Lower bid orders are placed downward from this price using the bid gap.'],
           ['Ask Gap', 'number', 'Price spacing between consecutive sell (ask) orders. Independent from the bid gap.'],
@@ -137,6 +139,76 @@ export default function UserGuidePage() {
           ],
         ]}
       />
+
+      <DocH3 id="grid-strategies">Grid Strategies</DocH3>
+      <DocP>
+        GridEx supports two pricing models for each side of the grid. You can use{' '}
+        <DocStrong>Linear</DocStrong> or <DocStrong>Geometry</DocStrong> independently for asks and bids.
+      </DocP>
+
+      <DocTable
+        headers={['Strategy', 'Pricing Rule', 'Best For', 'Key Input']}
+        rows={[
+          ['Linear', 'Each level moves by a fixed absolute gap.', 'Markets where you want evenly-spaced price bands.', 'Gap'],
+          ['Geometry', 'Each level moves by a fixed percentage ratio.', 'Markets where percentage moves matter more than absolute price moves.', 'Ratio'],
+        ]}
+      />
+
+      <DocH3>Linear Grid</DocH3>
+      <DocP>
+        A linear grid places each next order at a constant price difference from the previous one.
+        If <DocCode>Ask Price₀ = 305</DocCode> and <DocCode>Ask Gap = 5</DocCode>, your ask
+        ladder becomes <DocCode>305, 310, 315, 320...</DocCode>
+      </DocP>
+      <DocP>
+        Use a linear grid when the trading range is relatively tight and you want the same nominal
+        spacing between orders across the whole ladder.
+      </DocP>
+
+      <DocH3>Geometry Grid</DocH3>
+      <DocP>
+        A geometry grid places each next order by multiplying the previous level by a ratio instead
+        of adding a fixed gap. If <DocCode>Ask Price₀ = 100</DocCode> and <DocCode>Ask Ratio = 1.02</DocCode>,
+        your ask ladder becomes approximately <DocCode>100, 102, 104.04, 106.12...</DocCode>
+      </DocP>
+      <DocP>
+        On the bid side, a ratio below <DocCode>1</DocCode> creates progressively lower prices.
+        For example, <DocCode>Bid Price₀ = 100</DocCode> and <DocCode>Bid Ratio = 0.98</DocCode>
+        gives <DocCode>100, 98, 96.04, 94.12...</DocCode>
+      </DocP>
+      <DocP>
+        Use a geometry grid when you want each level to represent roughly the same percentage move,
+        which is often more natural for volatile assets that trade across wide price ranges.
+      </DocP>
+
+      <DocH3>How to Choose Between Linear and Geometry</DocH3>
+      <DocUl>
+        <DocLi><DocStrong>Choose Linear</DocStrong> when you think in fixed price increments such as “every 5 USDT” or “every 100 points”.</DocLi>
+        <DocLi><DocStrong>Choose Geometry</DocStrong> when you think in percentage increments such as “every 1%” or “every 2%”.</DocLi>
+        <DocLi><DocStrong>Use Linear</DocStrong> for stablecoin pairs or tightly ranged assets where absolute spacing is predictable.</DocLi>
+        <DocLi><DocStrong>Use Geometry</DocStrong> for high-priced or trend-sensitive assets where a constant percentage step stays meaningful across the range.</DocLi>
+        <DocLi>You can mix strategies, for example <DocStrong>Geometry asks</DocStrong> with <DocStrong>Linear bids</DocStrong>, if that better matches your market view.</DocLi>
+      </DocUl>
+
+      <DocH3>Geometry Example</DocH3>
+      <DocCodeBlock language="text">{`Pair:              ETH / USDT
+Ask Strategy:      Geometry
+Bid Strategy:      Geometry
+Ask Price₀:        3100 USDT
+Bid Price₀:        2900 USDT
+Ask Ratio:         1.02
+Bid Ratio:         0.98
+Ask Order Count:   4
+Bid Order Count:   4
+Amount Per Grid:   0.2 ETH
+
+Ask levels:        3100, 3162, 3225.24, 3289.74
+Bid levels:        2900, 2842, 2785.16, 2729.46`}</DocCodeBlock>
+
+      <DocBlockquote>
+        Ratios should usually be close to <DocCode>1</DocCode>. Very large ask ratios or very small
+        bid ratios will spread your grid aggressively and can reduce fill frequency.
+      </DocBlockquote>
 
       <DocH3>Example Configuration</DocH3>
       <DocCodeBlock language="text">{`Pair:             WBNB / USDT
@@ -211,7 +283,8 @@ Oneshot:          No`}</DocCodeBlock>
 
       <DocP>
         Limit orders are implemented as a single-order grid with <DocCode>oneshot</DocCode> enabled,
-        so they execute once and do not repeat.
+        so they execute once and do not repeat. A one-level geometry grid behaves the same as a
+        one-level linear grid because there is only one price level.
       </DocP>
 
       <DocHr />
@@ -219,11 +292,32 @@ Oneshot:          No`}</DocCodeBlock>
       {/* ── Understanding Fees ── */}
       <DocH2 id="understanding-fees">Understanding Fees</DocH2>
       <DocP>
-        Fees on GridEx are expressed as a denominator out of <DocCode>1,000,000</DocCode>. For
-        example, a fee value of <DocCode>10000</DocCode> means a 1% fee (10,000 / 1,000,000).
+        GridEx uses different fee models for <DocStrong>grid orders</DocStrong> and{' '}
+        <DocStrong>limit orders</DocStrong>. The key distinction is whether the fee is chosen by
+        the grid creator or fixed by the protocol.
       </DocP>
 
-      <DocH3>Fee Tiers</DocH3>
+      <DocH3>Grid Order Fees</DocH3>
+      <DocP>
+        For grid orders, the maker chooses the fee rate when creating the grid. Fees are expressed
+        against <DocCode>1,000,000</DocCode>. For example, a fee value of <DocCode>10000</DocCode>
+        means a 1% trading fee.
+      </DocP>
+      <DocP>
+        When a grid order is filled, the total trading fee is split between the protocol and the
+        grid owner:
+      </DocP>
+      <DocUl>
+        <DocLi><DocStrong>25%</DocStrong> of the fee is retained by the platform.</DocLi>
+        <DocLi><DocStrong>75%</DocStrong> of the fee is earned by the grid order owner.</DocLi>
+      </DocUl>
+
+      <DocP>
+        This means grid creators can choose a fee level that matches the pair’s volatility and
+        liquidity, while still keeping most of the fee revenue generated by their grid.
+      </DocP>
+
+      <DocH3>Example Grid Fee Tiers</DocH3>
       <DocTable
         headers={['Fee Value', 'Fee Rate', 'Best For']}
         rows={[
@@ -234,6 +328,19 @@ Oneshot:          No`}</DocCodeBlock>
           ['10000', '1.0%', 'Volatile or low-liquidity pairs'],
         ]}
       />
+
+      <DocH3>Limit Order Fees</DocH3>
+      <DocP>
+        Limit orders use a fixed protocol fee model instead of a user-selected fee tier. The
+        platform charges the taker a flat <DocStrong>0.1%</DocStrong> fee on limit-order execution.
+      </DocP>
+      <DocP>
+        In other words:
+      </DocP>
+      <DocUl>
+        <DocLi><DocStrong>Grid Order</DocStrong>: fee is chosen by the grid creator, then split 25% to the platform and 75% to the grid owner.</DocLi>
+        <DocLi><DocStrong>Limit Order</DocStrong>: the protocol charges takers a fixed 0.1% fee.</DocLi>
+      </DocUl>
 
       <DocH3>Other Costs</DocH3>
       <DocUl>
