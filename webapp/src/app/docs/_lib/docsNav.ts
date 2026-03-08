@@ -34,6 +34,7 @@ export const docsNavigation: NavPage[] = [
       { id: 'creating-a-grid-order', title: 'Creating a Grid Order' },
       { id: 'grid-strategies', title: 'Grid Strategies' },
       { id: 'managing-your-grids', title: 'Managing Your Grids' },
+      { id: 'understanding-apy', title: 'Understanding APY' },
       { id: 'limit-orders', title: 'Limit Orders' },
       { id: 'understanding-fees', title: 'Understanding Fees' },
       { id: 'faq', title: 'FAQ' },
