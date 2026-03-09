@@ -118,6 +118,7 @@ export interface GetOrdersWithGridInfoParams {
   gridId?: number;
   baseToken?: string;
   quoteToken?: string;
+  oneshot?: boolean;
   status?: number;
   page: number;
   pageSize: number;
@@ -171,7 +172,7 @@ async function getPairTokenAddresses(chainId: number, pairId: number): Promise<{
 }
 
 export async function getOrdersWithGridInfo(params: GetOrdersWithGridInfoParams): Promise<OrderWithGridInfoListResponse> {
-  const { chainId, owner, gridId, baseToken, quoteToken, status, page, pageSize } = params;
+  const { chainId, owner, gridId, baseToken, quoteToken, oneshot, status, page, pageSize } = params;
 
   // Build where conditions
   const conditions = [eq(orders.chainId, chainId)];
@@ -185,6 +186,9 @@ export async function getOrdersWithGridInfo(params: GetOrdersWithGridInfoParams)
   // not per-order lifecycle state.
   if (status !== undefined) {
     conditions.push(eq(grids.status, status));
+  }
+  if (oneshot !== undefined) {
+    conditions.push(eq(grids.oneshot, oneshot));
   }
 
   // Filter by base_token and quote_token addresses

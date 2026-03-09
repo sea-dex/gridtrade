@@ -6,6 +6,7 @@ import type { PriceLine } from '@/types/grid';
 import { useStore } from '@/store/useStore';
 import { KlinePanel } from '@/components/trading/KlinePanel';
 import { LimitOrderForm } from '@/components/trading/LimitOrderForm';
+import { GridOrderList } from '@/components/trading/GridOrderList';
 import type { TokenItem } from '@/hooks/useTokens';
 
 export default function LimitOrderPage() {
@@ -113,6 +114,8 @@ function LimitOrderPageInner() {
             />
           </div>
         </div>
+
+        <GridOrderList baseToken={baseToken} quoteToken={quoteToken} oneshot />
       </div>
     </div>
   );

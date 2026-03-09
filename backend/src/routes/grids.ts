@@ -32,7 +32,7 @@ const gridsRoutes: FastifyPluginAsync = async (fastify) => {
       },
     },
     async (request, _reply) => {
-      const { chain_id, owner, pair_id, base_token, quote_token, status, page, page_size } = request.query;
+      const { chain_id, owner, pair_id, base_token, quote_token, oneshot, status, page, page_size } = request.query;
 
       const result = await getGrids({
         chainId: chain_id,
@@ -40,6 +40,7 @@ const gridsRoutes: FastifyPluginAsync = async (fastify) => {
         pairId: pair_id,
         baseToken: base_token,
         quoteToken: quote_token,
+        oneshot,
         status,
         page,
         pageSize: page_size,
@@ -64,7 +65,7 @@ const gridsRoutes: FastifyPluginAsync = async (fastify) => {
       },
     },
     async (request, _reply) => {
-      const { chain_id, owner, pair_id, base_token, quote_token, status, page, page_size } = request.query;
+      const { chain_id, owner, pair_id, base_token, quote_token, oneshot, status, page, page_size } = request.query;
 
       const result = await getGridsWithOrders({
         chainId: chain_id,
@@ -72,6 +73,7 @@ const gridsRoutes: FastifyPluginAsync = async (fastify) => {
         pairId: pair_id,
         baseToken: base_token,
         quoteToken: quote_token,
+        oneshot,
         status,
         page,
         pageSize: page_size,

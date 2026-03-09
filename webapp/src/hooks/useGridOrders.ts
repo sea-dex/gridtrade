@@ -11,6 +11,7 @@ interface UseGridOrdersParams {
   pairId?: number;
   baseToken?: string;
   quoteToken?: string;
+  oneshot?: boolean;
   status?: number;
   page?: number;
   pageSize?: number;
@@ -65,6 +66,9 @@ export function useGridOrders(params: UseGridOrdersParams = {}): UseGridOrdersRe
       if (params.status !== undefined) {
         searchParams.set('status', String(params.status));
       }
+      if (params.oneshot !== undefined) {
+        searchParams.set('oneshot', String(params.oneshot));
+      }
 
       const res = await fetch(`${API_BASE}/grids/with-orders?${searchParams}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -80,7 +84,7 @@ export function useGridOrders(params: UseGridOrdersParams = {}): UseGridOrdersRe
     } finally {
       setIsLoading(false);
     }
-  }, [selectedChainId, page, pageSize, params.owner, params.pairId, params.baseToken, params.quoteToken, params.status, isInitialLoad]);
+  }, [selectedChainId, page, pageSize, params.owner, params.pairId, params.baseToken, params.quoteToken, params.oneshot, params.status, isInitialLoad]);
 
   useEffect(() => {
     fetchGridsWithOrders();

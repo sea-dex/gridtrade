@@ -62,6 +62,7 @@ interface GridOrderListProps {
     symbol: string;
     decimals: number;
   };
+  oneshot?: boolean;
 }
 
 function buildOrderHistoryHref({
@@ -107,7 +108,7 @@ function buildGridHistoryHref({
   return `/grid/history/${gridId}?${searchParams.toString()}`;
 }
 
-export function GridOrderList({ baseToken, quoteToken }: GridOrderListProps) {
+export function GridOrderList({ baseToken, quoteToken, oneshot = false }: GridOrderListProps) {
   const { t } = useTranslation();
   const { address, chainId } = useAccount();
   const selectedChainId = useStore((s) => s.selectedChainId);
@@ -123,6 +124,7 @@ export function GridOrderList({ baseToken, quoteToken }: GridOrderListProps) {
   const myGridsResult = useGridOrders({
     owner: address?.toLowerCase(),
     refreshInterval: 10_000,
+    oneshot,
     status: statusFilter === 'all' ? undefined : statusFilter === 'active' ? 1 : 2,
     baseToken: showAllPairs ? undefined : baseToken?.address,
     quoteToken: showAllPairs ? undefined : quoteToken?.address,
@@ -131,6 +133,7 @@ export function GridOrderList({ baseToken, quoteToken }: GridOrderListProps) {
   // All grids: flat order list with grid info
   const allOrdersResult = useOrdersWithGridInfo({
     refreshInterval: 10_000,
+    oneshot,
     status: statusFilter === 'all' ? undefined : statusFilter === 'active' ? 1 : 2,
     baseToken: showAllPairs ? undefined : baseToken?.address,
     quoteToken: showAllPairs ? undefined : quoteToken?.address,
@@ -429,6 +432,8 @@ export function GridOrderList({ baseToken, quoteToken }: GridOrderListProps) {
                         getGridStatusBadge={getGridStatusBadge}
                         showActions={true}
                         showOwner={false}
+                        showHistory={!oneshot}
+                        showReverseFields={!oneshot}
                         chainId={selectedChainId}
                         t={t}
                       />
@@ -500,9 +505,11 @@ export function GridOrderList({ baseToken, quoteToken }: GridOrderListProps) {
                       <th className="text-left py-2 sm:py-2.5 px-3 sm:px-5 text-[10px] sm:text-[11px] font-medium text-(--text-disabled) uppercase tracking-wider">
                         {t('grid.order_list.status')}
                       </th>
-                      <th className="text-right py-2 sm:py-2.5 px-3 sm:px-5 text-[10px] sm:text-[11px] font-medium text-(--text-disabled) uppercase tracking-wider">
-                        {t('grid.order_list.actions')}
-                      </th>
+                      {!oneshot && (
+                        <th className="text-right py-2 sm:py-2.5 px-3 sm:px-5 text-[10px] sm:text-[11px] font-medium text-(--text-disabled) uppercase tracking-wider">
+                          {t('grid.order_list.actions')}
+                        </th>
+                      )}
                     </tr>
                   </thead>
                   <tbody>
@@ -511,6 +518,7 @@ export function GridOrderList({ baseToken, quoteToken }: GridOrderListProps) {
                         key={order.order_id}
                         order={order}
                         getOrderStatusBadge={getOrderStatusBadge}
+                        showHistory={!oneshot}
                         chainId={selectedChainId}
                         t={t}
                       />
@@ -566,6 +574,8 @@ function GridRow({
   getGridStatusBadge,
   showActions,
   showOwner,
+  showHistory,
+  showReverseFields,
   chainId,
   t,
 }: {
@@ -578,6 +588,8 @@ function GridRow({
   getGridStatusBadge: (status: number) => React.ReactNode;
   showActions: boolean;
   showOwner: boolean;
+  showHistory: boolean;
+  showReverseFields: boolean;
   chainId: number;
   t: (key: string) => string;
 }) {
@@ -654,7 +666,9 @@ function GridRow({
         {showActions && (
           <td className="py-2 sm:py-3 px-3 sm:px-5">
             <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-              <OrderHistoryLink href={gridHistoryHref} label={t('grid.order_list.view_grid_history')} />
+              {showHistory && (
+                <OrderHistoryLink href={gridHistoryHref} label={t('grid.order_list.view_grid_history')} />
+              )}
               {config.status === 1 && (
                 <>
                   <Button
@@ -689,7 +703,7 @@ function GridRow({
           <td colSpan={colSpan} className="p-0">
             <div className="bg-[rgba(136,150,171,0.03)] border-b border-(--border-subtle)">
               <div className="overflow-x-auto px-4 sm:px-8 py-2 sm:py-3">
-                <table className="w-full min-w-[760px]">
+                <table className={cn('w-full', showReverseFields || showHistory ? 'min-w-[760px]' : 'min-w-[520px]')}>
                   <thead>
                     <tr>
                       <th className="text-left py-1.5 px-3 text-[10px] font-medium text-(--text-disabled) uppercase tracking-wider">
@@ -704,18 +718,24 @@ function GridRow({
                       <th className="text-left py-1.5 px-3 text-[10px] font-medium text-(--text-disabled) uppercase tracking-wider">
                         {t('grid.order_list.amount')}
                       </th>
-                      <th className="text-left py-1.5 px-3 text-[10px] font-medium text-(--text-disabled) uppercase tracking-wider">
-                        {t('grid.order_list.rev_price')}
-                      </th>
-                      <th className="text-left py-1.5 px-3 text-[10px] font-medium text-(--text-disabled) uppercase tracking-wider">
-                        {t('grid.order_list.rev_amount')}
-                      </th>
+                      {showReverseFields && (
+                        <th className="text-left py-1.5 px-3 text-[10px] font-medium text-(--text-disabled) uppercase tracking-wider">
+                          {t('grid.order_list.rev_price')}
+                        </th>
+                      )}
+                      {showReverseFields && (
+                        <th className="text-left py-1.5 px-3 text-[10px] font-medium text-(--text-disabled) uppercase tracking-wider">
+                          {t('grid.order_list.rev_amount')}
+                        </th>
+                      )}
                       <th className="text-left py-1.5 px-3 text-[10px] font-medium text-(--text-disabled) uppercase tracking-wider">
                         {t('grid.order_list.status')}
                       </th>
-                      <th className="text-right py-1.5 px-3 text-[10px] font-medium text-(--text-disabled) uppercase tracking-wider">
-                        {t('grid.order_list.actions')}
-                      </th>
+                      {showHistory && (
+                        <th className="text-right py-1.5 px-3 text-[10px] font-medium text-(--text-disabled) uppercase tracking-wider">
+                          {t('grid.order_list.actions')}
+                        </th>
+                      )}
                     </tr>
                   </thead>
                   <tbody>
@@ -727,6 +747,8 @@ function GridRow({
                         quoteToken={config.quote_token}
                         baseDecimals={baseDecimals}
                         quoteDecimals={quoteDecimals}
+                        showHistory={showHistory}
+                        showReverseFields={showReverseFields}
                         chainId={chainId}
                         t={t}
                       />
@@ -749,6 +771,8 @@ function OrderRow({
   quoteToken,
   baseDecimals,
   quoteDecimals,
+  showHistory,
+  showReverseFields,
   chainId,
   t,
 }: {
@@ -757,6 +781,8 @@ function OrderRow({
   quoteToken: string;
   baseDecimals: number;
   quoteDecimals: number;
+  showHistory: boolean;
+  showReverseFields: boolean;
   chainId: number;
   t: (key: string) => string;
 }) {
@@ -765,15 +791,17 @@ function OrderRow({
   const amountDecimals = order.is_ask ? baseDecimals : quoteDecimals;
   const revAmountDecimals = order.is_ask ? quoteDecimals : baseDecimals;
   const displayOrderId = order.hex_order_id || order.order_id;
-  const historyHref = buildOrderHistoryHref({
-    orderId: order.order_id,
-    chainId,
-    displayOrderId,
-    baseToken,
-    quoteToken,
-    baseDecimals,
-    quoteDecimals,
-  });
+  const historyHref = showHistory
+    ? buildOrderHistoryHref({
+        orderId: order.order_id,
+        chainId,
+        displayOrderId,
+        baseToken,
+        quoteToken,
+        baseDecimals,
+        quoteDecimals,
+      })
+    : '';
 
   return (
     <tr className="border-t border-[rgba(136,150,171,0.08)] hover:bg-[rgba(136,150,171,0.03)] transition-colors">
@@ -801,16 +829,20 @@ function OrderRow({
           {formatNumber(Number(order.amount) / Math.pow(10, amountDecimals), 4)} {order.is_ask ? baseToken : quoteToken}
         </span>
       </td>
-      <td className="py-1.5 px-3">
-        <span className="font-mono text-[11px] text-(--text-secondary)">
-          {formatContractPrice(order.rev_price, baseDecimals, quoteDecimals)} {quoteToken}
-        </span>
-      </td>
-      <td className="py-1.5 px-3">
-        <span className="font-mono text-[11px] text-(--text-secondary)">
-          {formatNumber(Number(order.rev_amount) / Math.pow(10, revAmountDecimals), 4)} {order.is_ask ? quoteToken : baseToken}
-        </span>
-      </td>
+      {showReverseFields && (
+        <td className="py-1.5 px-3">
+          <span className="font-mono text-[11px] text-(--text-secondary)">
+            {formatContractPrice(order.rev_price, baseDecimals, quoteDecimals)} {quoteToken}
+          </span>
+        </td>
+      )}
+      {showReverseFields && (
+        <td className="py-1.5 px-3">
+          <span className="font-mono text-[11px] text-(--text-secondary)">
+            {formatNumber(Number(order.rev_amount) / Math.pow(10, revAmountDecimals), 4)} {order.is_ask ? quoteToken : baseToken}
+          </span>
+        </td>
+      )}
       <td className="py-1.5 px-3">
         {order.status === 0 ? (
           <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium bg-(--green-dim) text-(--green) border border-[rgba(52,211,153,0.15)] rounded-sm">
@@ -822,9 +854,11 @@ function OrderRow({
           </span>
         )}
       </td>
-      <td className="py-1.5 px-3 text-right">
-        <OrderHistoryLink href={historyHref} label={t('grid.order_list.view_order_history')} />
-      </td>
+      {showHistory && (
+        <td className="py-1.5 px-3 text-right">
+          <OrderHistoryLink href={historyHref} label={t('grid.order_list.view_order_history')} />
+        </td>
+      )}
     </tr>
   );
 }
@@ -833,11 +867,13 @@ function OrderRow({
 function FlatOrderRow({
   order,
   getOrderStatusBadge,
+  showHistory,
   chainId,
   t,
 }: {
   order: OrderWithGridInfo;
   getOrderStatusBadge: (status: number) => React.ReactNode;
+  showHistory: boolean;
   chainId: number;
   t: (key: string) => string;
 }) {
@@ -847,10 +883,12 @@ function FlatOrderRow({
   // For ask orders: amount is in base token
   // For bid orders: amount is in quote token
   const amountDecimals = order.is_ask ? baseDecimals : quoteDecimals;
-  const historyHref = buildGridHistoryHref({
-    gridId: order.grid_id,
-    chainId,
-  });
+  const historyHref = showHistory
+    ? buildGridHistoryHref({
+        gridId: order.grid_id,
+        chainId,
+      })
+    : '';
 
   return (
     <tr className="border-b border-(--border-subtle) last:border-0 hover:bg-[rgba(136,150,171,0.02)] transition-colors">
@@ -887,9 +925,11 @@ function FlatOrderRow({
         </span>
       </td>
       <td className="py-2 sm:py-3 px-3 sm:px-5">{getOrderStatusBadge(order.status)}</td>
-      <td className="py-2 sm:py-3 px-3 sm:px-5 text-right">
-        <OrderHistoryLink href={historyHref} label={t('grid.order_list.view_grid_history')} />
-      </td>
+      {showHistory && (
+        <td className="py-2 sm:py-3 px-3 sm:px-5 text-right">
+          <OrderHistoryLink href={historyHref} label={t('grid.order_list.view_grid_history')} />
+        </td>
+      )}
     </tr>
   );
 }

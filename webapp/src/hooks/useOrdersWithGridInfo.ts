@@ -11,6 +11,7 @@ interface UseOrdersWithGridInfoParams {
   gridId?: number;
   baseToken?: string;
   quoteToken?: string;
+  oneshot?: boolean;
   status?: number;
   page?: number;
   pageSize?: number;
@@ -66,6 +67,9 @@ export function useOrdersWithGridInfo(params: UseOrdersWithGridInfoParams = {}):
       if (params.status !== undefined) {
         searchParams.set('status', String(params.status));
       }
+      if (params.oneshot !== undefined) {
+        searchParams.set('oneshot', String(params.oneshot));
+      }
 
       const res = await fetch(`${API_BASE}/orders/with-grid-info?${searchParams}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -81,7 +85,7 @@ export function useOrdersWithGridInfo(params: UseOrdersWithGridInfoParams = {}):
     } finally {
       setIsLoading(false);
     }
-  }, [selectedChainId, page, pageSize, params.owner, params.gridId, params.baseToken, params.quoteToken, params.status, isInitialLoad]);
+  }, [selectedChainId, page, pageSize, params.owner, params.gridId, params.baseToken, params.quoteToken, params.oneshot, params.status, isInitialLoad]);
 
   useEffect(() => {
     fetchOrders();

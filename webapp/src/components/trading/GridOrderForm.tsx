@@ -7,6 +7,7 @@ import { HelpCircle } from 'lucide-react';
 import {
   useAccount,
   useBalance,
+  useConnectorClient,
   usePublicClient,
   useReadContract,
   useWriteContract,
@@ -21,8 +22,14 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Select, SelectTrigger, SelectContent, SelectItem } from '@/components/ui/Select';
 import { ERC20_ABI } from '@/config/abi/ERC20';
 import { GRIDEX_ABI } from '@/config/abi/GridEx';
-import { GRIDEX_ADDRESSES, LINEAR_STRATEGY_ADDRESSES, GEOMETRY_STRATEGY_ADDRESSES } from '@/config/chains';
+import {
+  GRIDEX_ADDRESSES,
+  GRID_7702_EXECUTOR_ADDRESSES,
+  LINEAR_STRATEGY_ADDRESSES,
+  GEOMETRY_STRATEGY_ADDRESSES,
+} from '@/config/chains';
 import { cn } from '@/lib/utils';
+import { executeErc7702Batch, isErc7702FallbackError } from '@/lib/erc7702';
 import { TransactionStatusDialog, type TxStep } from '@/components/trading/TransactionStatusDialog';
 import type { PriceLine } from '@/types/grid';
 
@@ -234,6 +241,7 @@ export function GridOrderForm({ baseToken, quoteToken, onPriceLinesChange, exter
   const gridexAddress = useMemo(() => (chainId ? GRIDEX_ADDRESSES[chainId] : undefined), [chainId]);
 
   const publicClient = usePublicClient({ chainId });
+  const { data: connectorClient } = useConnectorClient({ chainId });
   const { writeContractAsync, isPending } = useWriteContract();
 
   const [submitStage, setSubmitStage] = useState<
@@ -543,36 +551,50 @@ export function GridOrderForm({ baseToken, quoteToken, onPriceLinesChange, exter
     // Currently only supports at most one native side.
     if (baseIsNative && quoteIsNative) return;
 
-    // Build initial steps list
     const needsBase = needsBaseApproval && (baseAllowance as bigint | undefined ?? 0n) < totals.baseTotal;
     const needsQuote = needsQuoteApproval && (quoteAllowance as bigint | undefined ?? 0n) < totals.quoteTotal;
+    const erc7702Executor = GRID_7702_EXECUTOR_ADDRESSES[chainId];
+    const shouldTryErc7702 = !!erc7702Executor && !!connectorClient && (needsBase || needsQuote);
 
-    const initialSteps: TxStep[] = [];
-    const stepIndexMap = { approveBase: -1, approveQuote: -1, place: -1 };
+    const setupSteps = (useBatch: boolean) => {
+      const steps: TxStep[] = [];
+      const map = { approveBase: -1, approveQuote: -1, place: -1 };
 
-    if (needsBase) {
-      stepIndexMap.approveBase = initialSteps.length;
-      initialSteps.push({
-        label: t('tx_dialog.approve_base').replace('{{symbol}}', baseToken.symbol),
-        status: 'pending',
-      });
-    }
-    if (needsQuote) {
-      stepIndexMap.approveQuote = initialSteps.length;
-      initialSteps.push({
-        label: t('tx_dialog.approve_quote').replace('{{symbol}}', quoteToken.symbol),
-        status: 'pending',
-      });
-    }
-    stepIndexMap.place = initialSteps.length;
-    initialSteps.push({
-      label: t('tx_dialog.place_order'),
-      status: 'pending',
-    });
+      if (useBatch) {
+        map.place = 0;
+        steps.push({
+          label: t('tx_dialog.approve_and_place'),
+          status: 'pending',
+        });
+      } else {
+        if (needsBase) {
+          map.approveBase = steps.length;
+          steps.push({
+            label: t('tx_dialog.approve_base').replace('{{symbol}}', baseToken.symbol),
+            status: 'pending',
+          });
+        }
+        if (needsQuote) {
+          map.approveQuote = steps.length;
+          steps.push({
+            label: t('tx_dialog.approve_quote').replace('{{symbol}}', quoteToken.symbol),
+            status: 'pending',
+          });
+        }
+        map.place = steps.length;
+        steps.push({
+          label: t('tx_dialog.place_order'),
+          status: 'pending',
+        });
+      }
 
-    setTxSteps(initialSteps);
-    setTxError(null);
-    setTxDialogOpen(true);
+      setTxSteps(steps);
+      setTxError(null);
+      setTxDialogOpen(true);
+      return map;
+    };
+
+    let stepIndexMap = setupSteps(shouldTryErc7702);
 
     const approveIfNeeded = async (
       tokenAddress: `0x${string}`,
@@ -612,7 +634,165 @@ export function GridOrderForm({ baseToken, quoteToken, onPriceLinesChange, exter
       updateStep(stepIdx, { status: 'done' });
     };
 
+    const buildPlaceRequest = () => {
+      const askPrice0 = priceToContractBigInt(formData.askPrice0, baseToken.decimals, quoteToken.decimals);
+      const bidPrice0 = priceToContractBigInt(formData.bidPrice0, baseToken.decimals, quoteToken.decimals);
+
+      const linearStrategy = LINEAR_STRATEGY_ADDRESSES[chainId];
+      const geometryStrategy = GEOMETRY_STRATEGY_ADDRESSES[chainId];
+      if (!linearStrategy || !geometryStrategy) {
+        throw new Error(`Missing strategy address for chain ${chainId}`);
+      }
+
+      let askData: `0x${string}`;
+      let bidData: `0x${string}`;
+      let askStrategyAddress: `0x${string}`;
+      let bidStrategyAddress: `0x${string}`;
+
+      if (formData.askStrategy === 'linear') {
+        const askGap = gapToContractBigInt(formData.askGap, baseToken.decimals, quoteToken.decimals);
+        askData = encodeAbiParameters(
+          [{ type: 'uint256' }, { type: 'int256' }],
+          [askPrice0, askGap],
+        );
+        askStrategyAddress = linearStrategy;
+      } else {
+        const askRatioBN = new BigNumber(formData.askRatio || '1').times(RATIO_MULTIPLIER_BN).integerValue(BigNumber.ROUND_DOWN);
+        const askRatio = BigInt(askRatioBN.toFixed(0));
+        askData = encodeAbiParameters(
+          [{ type: 'uint256' }, { type: 'uint256' }],
+          [askPrice0, askRatio],
+        );
+        askStrategyAddress = geometryStrategy;
+      }
+
+      if (formData.bidStrategy === 'linear') {
+        const bidGapPositive = gapToContractBigInt(formData.bidGap, baseToken.decimals, quoteToken.decimals);
+        const bidGap = bidGapPositive > 0n ? -bidGapPositive : bidGapPositive;
+        bidData = encodeAbiParameters(
+          [{ type: 'uint256' }, { type: 'int256' }],
+          [bidPrice0, bidGap],
+        );
+        bidStrategyAddress = linearStrategy;
+      } else {
+        const bidRatioBN = new BigNumber(formData.bidRatio || '1').times(RATIO_MULTIPLIER_BN).integerValue(BigNumber.ROUND_DOWN);
+        const bidRatio = BigInt(bidRatioBN.toFixed(0));
+        bidData = encodeAbiParameters(
+          [{ type: 'uint256' }, { type: 'uint256' }],
+          [bidPrice0, bidRatio],
+        );
+        bidStrategyAddress = geometryStrategy;
+      }
+
+      const param = {
+        askStrategy: askStrategyAddress,
+        bidStrategy: bidStrategyAddress,
+        askData,
+        bidData,
+        askOrderCount: effectiveAskCount,
+        bidOrderCount: effectiveBidCount,
+        fee: parseInt(formData.fee),
+        compound: formData.compound,
+        oneshot: formData.oneshot,
+        baseAmount: parseUnits(formData.amountPerGrid, baseToken.decimals),
+      };
+
+      const value = baseIsNative
+        ? totals.baseTotal
+        : quoteIsNative
+          ? totals.quoteTotal
+          : 0n;
+
+      return { param, value };
+    };
+
     try {
+      const placeRequest = buildPlaceRequest();
+
+      if (shouldTryErc7702 && connectorClient && erc7702Executor) {
+        try {
+          setSubmitStage('placing');
+          updateStep(stepIndexMap.place, { status: 'active' });
+
+          const calls = [];
+
+          const pushApproveCalls = (
+            tokenAddress: `0x${string}`,
+            requiredAmount: bigint,
+            currentAllowance: bigint,
+          ) => {
+            if (tokenAddress === zeroAddress) return;
+            if (requiredAmount <= 0n || currentAllowance >= requiredAmount) return;
+
+            if (currentAllowance > 0n) {
+              calls.push({
+                abi: ERC20_ABI,
+                to: tokenAddress,
+                functionName: 'approve',
+                args: [gridexAddress, 0n],
+              });
+            }
+
+            calls.push({
+              abi: ERC20_ABI,
+              to: tokenAddress,
+              functionName: 'approve',
+              args: [gridexAddress, requiredAmount],
+            });
+          };
+
+          pushApproveCalls(
+            baseToken.address,
+            totals.baseTotal,
+            (baseAllowance as bigint | undefined) ?? 0n,
+          );
+          pushApproveCalls(
+            quoteToken.address,
+            totals.quoteTotal,
+            (quoteAllowance as bigint | undefined) ?? 0n,
+          );
+
+          calls.push({
+            abi: GRIDEX_ABI,
+            to: gridexAddress,
+            functionName: (baseIsNative || quoteIsNative) ? 'placeETHGridOrders' : 'placeGridOrders',
+            args: [baseToken.address, quoteToken.address, placeRequest.param],
+            value: placeRequest.value,
+          });
+
+          const txHash = await executeErc7702Batch({
+            walletClient: connectorClient,
+            account: address,
+            executorAddress: erc7702Executor,
+            calls,
+          });
+
+          updateStep(stepIndexMap.place, { hash: txHash, status: 'active' });
+          const receipt = await waitForSuccessfulReceipt(txHash);
+          const gridOrderCreatedLogs = parseEventLogs({
+            abi: GRID_ORDER_CREATED_EVENT_ABI,
+            logs: receipt.logs.filter(
+              (log) => log.address.toLowerCase() === gridexAddress.toLowerCase(),
+            ),
+            eventName: 'GridOrderCreated',
+            strict: false,
+          });
+
+          if (gridOrderCreatedLogs.length === 0) {
+            throw new Error('GridOrderCreated event not found in transaction receipt');
+          }
+
+          updateStep(stepIndexMap.place, { status: 'done' });
+          return;
+        } catch (erc7702Error) {
+          if (!isErc7702FallbackError(erc7702Error)) {
+            throw erc7702Error;
+          }
+
+          stepIndexMap = setupSteps(false);
+        }
+      }
+
       if (stepIndexMap.approveBase >= 0) {
         await approveIfNeeded(
           baseToken.address,
@@ -636,107 +816,20 @@ export function GridOrderForm({ baseToken, quoteToken, onPriceLinesChange, exter
       setSubmitStage('placing');
       updateStep(stepIndexMap.place, { status: 'active' });
 
-      // Convert prices to contract format, accounting for decimal differences
-      // The contract expects prices scaled by PRICE_MULTIPLIER * 10^(quoteDecimals - baseDecimals)
-      const askPrice0 = priceToContractBigInt(formData.askPrice0, baseToken.decimals, quoteToken.decimals);
-      const bidPrice0 = priceToContractBigInt(formData.bidPrice0, baseToken.decimals, quoteToken.decimals);
-
-      // Get strategy addresses
-      const linearStrategy = LINEAR_STRATEGY_ADDRESSES[chainId];
-      const geometryStrategy = GEOMETRY_STRATEGY_ADDRESSES[chainId];
-      if (!linearStrategy || !geometryStrategy) {
-        throw new Error(`Missing strategy address for chain ${chainId}`);
-      }
-
-      // Encode strategy data based on selected strategy type
-      let askData: `0x${string}`;
-      let bidData: `0x${string}`;
-      let askStrategyAddress: `0x${string}`;
-      let bidStrategyAddress: `0x${string}`;
-
-      // Ask strategy encoding
-      if (formData.askStrategy === 'linear') {
-        const askGap = gapToContractBigInt(formData.askGap, baseToken.decimals, quoteToken.decimals);
-        console.info('ask strategy: linear, price:', askPrice0, 'gap:', askGap, 'baseDecimals:', baseToken.decimals, 'quoteDecimals:', quoteToken.decimals);
-        askData = encodeAbiParameters(
-          [{ type: 'uint256' }, { type: 'int256' }],
-          [askPrice0, askGap],
-        );
-        askStrategyAddress = linearStrategy;
-        console.log('linear ask price0 gap:', askPrice0, askGap)
-      } else {
-        // Geometry strategy: ratio is scaled by 10^18
-        const askRatioBN = new BigNumber(formData.askRatio || '1').times(RATIO_MULTIPLIER_BN).integerValue(BigNumber.ROUND_DOWN);
-        const askRatio = BigInt(askRatioBN.toFixed(0));
-        console.info('ask strategy: geometry, price:', askPrice0, 'ratio:', askRatio, 'baseDecimals:', baseToken.decimals, 'quoteDecimals:', quoteToken.decimals);
-        askData = encodeAbiParameters(
-          [{ type: 'uint256' }, { type: 'uint256' }],
-          [askPrice0, askRatio],
-        );
-        askStrategyAddress = geometryStrategy;
-        console.log('geometry ask price0 gap:', askPrice0, askRatio)
-      }
-
-      // Bid strategy encoding
-      if (formData.bidStrategy === 'linear') {
-        const bidGapPositive = gapToContractBigInt(formData.bidGap, baseToken.decimals, quoteToken.decimals);
-        // Contract expects bid gap as negative (prices decrease for each subsequent bid order)
-        const bidGap = bidGapPositive > 0n ? -bidGapPositive : bidGapPositive;
-        console.info('bid strategy: linear, price:', bidPrice0, 'gap:', bidGap, 'baseDecimals:', baseToken.decimals, 'quoteDecimals:', quoteToken.decimals);
-        bidData = encodeAbiParameters(
-          [{ type: 'uint256' }, { type: 'int256' }],
-          [bidPrice0, bidGap],
-        );
-        bidStrategyAddress = linearStrategy;
-        console.log('linear bid price0 gap:', bidPrice0, bidGap)
-      } else {
-        // Geometry strategy: ratio is scaled by 10^18
-        const bidRatioBN = new BigNumber(formData.bidRatio || '1').times(RATIO_MULTIPLIER_BN).integerValue(BigNumber.ROUND_DOWN);
-        const bidRatio = BigInt(bidRatioBN.toFixed(0));
-        console.info('bid strategy: geometry, price:', bidPrice0, 'ratio:', bidRatio, 'baseDecimals:', baseToken.decimals, 'quoteDecimals:', quoteToken.decimals);
-        bidData = encodeAbiParameters(
-          [{ type: 'uint256' }, { type: 'uint256' }],
-          [bidPrice0, bidRatio],
-        );
-        bidStrategyAddress = geometryStrategy;
-        console.log('geometry bid price0 gap:', bidPrice0, bidRatio)
-      }
-
-      const param = {
-        askStrategy: askStrategyAddress,
-        bidStrategy: bidStrategyAddress,
-        askData: askData,
-        bidData: bidData,
-        askOrderCount: effectiveAskCount,
-        bidOrderCount: effectiveBidCount,
-        fee: parseInt(formData.fee),
-        compound: formData.compound,
-        oneshot: formData.oneshot,
-        baseAmount: parseUnits(formData.amountPerGrid, baseToken.decimals),
-      };
-
-      const value = baseIsNative
-        ? totals.baseTotal
-        : quoteIsNative
-          ? totals.quoteTotal
-          : 0n;
-
-      console.log('amount:', param.baseAmount, 'total base:', totals.baseTotal, totals.quoteTotal)
-
       const txHash =
         (baseIsNative || quoteIsNative)
           ? await writeContractAsync({
               address: gridexAddress,
               abi: GRIDEX_ABI,
               functionName: 'placeETHGridOrders',
-              args: [baseToken.address, quoteToken.address, param],
-              value,
+              args: [baseToken.address, quoteToken.address, placeRequest.param],
+              value: placeRequest.value,
             })
           : await writeContractAsync({
               address: gridexAddress,
               abi: GRIDEX_ABI,
               functionName: 'placeGridOrders',
-              args: [baseToken.address, quoteToken.address, param],
+              args: [baseToken.address, quoteToken.address, placeRequest.param],
             });
 
       updateStep(stepIndexMap.place, { hash: txHash, status: 'active' });

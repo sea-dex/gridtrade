@@ -9,6 +9,7 @@ export interface GetGridsParams {
   pairId?: number;
   baseToken?: string;
   quoteToken?: string;
+  oneshot?: boolean;
   status?: number;
   page: number;
   pageSize: number;
@@ -91,7 +92,7 @@ async function getPairTokenAddresses(chainId: number, pairId: number): Promise<{
 }
 
 export async function getGrids(params: GetGridsParams): Promise<GridListResponse> {
-  const { chainId, owner, pairId, baseToken, quoteToken, status, page, pageSize } = params;
+  const { chainId, owner, pairId, baseToken, quoteToken, oneshot, status, page, pageSize } = params;
 
   // Build where conditions
   const conditions = [eq(grids.chainId, chainId)];
@@ -128,6 +129,10 @@ export async function getGrids(params: GetGridsParams): Promise<GridListResponse
   
   if (status !== undefined) {
     conditions.push(eq(grids.status, status));
+  }
+
+  if (oneshot !== undefined) {
+    conditions.push(eq(grids.oneshot, oneshot));
   }
 
   // Add pair filter from token addresses
@@ -206,7 +211,7 @@ export async function getGrids(params: GetGridsParams): Promise<GridListResponse
 }
 
 export async function getGridsWithOrders(params: GetGridsParams): Promise<GridWithOrdersListResponse> {
-  const { chainId, owner, pairId, baseToken, quoteToken, status, page, pageSize } = params;
+  const { chainId, owner, pairId, baseToken, quoteToken, oneshot, status, page, pageSize } = params;
 
   // Build where conditions
   const conditions = [eq(grids.chainId, chainId)];
@@ -242,6 +247,10 @@ export async function getGridsWithOrders(params: GetGridsParams): Promise<GridWi
 
   if (status !== undefined) {
     conditions.push(eq(grids.status, status));
+  }
+
+  if (oneshot !== undefined) {
+    conditions.push(eq(grids.oneshot, oneshot));
   }
 
   // Add pair filter from token addresses

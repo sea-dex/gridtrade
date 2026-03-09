@@ -227,6 +227,7 @@
     "close": "Close",
     "approve_base": "Approve {{symbol}}",
     "approve_quote": "Approve {{symbol}}",
+    "approve_and_place": "Approve & Place Order",
     "place_order": "Place Order",
     "confirming": "Confirming transaction…",
     "waiting_wallet": "Waiting for wallet confirmation…"

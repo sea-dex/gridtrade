@@ -182,7 +182,7 @@ function GridTradingPageInner() {
         </div>
 
         {/* Order List */}
-        <GridOrderList baseToken={baseToken} quoteToken={quoteToken} />
+        <GridOrderList baseToken={baseToken} quoteToken={quoteToken} oneshot={false} />
       </div>
     </div>
   );

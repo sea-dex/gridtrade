@@ -73,6 +73,7 @@ export const getGridsQuerySchema = z.object({
   pair_id: z.coerce.number().optional(),
   base_token: addressSchema.optional(),
   quote_token: addressSchema.optional(),
+  oneshot: z.enum(['true', 'false']).transform((val) => val === 'true').optional(),
   status: z.coerce.number().optional(),
   ...paginationSchema.shape,
 });

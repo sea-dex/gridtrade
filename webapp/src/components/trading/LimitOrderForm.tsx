@@ -10,15 +10,14 @@ import {
   useWriteContract,
 } from 'wagmi';
 import { useConnectModal } from '@rainbow-me/rainbowkit';
-import { parseUnits, encodeAbiParameters, formatUnits, zeroAddress } from 'viem';
+import { parseUnits, encodeAbiParameters, formatUnits, getAddress, zeroAddress } from 'viem';
 import { useTranslation } from '@/hooks/useTranslation';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { ERC20_ABI } from '@/config/abi/ERC20';
 import { GRIDEX_ABI } from '@/config/abi/GridEx';
-import { GRIDEX_ADDRESSES, LINEAR_STRATEGY_ADDRESSES } from '@/config/chains';
-import { cn } from '@/lib/utils';
+import { GRIDEX_ADDRESSES, LINEAR_STRATEGY_ADDRESSES, WETH_ADDRESSES } from '@/config/chains';
 import { TransactionStatusDialog, type TxStep } from '@/components/trading/TransactionStatusDialog';
 import type { PriceLine } from '@/types/grid';
 
@@ -182,6 +181,21 @@ function calcGridAmount(
 
 /** Hardcoded fee for limit orders (0.3%) */
 const LIMIT_ORDER_FEE = 3000;
+
+function encodeCurrencyAddress(
+  tokenAddress: `0x${string}`,
+  nativeFlag: boolean,
+  wethAddress?: `0x${string}`,
+): `0x${string}` {
+  if (!nativeFlag) return tokenAddress;
+  if (!wethAddress) {
+    throw new Error('Missing WETH address for native limit order');
+  }
+
+  // Currency uses the wrapped native token address with the low bit set for native settlement.
+  const encoded = (BigInt(wethAddress) | 1n).toString(16).padStart(40, '0');
+  return getAddress(`0x${encoded}`);
+}
 
 export function LimitOrderForm({ baseToken, quoteToken, onPriceLinesChange }: LimitOrderFormProps) {
   const { t } = useTranslation();
@@ -380,6 +394,7 @@ export function LimitOrderForm({ baseToken, quoteToken, onPriceLinesChange }: Li
 
     const baseIsNative = baseToken.address === zeroAddress;
     const quoteIsNative = quoteToken.address === zeroAddress;
+    const wethAddress = chainId ? WETH_ADDRESSES[chainId] : undefined;
 
     if (baseIsNative && quoteIsNative) return;
 
@@ -490,13 +505,16 @@ export function LimitOrderForm({ baseToken, quoteToken, onPriceLinesChange }: Li
       console.info('limit order - bidPrice0:', bidPrice0, 'bidGap:', bidGap);
 
       const askData = encodeAbiParameters(
-        [{ type: 'uint256' }, { type: 'uint256' }],
+        [{ type: 'uint256' }, { type: 'int256' }],
         [askPrice0, askGap],
       );
 
+      const bidGapPositive = bidGap;
+      const bidGapNegative = bidGapPositive > 0n ? -bidGapPositive : bidGapPositive;
+
       const bidData = encodeAbiParameters(
-        [{ type: 'uint256' }, { type: 'uint256' }],
-        [bidPrice0, bidGap],
+        [{ type: 'uint256' }, { type: 'int256' }],
+        [bidPrice0, bidGapNegative],
       );
 
       const param = {
@@ -517,6 +535,8 @@ export function LimitOrderForm({ baseToken, quoteToken, onPriceLinesChange }: Li
         : quoteIsNative
           ? totals.quoteTotal
           : 0n;
+      const baseCurrency = encodeCurrencyAddress(baseToken.address, baseIsNative, wethAddress);
+      const quoteCurrency = encodeCurrencyAddress(quoteToken.address, quoteIsNative, wethAddress);
 
       const txHash =
         value > 0n
@@ -524,14 +544,14 @@ export function LimitOrderForm({ baseToken, quoteToken, onPriceLinesChange }: Li
               address: gridexAddress,
               abi: GRIDEX_ABI,
               functionName: 'placeETHGridOrders',
-              args: [baseToken.address, quoteToken.address, param],
+              args: [baseCurrency, quoteCurrency, param],
               value,
             })
           : await writeContractAsync({
               address: gridexAddress,
               abi: GRIDEX_ABI,
               functionName: 'placeGridOrders',
-              args: [baseToken.address, quoteToken.address, param],
+              args: [baseCurrency, quoteCurrency, param],
             });
 
       updateStep(stepIndexMap.place, { hash: txHash, status: 'active' });
