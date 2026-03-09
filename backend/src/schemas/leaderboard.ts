@@ -7,12 +7,15 @@ export const leaderboardEntrySchema = z.object({
   trader: z.string(),
   pair: z.string(),
   grid_id: z.number(),
+  quote_decimals: z.number().optional(),
   profit: z.string(),
   profit_rate: z.number(),
   volume: z.string(),
   trades: z.number(),
   tvl: z.string(),
   apr: z.number(),
+  real_apy: z.number(),
+  grid_apy: z.number(),
 });
 
 // Trader stats schema
@@ -41,7 +44,7 @@ export const getLeaderboardQuerySchema = z.object({
   period: periodSchema,
   pair: z.string().optional(),
   limit: z.coerce.number().min(1).max(100).default(10),
-  sort_by: z.enum(['profit', 'volume', 'apr', 'tvl', 'profit_rate', 'trades']).default('profit'),
+  sort_by: z.enum(['profit', 'volume', 'apr', 'tvl', 'profit_rate', 'trades', 'real_apy', 'grid_apy']).default('real_apy'),
   order: z.enum(['asc', 'desc']).default('desc'),
 });
 

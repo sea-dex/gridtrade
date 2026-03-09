@@ -5,9 +5,9 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { useLeaderboard, type TimeFilter, type SortField, type SortOrder } from '@/hooks/useLeaderboard';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
-import { formatAddress, formatNumber } from '@/lib/utils';
+import { formatAddress, formatNumber, formatScaledAmount } from '@/lib/utils';
 import { cn } from '@/lib/utils';
-import { Trophy, Copy, TrendingUp, Loader2, ArrowUp, ArrowDown } from 'lucide-react';
+import { Trophy, Copy, Loader2, ArrowUp, ArrowDown } from 'lucide-react';
 
 // type SortableColumn = {
 //   key: SortField;
@@ -27,7 +27,7 @@ const SortIndicator = ({ field, sortBy, sortOrder }: { field: SortField; sortBy:
 export default function LeaderboardPage() {
   const { t } = useTranslation();
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('7d');
-  const [sortBy, setSortBy] = useState<SortField>('profit');
+  const [sortBy, setSortBy] = useState<SortField>('real_apy');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const { entries, isLoading, error } = useLeaderboard(timeFilter, 50, sortBy, sortOrder);
 
@@ -81,6 +81,11 @@ export default function LeaderboardPage() {
     console.log('Copy strategy for grid:', gridId);
   };
 
+  const formatLeaderboardAmount = (rawValue: string, quoteDecimals: number) => {
+    const human = Number.parseFloat(formatScaledAmount(rawValue, quoteDecimals, 6));
+    return formatNumber(Number.isFinite(human) ? human : 0);
+  };
+
   return (
     <div className="p-5">
       <div className="max-w-6xl mx-auto">
@@ -129,20 +134,20 @@ export default function LeaderboardPage() {
                     </th>
                     <th
                       className="text-right py-3.5 px-5 text-xs font-medium uppercase tracking-wider cursor-pointer select-none hover:text-(--text-primary) transition-colors"
-                      onClick={() => handleSort('profit')}
+                      onClick={() => handleSort('real_apy')}
                     >
-                      <span className={cn(sortBy === 'profit' ? 'text-(--text-primary)' : 'text-(--text-tertiary)')}>
-                        {t('leaderboard.profit')}
-                        <SortIndicator field="profit" sortBy={sortBy} sortOrder={sortOrder} />
+                      <span className={cn(sortBy === 'real_apy' ? 'text-(--text-primary)' : 'text-(--text-tertiary)')}>
+                        {t('leaderboard.real_apy')}
+                        <SortIndicator field="real_apy" sortBy={sortBy} sortOrder={sortOrder} />
                       </span>
                     </th>
                     <th
                       className="text-right py-3.5 px-5 text-xs font-medium uppercase tracking-wider cursor-pointer select-none hover:text-(--text-primary) transition-colors"
-                      onClick={() => handleSort('profit_rate')}
+                      onClick={() => handleSort('grid_apy')}
                     >
-                      <span className={cn(sortBy === 'profit_rate' ? 'text-(--text-primary)' : 'text-(--text-tertiary)')}>
-                        {t('leaderboard.profit_rate')}
-                        <SortIndicator field="profit_rate" sortBy={sortBy} sortOrder={sortOrder} />
+                      <span className={cn(sortBy === 'grid_apy' ? 'text-(--text-primary)' : 'text-(--text-tertiary)')}>
+                        {t('leaderboard.grid_apy')}
+                        <SortIndicator field="grid_apy" sortBy={sortBy} sortOrder={sortOrder} />
                       </span>
                     </th>
                     <th
@@ -165,15 +170,10 @@ export default function LeaderboardPage() {
                     </th>
                     <th
                       className="text-right py-3.5 px-5 text-xs font-medium uppercase tracking-wider cursor-pointer select-none hover:text-(--text-primary) transition-colors"
-                      onClick={() => handleSort('apr')}
                     >
-                      <span className={cn(sortBy === 'apr' ? 'text-(--text-primary)' : 'text-(--text-tertiary)')}>
-                        APR
-                        <SortIndicator field="apr" sortBy={sortBy} sortOrder={sortOrder} />
+                      <span className="text-(--text-tertiary)">
+                        {t('leaderboard.actions')}
                       </span>
-                    </th>
-                    <th className="text-right py-3.5 px-5 text-xs font-medium text-(--text-tertiary) uppercase tracking-wider">
-                      {/* Actions */}
                     </th>
                   </tr>
                 </thead>
@@ -228,32 +228,29 @@ export default function LeaderboardPage() {
                           <span className="font-medium text-sm text-(--text-primary)">{entry.pair}</span>
                         </td>
                         <td className="py-3.5 px-5 text-right">
-                          <span className="text-(--green) font-medium text-sm">
-                            ${formatNumber(entry.profit)}
-                          </span>
-                        </td>
-                        <td className="py-3.5 px-5 text-right">
-                          <div className="flex items-center justify-end gap-1 text-(--green)">
-                            <TrendingUp size={13} />
-                            <span className="font-medium text-sm">{entry.profitRate.toFixed(2)}%</span>
-                          </div>
-                        </td>
-                        <td className="py-3.5 px-5 text-right">
-                          <span className="text-(--text-secondary) text-sm">
-                            ${formatNumber(entry.volume)}
-                          </span>
-                        </td>
-                        <td className="py-3.5 px-5 text-right">
-                          <span className="text-(--text-secondary) text-sm">
-                            ${formatNumber(entry.tvl)}
+                          <span className={cn(
+                            'font-medium text-sm',
+                            entry.realApy > 0 ? 'text-(--green)' : 'text-(--text-secondary)'
+                          )}>
+                            {entry.realApy.toFixed(2)}%
                           </span>
                         </td>
                         <td className="py-3.5 px-5 text-right">
                           <span className={cn(
                             'font-medium text-sm',
-                            entry.apr > 0 ? 'text-(--green)' : 'text-(--text-secondary)'
+                            entry.gridApy > 0 ? 'text-(--green)' : 'text-(--text-secondary)'
                           )}>
-                            {entry.apr.toFixed(2)}%
+                            {entry.gridApy.toFixed(2)}%
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-5 text-right">
+                          <span className="text-(--text-secondary) text-sm">
+                            ${formatLeaderboardAmount(entry.volume, entry.quoteDecimals)}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-5 text-right">
+                          <span className="text-(--text-secondary) text-sm">
+                            ${formatLeaderboardAmount(entry.tvl, entry.quoteDecimals)}
                           </span>
                         </td>
                         <td className="py-3.5 px-5 text-right">

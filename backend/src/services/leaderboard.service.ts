@@ -1,5 +1,5 @@
 import { eq, and, desc, asc, sql } from 'drizzle-orm';
-import { db, leaderboard } from '../db/index.js';
+import { db, leaderboard, grids, pairs, tokens } from '../db/index.js';
 import type {
   LeaderboardEntry,
   LeaderboardResponse,
@@ -37,13 +37,43 @@ export async function getLeaderboard(params: GetLeaderboardParams): Promise<Lead
     tvl: sql`${leaderboard.tvl}::numeric`,
     profit_rate: sql`${leaderboard.profitRate}`,
     apr: sql`${leaderboard.apr}`,
+    real_apy: sql`coalesce(nullif(${grids.aprReal}, '')::numeric, 0)`,
+    grid_apy: sql`coalesce(nullif(${grids.aprReal}, '')::numeric, 0) - coalesce(nullif(${grids.aprTheoretical}, '')::numeric, 0)`,
     trades: sql`${leaderboard.trades}`,
   };
   const sortExpr = sortColumnMap[sortBy] ?? sql`${leaderboard.profit}::numeric`;
 
   const results = await db
-    .select()
+    .select({
+      rank: leaderboard.rank,
+      trader: leaderboard.trader,
+      pair: leaderboard.pair,
+      gridId: leaderboard.gridId,
+      quoteDecimals: tokens.decimals,
+      profit: leaderboard.profit,
+      profitRate: leaderboard.profitRate,
+      volume: leaderboard.volume,
+      trades: leaderboard.trades,
+      tvl: leaderboard.tvl,
+      apr: leaderboard.apr,
+      aprReal: sql<string>`coalesce(nullif(${grids.aprReal}, ''), '0')`,
+      gridApy: sql<string>`(
+        coalesce(nullif(${grids.aprReal}, '')::numeric, 0) - coalesce(nullif(${grids.aprTheoretical}, '')::numeric, 0)
+      )::text`,
+    })
     .from(leaderboard)
+    .leftJoin(
+      grids,
+      and(eq(leaderboard.chainId, grids.chainId), eq(leaderboard.gridId, grids.gridId))
+    )
+    .leftJoin(
+      pairs,
+      and(eq(grids.chainId, pairs.chainId), eq(grids.pairId, pairs.pairId))
+    )
+    .leftJoin(
+      tokens,
+      and(eq(pairs.chainId, tokens.chainId), eq(pairs.quoteTokenAddress, tokens.address))
+    )
     .where(and(...conditions))
     .orderBy(dirFn(sortExpr))
     .limit(limit);
@@ -53,12 +83,15 @@ export async function getLeaderboard(params: GetLeaderboardParams): Promise<Lead
     trader: e.trader,
     pair: e.pair,
     grid_id: e.gridId,
+    quote_decimals: e.quoteDecimals ?? undefined,
     profit: e.profit,
     profit_rate: e.profitRate,
     volume: e.volume,
     trades: e.trades,
     tvl: e.tvl,
     apr: e.apr,
+    real_apy: Number.parseFloat(e.aprReal || '0') || 0,
+    grid_apy: Number.parseFloat(e.gridApy || '0') || 0,
   }));
 
   return {

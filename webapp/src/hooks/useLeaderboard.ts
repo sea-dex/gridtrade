@@ -6,7 +6,7 @@ import { useStore } from '@/store/useStore';
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 export type TimeFilter = '24h' | '7d' | '30d' | 'all';
-export type SortField = 'profit' | 'volume' | 'apr' | 'tvl' | 'profit_rate' | 'trades';
+export type SortField = 'profit' | 'volume' | 'apr' | 'tvl' | 'profit_rate' | 'trades' | 'real_apy' | 'grid_apy';
 export type SortOrder = 'asc' | 'desc';
 
 export interface LeaderboardEntry {
@@ -14,12 +14,12 @@ export interface LeaderboardEntry {
   trader: string;
   pair: string;
   gridId: number;
-  profit: number;
-  profitRate: number;
-  volume: number;
+  quoteDecimals: number;
+  volume: string;
   trades: number;
-  tvl: number;
-  apr: number;
+  tvl: string;
+  realApy: number;
+  gridApy: number;
 }
 
 interface ApiLeaderboardEntry {
@@ -27,12 +27,15 @@ interface ApiLeaderboardEntry {
   trader: string;
   pair: string;
   grid_id: number;
+  quote_decimals?: number;
   profit: string;
   profit_rate: number;
   volume: string;
   trades: number;
   tvl: string;
   apr: number;
+  real_apy: number;
+  grid_apy: number;
 }
 
 interface ApiLeaderboardResponse {
@@ -41,37 +44,10 @@ interface ApiLeaderboardResponse {
   period: string;
 }
 
-/**
- * Convert a wei-denominated string (18 decimals) to a human-readable number.
- * Falls back to parsing as a plain number if the value is small (non-wei).
- */
-function fromWei(value: string, decimals: number = 18): number {
-  if (!value || value === '0') return 0;
-  // If the string has a decimal point, it's already human-readable
-  if (value.includes('.')) return parseFloat(value);
-  // If the value is shorter than decimals digits, it's likely already a plain number
-  if (value.length <= decimals) {
-    const num = parseFloat(value);
-    // Heuristic: if this looks like a reasonable dollar amount, return as-is
-    if (num < 1e9) return num;
-  }
-  // Otherwise, divide by 10^decimals
-  try {
-    const bi = BigInt(value);
-    const divisor = BigInt(10 ** decimals);
-    const integer = bi / divisor;
-    const remainder = bi % divisor;
-    const fractional = remainder.toString().padStart(decimals, '0').slice(0, 2);
-    return parseFloat(`${integer}.${fractional}`);
-  } catch {
-    return parseFloat(value) || 0;
-  }
-}
-
 export function useLeaderboard(
   period: TimeFilter = '7d',
   limit: number = 50,
-  sortBy: SortField = 'profit',
+  sortBy: SortField = 'real_apy',
   sortOrder: SortOrder = 'desc',
 ) {
   const selectedChainId = useStore((s) => s.selectedChainId);
@@ -100,12 +76,12 @@ export function useLeaderboard(
         trader: e.trader,
         pair: e.pair,
         gridId: e.grid_id,
-        profit: fromWei(e.profit),
-        profitRate: e.profit_rate,
-        volume: fromWei(e.volume),
+        quoteDecimals: e.quote_decimals ?? 18,
+        volume: e.volume,
         trades: e.trades,
-        tvl: fromWei(e.tvl),
-        apr: e.apr,
+        tvl: e.tvl,
+        realApy: e.real_apy,
+        gridApy: e.grid_apy,
       }));
 
       setEntries(mapped);

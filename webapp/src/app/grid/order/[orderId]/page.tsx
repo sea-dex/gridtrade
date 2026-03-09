@@ -1,9 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { Suspense, useMemo } from 'react';
+import { Suspense, useMemo, useState } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
-import { Activity, ArrowDownUp, ArrowLeft, Clock3, Hash, Wallet } from 'lucide-react';
+import { Activity, ArrowDownUp, ArrowLeft, Check, Clock3, Copy, Hash, Wallet } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { CHAIN_NAMES } from '@/config/chains';
 import { useOrderDetail } from '@/hooks/useOrderDetail';
@@ -56,6 +56,7 @@ function GridOrderHistoryPageInner() {
     chainId,
     refreshInterval: 15_000,
   });
+  const [copiedValue, setCopiedValue] = useState<string | null>(null);
 
   const orderedFills = useMemo(
     () => [...fills].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()),
@@ -88,6 +89,18 @@ function GridOrderHistoryPageInner() {
     : '-';
   const isLoading = isOrderLoading || isFillsLoading;
   const errorMessage = orderError || fillsError;
+
+  const handleCopy = async (value: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopiedValue(value);
+      window.setTimeout(() => {
+        setCopiedValue((current) => (current === value ? null : current));
+      }, 1200);
+    } catch {
+      // No-op: keep interaction silent if clipboard is unavailable.
+    }
+  };
 
   return (
     <div className="p-3 sm:p-5">
@@ -213,10 +226,32 @@ function GridOrderHistoryPageInner() {
                         className="border-b border-(--border-subtle) last:border-0 hover:bg-[rgba(136,150,171,0.03)] transition-colors"
                       >
                         <td className="px-5 py-3 font-mono text-[12px] text-(--text-secondary)">
-                          {formatAddress(fill.tx_hash, 6)}
+                          <div className="inline-flex items-center gap-2">
+                            <span>{formatAddress(fill.tx_hash, 6)}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleCopy(fill.tx_hash)}
+                              className="inline-flex items-center justify-center rounded-sm text-(--text-disabled) transition-colors hover:text-(--text-primary)"
+                              title={t('common.copy')}
+                              aria-label={t('common.copy')}
+                            >
+                              {copiedValue === fill.tx_hash ? <Check size={12} /> : <Copy size={12} />}
+                            </button>
+                          </div>
                         </td>
                         <td className="px-5 py-3 font-mono text-[12px] text-(--text-secondary)">
-                          {formatAddress(fill.taker, 6)}
+                          <div className="inline-flex items-center gap-2">
+                            <span>{formatAddress(fill.taker, 6)}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleCopy(fill.taker)}
+                              className="inline-flex items-center justify-center rounded-sm text-(--text-disabled) transition-colors hover:text-(--text-primary)"
+                              title={t('common.copy')}
+                              aria-label={t('common.copy')}
+                            >
+                              {copiedValue === fill.taker ? <Check size={12} /> : <Copy size={12} />}
+                            </button>
+                          </div>
                         </td>
                         <td className="px-5 py-3 text-[13px] text-(--text-primary)">
                           {formatScaledAmount(fill.filled_amount, fill.is_ask ? baseDecimals : quoteDecimals)} {filledAmountLabel}

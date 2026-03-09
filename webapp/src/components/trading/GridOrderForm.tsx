@@ -1,7 +1,9 @@
 'use client';
 
+import Link from 'next/link';
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import BigNumber from 'bignumber.js';
+import { HelpCircle } from 'lucide-react';
 import {
   useAccount,
   useBalance,
@@ -773,7 +775,29 @@ export function GridOrderForm({ baseToken, quoteToken, onPriceLinesChange, exter
   return (
     <Card variant="bordered">
       <CardHeader>
-        <CardTitle>{t('grid.place_order')}</CardTitle>
+        <CardTitle className="flex items-center gap-2">
+          <span>{t('grid.place_order')}</span>
+          <div className="group relative inline-flex items-center">
+            <button
+              type="button"
+              aria-label={t('grid.order_form.help_label')}
+              className="inline-flex h-5 w-5 items-center justify-center rounded-full text-(--text-disabled) transition-colors hover:text-(--text-secondary)"
+            >
+              <HelpCircle size={14} />
+            </button>
+            <div className="pointer-events-none absolute left-0 top-full z-20 mt-2 w-72 rounded-(--radius-lg) border border-(--border-default) bg-(--bg-elevated) p-3 opacity-0 shadow-lg transition-all duration-150 group-hover:pointer-events-auto group-hover:opacity-100">
+              <p className="text-xs leading-5 text-(--text-secondary)">
+                {t('grid.order_form.help_hint')}
+              </p>
+              <Link
+                href="/docs/user-guide#creating-a-grid-order"
+                className="mt-2 inline-flex text-xs font-medium text-(--accent) underline-offset-4 hover:underline"
+              >
+                {t('grid.order_form.help_link')}
+              </Link>
+            </div>
+          </div>
+        </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3 sm:space-y-4">
         {/* Ask Strategy Selection */}

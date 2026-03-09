@@ -1,9 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { Suspense, useMemo, type ReactNode } from 'react';
+import { Suspense, useMemo, useState, type ReactNode } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
-import { Activity, ArrowLeft, Clock3, DollarSign, Hash, Wallet, HelpCircle } from 'lucide-react';
+import { Activity, ArrowLeft, Check, Clock3, Copy, DollarSign, Hash, Wallet, HelpCircle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { CHAIN_NAMES } from '@/config/chains';
 import { useGridDetail } from '@/hooks/useGridDetail';
@@ -80,6 +80,7 @@ function GridHistoryPageInner() {
     chainId,
     refreshInterval: 15_000,
   });
+  const [copiedValue, setCopiedValue] = useState<string | null>(null);
 
   const orderedFills = useMemo(
     () => [...fills].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()),
@@ -116,6 +117,18 @@ function GridHistoryPageInner() {
   const pairLabel = config ? `${config.base_token}/${config.quote_token}` : '-';
   const gridProfit = config ? `${formatScaledAmount(config.profits, quoteDecimals)} ${quoteToken}`.trim() : '-';
   const ownerLabel = config?.owner ? formatAddress(config.owner, 6) : '-';
+
+  const handleCopy = async (value: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopiedValue(value);
+      window.setTimeout(() => {
+        setCopiedValue((current) => (current === value ? null : current));
+      }, 1200);
+    } catch {
+      // No-op: keep interaction silent if clipboard is unavailable.
+    }
+  };
 
   return (
     <div className="p-3 sm:p-5">
@@ -240,6 +253,9 @@ function GridHistoryPageInner() {
                         {t('grid.grid_history.filled_quote')}
                       </th>
                       <th className="px-5 py-3 text-left text-[11px] font-medium uppercase tracking-wider text-(--text-disabled)">
+                        {t('grid.order_history.taker')}
+                      </th>
+                      <th className="px-5 py-3 text-left text-[11px] font-medium uppercase tracking-wider text-(--text-disabled)">
                         {t('grid.grid_history.tx_hash')}
                       </th>
                       <th className="px-5 py-3 text-left text-[11px] font-medium uppercase tracking-wider text-(--text-disabled)">
@@ -278,7 +294,32 @@ function GridHistoryPageInner() {
                             {formatScaledAmount(filledQuote, quoteDecimals)} {quoteToken}
                           </td>
                           <td className="px-5 py-3 font-mono text-[12px] text-(--text-secondary)">
-                            {formatAddress(fill.tx_hash, 6)}
+                            <div className="inline-flex items-center gap-2">
+                              <span>{formatAddress(fill.taker, 6)}</span>
+                              <button
+                                type="button"
+                                onClick={() => handleCopy(fill.taker)}
+                                className="inline-flex items-center justify-center rounded-sm text-(--text-disabled) transition-colors hover:text-(--text-primary)"
+                                title={t('common.copy')}
+                                aria-label={t('common.copy')}
+                              >
+                                {copiedValue === fill.taker ? <Check size={12} /> : <Copy size={12} />}
+                              </button>
+                            </div>
+                          </td>
+                          <td className="px-5 py-3 font-mono text-[12px] text-(--text-secondary)">
+                            <div className="inline-flex items-center gap-2">
+                              <span>{formatAddress(fill.tx_hash, 6)}</span>
+                              <button
+                                type="button"
+                                onClick={() => handleCopy(fill.tx_hash)}
+                                className="inline-flex items-center justify-center rounded-sm text-(--text-disabled) transition-colors hover:text-(--text-primary)"
+                                title={t('common.copy')}
+                                aria-label={t('common.copy')}
+                              >
+                                {copiedValue === fill.tx_hash ? <Check size={12} /> : <Copy size={12} />}
+                              </button>
+                            </div>
                           </td>
                           <td className="px-5 py-3 text-[13px] text-(--text-secondary)">
                             {formatDateTime(fill.timestamp)}
