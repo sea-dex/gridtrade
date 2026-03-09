@@ -1,12 +1,9 @@
 'use client';
 
-import { useTranslation } from '@/hooks/useTranslation';
 import { Card, CardContent } from '@/components/ui/Card';
 import { FileText, AlertTriangle, Shield, Scale, Ban, RefreshCw, Globe, Mail } from 'lucide-react';
 
 export default function TermsPage() {
-  const { t } = useTranslation();
-
   const lastUpdated = 'February 14, 2026';
 
   return (

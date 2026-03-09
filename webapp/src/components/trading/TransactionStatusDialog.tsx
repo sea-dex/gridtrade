@@ -107,7 +107,6 @@ function TransactionStatusDialogInner({
             <StepRow
               key={idx}
               step={step}
-              index={idx}
               explorerUrl={explorerUrl}
               t={t}
             />
@@ -170,12 +169,10 @@ function TransactionStatusDialogInner({
 
 function StepRow({
   step,
-  index,
   explorerUrl,
   t,
 }: {
   step: TxStep;
-  index: number;
   explorerUrl?: string;
   t: (key: string) => string;
 }) {

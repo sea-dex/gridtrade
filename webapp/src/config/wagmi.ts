@@ -19,7 +19,6 @@ const projectId =
 // the module can be re-evaluated multiple times, causing WalletConnect to be
 // initialized repeatedly
 declare global {
-  // eslint-disable-next-line no-var
   var wagmiConfigSingleton: ReturnType<typeof createConfig> | undefined;
 }
 

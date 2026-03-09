@@ -10,7 +10,6 @@ import {
   DocCode,
   DocBlockquote,
   DocHr,
-  DocLink,
 } from '../_components/DocsProse';
 import { DocsPageNav } from '../_components/DocsPageNav';
 

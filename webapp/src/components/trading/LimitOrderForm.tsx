@@ -1,36 +1,29 @@
 'use client';
 
-import { useState, useMemo, useEffect, useCallback } from 'react';
-import BigNumber from 'bignumber.js';
+import { useState, useMemo, useEffect } from 'react';
 import {
   useAccount,
   useBalance,
-  usePublicClient,
   useReadContract,
   useWriteContract,
 } from 'wagmi';
 import { useConnectModal } from '@rainbow-me/rainbowkit';
-import { parseUnits, encodeAbiParameters, formatUnits, getAddress, zeroAddress } from 'viem';
+import { parseUnits, encodeAbiParameters, getAddress, zeroAddress } from 'viem';
 import { useTranslation } from '@/hooks/useTranslation';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { ERC20_ABI } from '@/config/abi/ERC20';
-import { GRIDEX_ABI } from '@/config/abi/GridEx';
-import { GRIDEX_ADDRESSES, LINEAR_STRATEGY_ADDRESSES, WETH_ADDRESSES } from '@/config/chains';
-import { TransactionStatusDialog, type TxStep } from '@/components/trading/TransactionStatusDialog';
+import {
+  GRIDEX_ADDRESSES,
+  LINEAR_STRATEGY_ADDRESSES,
+  WETH_ADDRESSES,
+} from '@/config/chains';
+import { useOrderSubmission } from '@/hooks/useOrderSubmission';
+import { formatAmount, gapToContractBigInt, priceToContractBigInt } from '@/lib/tradingMath';
+import { calcLinearGridTotalsWithDecimals, priceToFixedBigInt } from '@/lib/tradingTotals';
+import { TransactionStatusDialog } from '@/components/trading/TransactionStatusDialog';
 import type { PriceLine } from '@/types/grid';
-
-function formatAmount(value: bigint, decimals: number, maxFractionDigits = 6): string {
-  const s = formatUnits(value, decimals);
-  const [intPart, fracPartRaw = ''] = s.split('.');
-  const fracPart = fracPartRaw.slice(0, Math.max(0, maxFractionDigits)).replace(/0+$/, '');
-  return fracPart ? `${intPart}.${fracPart}` : intPart;
-}
-
-/** Price multiplier for fixed-point arithmetic (10^36) — matches the contract constant */
-const PRICE_MULTIPLIER = 10n ** 36n;
-const PRICE_MULTIPLIER_BN = new BigNumber(10).pow(36);
 
 interface LimitOrderFormProps {
   baseToken?: {
@@ -44,139 +37,6 @@ interface LimitOrderFormProps {
     decimals: number;
   };
   onPriceLinesChange?: (lines: PriceLine[]) => void;
-}
-
-/**
- * Multiply a human-readable price string by PRICE_MULTIPLIER (10^36).
- *
- * IMPORTANT: This function does NOT account for decimal differences between base and quote tokens.
- * Use priceToContractBigInt() for prices that will be sent to the contract.
- */
-function priceToBigInt(priceStr: string): bigint {
-  const s = (priceStr ?? '').trim();
-  if (!s) return 0n;
-
-  const bn = new BigNumber(s);
-  if (!bn.isFinite() || bn.isNaN() || bn.lte(0)) return 0n;
-
-  const scaled = bn.times(PRICE_MULTIPLIER_BN).integerValue(BigNumber.ROUND_DOWN);
-  return BigInt(scaled.toFixed(0));
-}
-
-/**
- * Convert a human-readable price to contract format, accounting for decimal differences.
- *
- * The contract's calcQuoteAmount formula is: quoteAmt = baseAmt * price / PRICE_MULTIPLIER
- * This assumes price is scaled such that the result is in quote token units.
- *
- * To account for decimal differences:
- * - If base has 18 decimals and quote has 6 decimals
- * - 1 base token = 1e18 base units
- * - 1 quote token = 1e6 quote units
- * - For a price of 2000 (1 base = 2000 quote):
- *   - We want: 1e18 base units -> 2000e6 quote units
- *   - Contract calculates: 1e18 * price / 1e36 = quoteAmt
- *   - So: price = 2000e6 * 1e36 / 1e18 = 2000 * 1e36 * 1e6 / 1e18
- *
- * Formula: contractPrice = humanPrice * PRICE_MULTIPLIER * 10^quoteDecimals / 10^baseDecimals
- */
-function priceToContractBigInt(
-  priceStr: string,
-  baseDecimals: number,
-  quoteDecimals: number,
-): bigint {
-  const s = (priceStr ?? '').trim();
-  if (!s) return 0n;
-
-  const bn = new BigNumber(s);
-  if (!bn.isFinite() || bn.isNaN() || bn.lte(0)) return 0n;
-
-  // Calculate decimal adjustment: 10^quoteDecimals / 10^baseDecimals
-  const decimalAdjustment = new BigNumber(10).pow(quoteDecimals - baseDecimals);
-  
-  // Scale by PRICE_MULTIPLIER and decimal adjustment
-  const scaled = bn
-    .times(PRICE_MULTIPLIER_BN)
-    .times(decimalAdjustment)
-    .integerValue(BigNumber.ROUND_DOWN);
-  
-  return BigInt(scaled.toFixed(0));
-}
-
-/**
- * Convert a human-readable gap to contract format, accounting for decimal differences.
- * Same logic as priceToContractBigInt since gap is also a price difference.
- */
-function gapToContractBigInt(
-  gapStr: string,
-  baseDecimals: number,
-  quoteDecimals: number,
-): bigint {
-  return priceToContractBigInt(gapStr, baseDecimals, quoteDecimals);
-}
-
-/**
- * Replicate the Solidity calcQuoteAmount: quoteAmt = baseAmt * price / PRICE_MULTIPLIER
- *
- * IMPORTANT: This function accounts for decimal difference between base and quote tokens.
- * The price is defined as: 1 base token = price quote tokens (in human-readable form).
- * The PRICE_MULTIPLIER (10^36) is used for fixed-point arithmetic.
- *
- * Formula: quoteAmt = baseAmt * price / PRICE_MULTIPLIER * 10^quoteDecimals / 10^baseDecimals
- * Simplified: quoteAmt = baseAmt * price * 10^quoteDecimals / (PRICE_MULTIPLIER * 10^baseDecimals)
- */
-function calcQuoteAmount(
-  baseAmt: bigint,
-  price: bigint,
-  baseDecimals: number,
-  quoteDecimals: number,
-): bigint {
-  if (price === 0n) return 0n;
-  
-  // Calculate the decimal adjustment factor
-  // If baseDecimals > quoteDecimals, we need to divide by the difference
-  // If baseDecimals < quoteDecimals, we need to multiply by the difference
-  const decimalDiff = baseDecimals - quoteDecimals;
-  
-  // Use ceiling division: (a + b - 1) / b to round up
-  // This ensures we have enough tokens for approve/msg.value
-  let result = (baseAmt * price + PRICE_MULTIPLIER - 1n) / PRICE_MULTIPLIER;
-  
-  if (decimalDiff > 0) {
-    // Base has more decimals, divide to get correct quote amount (round up)
-    const divisor = 10n ** BigInt(decimalDiff);
-    result = (result + divisor - 1n) / divisor;
-  } else if (decimalDiff < 0) {
-    // Quote has more decimals, multiply to get correct quote amount
-    result = result * (10n ** BigInt(-decimalDiff));
-  }
-  
-  return result;
-}
-
-/**
- * Replicate the Solidity calcGridAmount logic.
- * Returns [totalBaseAmt, totalQuoteAmt].
- */
-function calcGridAmount(
-  baseAmt: bigint,
-  bidPrice: bigint,
-  bidGap: bigint,
-  askCount: number,
-  bidCount: number,
-  baseDecimals: number,
-  quoteDecimals: number,
-): [bigint, bigint] {
-  let quoteAmt = 0n;
-  let currentBidPrice = bidPrice;
-
-  for (let i = 0; i < bidCount; i++) {
-    const amt = calcQuoteAmount(baseAmt, currentBidPrice, baseDecimals, quoteDecimals);
-    quoteAmt += amt;
-    currentBidPrice -= bidGap;
-  }
-
-  return [baseAmt * BigInt(askCount), quoteAmt];
 }
 
 /** Hardcoded fee for limit orders (0.3%) */
@@ -204,23 +64,15 @@ export function LimitOrderForm({ baseToken, quoteToken, onPriceLinesChange }: Li
 
   const gridexAddress = useMemo(() => (chainId ? GRIDEX_ADDRESSES[chainId] : undefined), [chainId]);
 
-  const publicClient = usePublicClient({ chainId });
   const { writeContractAsync, isPending } = useWriteContract();
-
-  const [submitStage, setSubmitStage] = useState<
-    'idle' | 'approving_base' | 'approving_quote' | 'placing'
-  >('idle');
-
-  // Transaction status dialog state
-  const [txDialogOpen, setTxDialogOpen] = useState(false);
-  const [txSteps, setTxSteps] = useState<TxStep[]>([]);
-  const [txError, setTxError] = useState<string | null>(null);
-
-  const updateStep = useCallback(
-    (index: number, patch: Partial<TxStep>) =>
-      setTxSteps((prev) => prev.map((s, i) => (i === index ? { ...s, ...patch } : s))),
-    [],
-  );
+  const {
+    closeTxDialog,
+    isSubmitting,
+    submitOrder,
+    txDialogOpen,
+    txError,
+    txSteps,
+  } = useOrderSubmission({ chainId, t, writeContractAsync });
 
   // For native tokens (zeroAddress), don't pass token parameter to get native balance
   const baseTokenAddress = baseToken?.address === zeroAddress ? undefined : baseToken?.address;
@@ -286,10 +138,10 @@ export function LimitOrderForm({ baseToken, quoteToken, onPriceLinesChange }: Li
 
     try {
       const baseAmt = parseUnits(formData.amountPerGrid, baseToken.decimals);
-      const bidPrice = priceToBigInt(formData.bidPrice0);
-      const bidGap = priceToBigInt(formData.bidGap);
+      const bidPrice = priceToFixedBigInt(formData.bidPrice0);
+      const bidGap = priceToFixedBigInt(formData.bidGap);
 
-      const [totalBase, totalQuote] = calcGridAmount(
+      const [totalBase, totalQuote] = calcLinearGridTotalsWithDecimals(
         baseAmt,
         bidPrice,
         bidGap,
@@ -398,107 +250,16 @@ export function LimitOrderForm({ baseToken, quoteToken, onPriceLinesChange }: Li
 
     if (baseIsNative && quoteIsNative) return;
 
-    // Build initial steps list
-    const needsBase = needsBaseApproval && (baseAllowance as bigint | undefined ?? 0n) < totals.baseTotal;
-    const needsQuote = needsQuoteApproval && (quoteAllowance as bigint | undefined ?? 0n) < totals.quoteTotal;
-
-    const initialSteps: TxStep[] = [];
-    const stepIndexMap = { approveBase: -1, approveQuote: -1, place: -1 };
-
-    if (needsBase) {
-      stepIndexMap.approveBase = initialSteps.length;
-      initialSteps.push({
-        label: t('tx_dialog.approve_base').replace('{{symbol}}', baseToken.symbol),
-        status: 'pending',
-      });
-    }
-    if (needsQuote) {
-      stepIndexMap.approveQuote = initialSteps.length;
-      initialSteps.push({
-        label: t('tx_dialog.approve_quote').replace('{{symbol}}', quoteToken.symbol),
-        status: 'pending',
-      });
-    }
-    stepIndexMap.place = initialSteps.length;
-    initialSteps.push({
-      label: t('tx_dialog.place_order'),
-      status: 'pending',
-    });
-
-    setTxSteps(initialSteps);
-    setTxError(null);
-    setTxDialogOpen(true);
-
-    const approveIfNeeded = async (
-      tokenAddress: `0x${string}`,
-      requiredAmount: bigint,
-      currentAllowance: bigint,
-      stage: 'approving_base' | 'approving_quote',
-      stepIdx: number,
-    ) => {
-      if (!publicClient) throw new Error('Missing public client');
-      if (tokenAddress === zeroAddress) return;
-      if (requiredAmount <= 0n) return;
-      if (currentAllowance >= requiredAmount) return;
-
-      setSubmitStage(stage);
-      updateStep(stepIdx, { status: 'active' });
-
-      if (currentAllowance > 0n) {
-        const hash0 = await writeContractAsync({
-          address: tokenAddress,
-          abi: ERC20_ABI,
-          functionName: 'approve',
-          args: [gridexAddress, 0n],
-        });
-        updateStep(stepIdx, { hash: hash0 });
-        await publicClient.waitForTransactionReceipt({ hash: hash0 });
-      }
-
-      const hash1 = await writeContractAsync({
-        address: tokenAddress,
-        abi: ERC20_ABI,
-        functionName: 'approve',
-        args: [gridexAddress, requiredAmount],
-      });
-      updateStep(stepIdx, { hash: hash1 });
-      await publicClient.waitForTransactionReceipt({ hash: hash1 });
-      updateStep(stepIdx, { status: 'done' });
-    };
-
-    try {
-      if (stepIndexMap.approveBase >= 0) {
-        await approveIfNeeded(
-          baseToken.address,
-          totals.baseTotal,
-          (baseAllowance as bigint | undefined) ?? 0n,
-          'approving_base',
-          stepIndexMap.approveBase,
-        );
-      }
-
-      if (stepIndexMap.approveQuote >= 0) {
-        await approveIfNeeded(
-          quoteToken.address,
-          totals.quoteTotal,
-          (quoteAllowance as bigint | undefined) ?? 0n,
-          'approving_quote',
-          stepIndexMap.approveQuote,
-        );
-      }
-
-      setSubmitStage('placing');
-      updateStep(stepIndexMap.place, { status: 'active' });
-
-      // Convert prices to contract format, accounting for decimal differences
-      // The contract expects prices scaled by PRICE_MULTIPLIER * 10^(quoteDecimals - baseDecimals)
+    const buildPlaceRequest = () => {
       const askPrice0 = priceToContractBigInt(formData.askPrice0, baseToken.decimals, quoteToken.decimals);
       const askGap = gapToContractBigInt(formData.askGap, baseToken.decimals, quoteToken.decimals);
       const bidPrice0 = priceToContractBigInt(formData.bidPrice0, baseToken.decimals, quoteToken.decimals);
       const bidGap = gapToContractBigInt(formData.bidGap, baseToken.decimals, quoteToken.decimals);
 
       const linearStrategy = LINEAR_STRATEGY_ADDRESSES[chainId];
-      if (!linearStrategy) return;
+      if (!linearStrategy) {
+        throw new Error(`Missing strategy address for chain ${chainId}`);
+      }
 
       console.info('limit order - baseDecimals:', baseToken.decimals, 'quoteDecimals:', quoteToken.decimals);
       console.info('limit order - askPrice0:', askPrice0, 'askGap:', askGap);
@@ -520,8 +281,8 @@ export function LimitOrderForm({ baseToken, quoteToken, onPriceLinesChange }: Li
       const param = {
         askStrategy: linearStrategy,
         bidStrategy: linearStrategy,
-        askData: askData,
-        bidData: bidData,
+        askData,
+        bidData,
         askOrderCount: effectiveAskCount,
         bidOrderCount: effectiveBidCount,
         fee: LIMIT_ORDER_FEE,
@@ -537,45 +298,40 @@ export function LimitOrderForm({ baseToken, quoteToken, onPriceLinesChange }: Li
           : 0n;
       const baseCurrency = encodeCurrencyAddress(baseToken.address, baseIsNative, wethAddress);
       const quoteCurrency = encodeCurrencyAddress(quoteToken.address, quoteIsNative, wethAddress);
+      const functionName: 'placeETHGridOrders' | 'placeGridOrders' =
+        value > 0n ? 'placeETHGridOrders' : 'placeGridOrders';
 
-      const txHash =
-        value > 0n
-          ? await writeContractAsync({
-              address: gridexAddress,
-              abi: GRIDEX_ABI,
-              functionName: 'placeETHGridOrders',
-              args: [baseCurrency, quoteCurrency, param],
-              value,
-            })
-          : await writeContractAsync({
-              address: gridexAddress,
-              abi: GRIDEX_ABI,
-              functionName: 'placeGridOrders',
-              args: [baseCurrency, quoteCurrency, param],
-            });
+      return {
+        args: [baseCurrency, quoteCurrency, param] as const,
+        functionName,
+        value,
+      };
+    };
 
-      updateStep(stepIndexMap.place, { hash: txHash, status: 'active' });
-
-      // Wait for the place-order tx to be confirmed
-      if (publicClient) {
-        await publicClient.waitForTransactionReceipt({ hash: txHash });
-      }
-      updateStep(stepIndexMap.place, { status: 'done' });
-    } catch (err: unknown) {
-      console.error('Error placing limit order:', err);
-      const message =
-        err instanceof Error ? err.message : 'Transaction failed';
-      setTxError(message);
-      // Mark the currently active step as error
-      setTxSteps((prev) =>
-        prev.map((s) => (s.status === 'active' ? { ...s, status: 'error' } : s)),
-      );
-    } finally {
-      setSubmitStage('idle');
-    }
+    await submitOrder({
+      address,
+      baseApproval: {
+        currentAllowance: (baseAllowance as bigint | undefined) ?? 0n,
+        enabled: needsBaseApproval,
+        requiredAmount: totals.baseTotal,
+        stage: 'approving_base',
+        symbol: baseToken.symbol,
+        tokenAddress: baseToken.address,
+      },
+      buildPlaceRequest,
+      gridexAddress,
+      quoteApproval: {
+        currentAllowance: (quoteAllowance as bigint | undefined) ?? 0n,
+        enabled: needsQuoteApproval,
+        requiredAmount: totals.quoteTotal,
+        stage: 'approving_quote',
+        symbol: quoteToken.symbol,
+        tokenAddress: quoteToken.address,
+      },
+    });
   };
 
-  const isLoading = isPending || submitStage !== 'idle';
+  const isLoading = isPending || isSubmitting;
 
   return (
     <Card variant="bordered">
@@ -742,7 +498,7 @@ export function LimitOrderForm({ baseToken, quoteToken, onPriceLinesChange }: Li
 
       <TransactionStatusDialog
         open={txDialogOpen}
-        onClose={() => setTxDialogOpen(false)}
+        onClose={closeTxDialog}
         title={t('limit.order_form.place_order')}
         steps={txSteps}
         error={txError}

@@ -14,6 +14,26 @@ export function DocsSidebar({
   onClose: () => void;
 }) {
   const pathname = usePathname();
+
+  return (
+    <DocsSidebarInner
+      key={pathname}
+      pathname={pathname}
+      isOpen={isOpen}
+      onClose={onClose}
+    />
+  );
+}
+
+function DocsSidebarInner({
+  pathname,
+  isOpen,
+  onClose,
+}: {
+  pathname: string;
+  isOpen: boolean;
+  onClose: () => void;
+}) {
   const [activeSection, setActiveSection] = useState<string>('');
   const observerRef = useRef<IntersectionObserver | null>(null);
 
@@ -63,11 +83,6 @@ export function DocsSidebar({
       observerRef.current?.disconnect();
     };
   }, [setupObserver]);
-
-  // Reset active section on page change
-  useEffect(() => {
-    setActiveSection('');
-  }, [pathname]);
 
   return (
     <>

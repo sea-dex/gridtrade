@@ -56,6 +56,11 @@ export const WETH_ADDRESSES: Record<number, `0x${string}`> = {
 
 // Deploy GridEx7702BatchExecutor per chain and fill the address here to enable
 // single-transaction ERC-7702 approve + place flows in the webapp.
-export const GRID_7702_EXECUTOR_ADDRESSES: Partial<Record<number, `0x${string}`>> = {};
+export const GRID_7702_EXECUTOR_ADDRESSES: Partial<Record<number, `0x${string}`>> = {
+  [mainnet.id]: '0x739E82B14cdBED50091452f17e3E89245D43E53C',
+  [bsc.id]: '0x739E82B14cdBED50091452f17e3E89245D43E53C',
+  [base.id]: '0x739E82B14cdBED50091452f17e3E89245D43E53C',
+  [bscTestnet.id]: '0x739E82B14cdBED50091452f17e3E89245D43E53C',
+};
 
 export const DEFAULT_CHAIN = bscTestnet;

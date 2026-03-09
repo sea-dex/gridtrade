@@ -1,19 +1,17 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import BigNumber from 'bignumber.js';
 import { HelpCircle } from 'lucide-react';
 import {
   useAccount,
   useBalance,
-  useConnectorClient,
-  usePublicClient,
   useReadContract,
   useWriteContract,
 } from 'wagmi';
 import { useConnectModal } from '@rainbow-me/rainbowkit';
-import { parseUnits, encodeAbiParameters, formatUnits, parseEventLogs, zeroAddress } from 'viem';
+import { parseUnits, encodeAbiParameters, parseEventLogs, zeroAddress } from 'viem';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useFees } from '@/hooks/useFees';
 import { Button } from '@/components/ui/Button';
@@ -21,28 +19,17 @@ import { Input } from '@/components/ui/Input';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Select, SelectTrigger, SelectContent, SelectItem } from '@/components/ui/Select';
 import { ERC20_ABI } from '@/config/abi/ERC20';
-import { GRIDEX_ABI } from '@/config/abi/GridEx';
 import {
   GRIDEX_ADDRESSES,
-  GRID_7702_EXECUTOR_ADDRESSES,
   LINEAR_STRATEGY_ADDRESSES,
   GEOMETRY_STRATEGY_ADDRESSES,
 } from '@/config/chains';
+import { useOrderSubmission } from '@/hooks/useOrderSubmission';
+import { formatAmount, gapToContractBigInt, priceToContractBigInt } from '@/lib/tradingMath';
+import { calcLinearGridTotalsFromContractPrice, calcQuoteAmountFromContractPrice } from '@/lib/tradingTotals';
 import { cn } from '@/lib/utils';
-import { executeErc7702Batch, isErc7702FallbackError } from '@/lib/erc7702';
-import { TransactionStatusDialog, type TxStep } from '@/components/trading/TransactionStatusDialog';
+import { TransactionStatusDialog } from '@/components/trading/TransactionStatusDialog';
 import type { PriceLine } from '@/types/grid';
-
-function formatAmount(value: bigint, decimals: number, maxFractionDigits = 6): string {
-  const s = formatUnits(value, decimals);
-  const [intPart, fracPartRaw = ''] = s.split('.');
-  const fracPart = fracPartRaw.slice(0, Math.max(0, maxFractionDigits)).replace(/0+$/, '');
-  return fracPart ? `${intPart}.${fracPart}` : intPart;
-}
-
-/** Price multiplier for fixed-point arithmetic (10^36) — matches the contract constant */
-const PRICE_MULTIPLIER = 10n ** 36n;
-const PRICE_MULTIPLIER_BN = new BigNumber(10).pow(36);
 
 /** Ratio multiplier for Geometry strategy (10^18) */
 const RATIO_MULTIPLIER = 10n ** 18n;
@@ -101,98 +88,6 @@ const GRID_ORDER_CREATED_EVENT_ABI = [
 ] as const;
 
 /**
- * Convert a human-readable price to contract format, accounting for decimal differences.
- *
- * The contract's calcQuoteAmount formula is: quoteAmt = baseAmt * price / PRICE_MULTIPLIER
- * This assumes price is scaled such that the result is in quote token units.
- *
- * To account for decimal differences:
- * - If base has 18 decimals and quote has 6 decimals
- * - 1 base token = 1e18 base units
- * - 1 quote token = 1e6 quote units
- * - For a price of 2000 (1 base = 2000 quote):
- *   - We want: 1e18 base units -> 2000e6 quote units
- *   - Contract calculates: 1e18 * price / 1e36 = quoteAmt
- *   - So: price = 2000e6 * 1e36 / 1e18 = 2000 * 1e36 * 1e6 / 1e18
- *
- * Formula: contractPrice = humanPrice * PRICE_MULTIPLIER * 10^quoteDecimals / 10^baseDecimals
- */
-function priceToContractBigInt(
-  priceStr: string,
-  baseDecimals: number,
-  quoteDecimals: number,
-): bigint {
-  const s = (priceStr ?? '').trim();
-  if (!s) return 0n;
-
-  const bn = new BigNumber(s);
-  if (!bn.isFinite() || bn.isNaN() || bn.lte(0)) return 0n;
-
-  // Calculate decimal adjustment: 10^quoteDecimals / 10^baseDecimals
-  const decimalAdjustment = new BigNumber(10).pow(quoteDecimals - baseDecimals);
-  
-  // Scale by PRICE_MULTIPLIER and decimal adjustment
-  const scaled = bn
-    .times(PRICE_MULTIPLIER_BN)
-    .times(decimalAdjustment)
-    .integerValue(BigNumber.ROUND_DOWN);
-  
-  return BigInt(scaled.toFixed(0));
-}
-
-/**
- * Convert a human-readable gap to contract format, accounting for decimal differences.
- * Same logic as priceToContractBigInt since gap is also a price difference.
- */
-function gapToContractBigInt(
-  gapStr: string,
-  baseDecimals: number,
-  quoteDecimals: number,
-): bigint {
-  return priceToContractBigInt(gapStr, baseDecimals, quoteDecimals);
-}
-
-/**
- * Replicate the Solidity calcQuoteAmount: quoteAmt = baseAmt * price / PRICE_MULTIPLIER
- * Uses ceiling division (rounds up) to ensure sufficient approve/msg.value amounts.
- *
- * NOTE: The price parameter should already be in contract format (scaled by PRICE_MULTIPLIER
- * and adjusted for decimal differences). Use priceToContractBigInt() to convert human-readable
- * prices before passing them to this function.
- */
-function calcQuoteAmount(baseAmt: bigint, price: bigint): bigint {
-  if (price === 0n) return 0n;
-  // Use ceiling division: (a + b - 1) / b to round up
-  // This ensures we have enough tokens for approve/msg.value
-  return (baseAmt * price + PRICE_MULTIPLIER - 1n) / PRICE_MULTIPLIER;
-}
-
-/**
- * Replicate the Solidity calcGridAmount logic.
- * Returns [totalBaseAmt, totalQuoteAmt].
- *
- * NOTE: bidPrice and bidGap should already be in contract format.
- */
-function calcGridAmount(
-  baseAmt: bigint,
-  bidPrice: bigint,
-  bidGap: bigint,
-  askCount: number,
-  bidCount: number,
-): [bigint, bigint] {
-  let quoteAmt = 0n;
-  let currentBidPrice = bidPrice;
-
-  for (let i = 0; i < bidCount; i++) {
-    const amt = calcQuoteAmount(baseAmt, currentBidPrice);
-    quoteAmt += amt;
-    currentBidPrice -= bidGap;
-  }
-
-  return [baseAmt * BigInt(askCount), quoteAmt];
-}
-
-/**
  * Calculate price at index for geometry strategy
  * price(i) = price0 * ratio^i / RATIO_MULTIPLIER
  */
@@ -227,7 +122,7 @@ function calcGeometryGridQuoteAmount(
   let quoteAmt = 0n;
   for (let i = 0; i < bidCount; i++) {
     const price = calcGeometryPrice(bidPrice0, bidRatio, i);
-    const amt = calcQuoteAmount(baseAmt, price);
+    const amt = calcQuoteAmountFromContractPrice(baseAmt, price);
     quoteAmt += amt;
   }
   return quoteAmt;
@@ -240,40 +135,15 @@ export function GridOrderForm({ baseToken, quoteToken, onPriceLinesChange, exter
 
   const gridexAddress = useMemo(() => (chainId ? GRIDEX_ADDRESSES[chainId] : undefined), [chainId]);
 
-  const publicClient = usePublicClient({ chainId });
-  const { data: connectorClient } = useConnectorClient({ chainId });
   const { writeContractAsync, isPending } = useWriteContract();
-
-  const [submitStage, setSubmitStage] = useState<
-    'idle' | 'approving_base' | 'approving_quote' | 'placing'
-  >('idle');
-
-  // Transaction status dialog state
-  const [txDialogOpen, setTxDialogOpen] = useState(false);
-  const [txSteps, setTxSteps] = useState<TxStep[]>([]);
-  const [txError, setTxError] = useState<string | null>(null);
-
-  const updateStep = useCallback(
-    (index: number, patch: Partial<TxStep>) =>
-      setTxSteps((prev) => prev.map((s, i) => (i === index ? { ...s, ...patch } : s))),
-    [],
-  );
-
-  const waitForSuccessfulReceipt = useCallback(
-    async (hash: `0x${string}`) => {
-      if (!publicClient) {
-        throw new Error('Missing public client');
-      }
-
-      const receipt = await publicClient.waitForTransactionReceipt({ hash });
-      if (receipt.status !== 'success') {
-        throw new Error('Transaction reverted');
-      }
-
-      return receipt;
-    },
-    [publicClient],
-  );
+  const {
+    closeTxDialog,
+    isSubmitting,
+    submitOrder,
+    txDialogOpen,
+    txError,
+    txSteps,
+  } = useOrderSubmission({ chainId, t, writeContractAsync });
 
   const { fees, defaultFee, isLoading: isFeesLoading } = useFees();
 
@@ -393,7 +263,7 @@ export function GridOrderForm({ baseToken, quoteToken, onPriceLinesChange, exter
 
       if (formData.bidStrategy === 'linear') {
         const bidGap = priceToContractBigInt(formData.bidGap, baseToken.decimals, quoteToken.decimals);
-        quoteTotal = calcGridAmount(baseAmt, bidPrice0, bidGap, 0, effectiveBidCount)[1];
+        quoteTotal = calcLinearGridTotalsFromContractPrice(baseAmt, bidPrice0, bidGap, 0, effectiveBidCount)[1];
       } else {
         // Geometry strategy
         const bidRatioBN = new BigNumber(formData.bidRatio || '1').times(RATIO_MULTIPLIER_BN).integerValue(BigNumber.ROUND_DOWN);
@@ -551,89 +421,6 @@ export function GridOrderForm({ baseToken, quoteToken, onPriceLinesChange, exter
     // Currently only supports at most one native side.
     if (baseIsNative && quoteIsNative) return;
 
-    const needsBase = needsBaseApproval && (baseAllowance as bigint | undefined ?? 0n) < totals.baseTotal;
-    const needsQuote = needsQuoteApproval && (quoteAllowance as bigint | undefined ?? 0n) < totals.quoteTotal;
-    const erc7702Executor = GRID_7702_EXECUTOR_ADDRESSES[chainId];
-    const shouldTryErc7702 = !!erc7702Executor && !!connectorClient && (needsBase || needsQuote);
-
-    const setupSteps = (useBatch: boolean) => {
-      const steps: TxStep[] = [];
-      const map = { approveBase: -1, approveQuote: -1, place: -1 };
-
-      if (useBatch) {
-        map.place = 0;
-        steps.push({
-          label: t('tx_dialog.approve_and_place'),
-          status: 'pending',
-        });
-      } else {
-        if (needsBase) {
-          map.approveBase = steps.length;
-          steps.push({
-            label: t('tx_dialog.approve_base').replace('{{symbol}}', baseToken.symbol),
-            status: 'pending',
-          });
-        }
-        if (needsQuote) {
-          map.approveQuote = steps.length;
-          steps.push({
-            label: t('tx_dialog.approve_quote').replace('{{symbol}}', quoteToken.symbol),
-            status: 'pending',
-          });
-        }
-        map.place = steps.length;
-        steps.push({
-          label: t('tx_dialog.place_order'),
-          status: 'pending',
-        });
-      }
-
-      setTxSteps(steps);
-      setTxError(null);
-      setTxDialogOpen(true);
-      return map;
-    };
-
-    let stepIndexMap = setupSteps(shouldTryErc7702);
-
-    const approveIfNeeded = async (
-      tokenAddress: `0x${string}`,
-      requiredAmount: bigint,
-      currentAllowance: bigint,
-      stage: 'approving_base' | 'approving_quote',
-      stepIdx: number,
-    ) => {
-      if (!publicClient) throw new Error('Missing public client');
-      if (tokenAddress === zeroAddress) return;
-      if (requiredAmount <= 0n) return;
-      if (currentAllowance >= requiredAmount) return;
-
-      setSubmitStage(stage);
-      updateStep(stepIdx, { status: 'active' });
-
-      // Some tokens (e.g. USDT) require setting allowance to 0 before increasing.
-      if (currentAllowance > 0n) {
-        const hash0 = await writeContractAsync({
-          address: tokenAddress,
-          abi: ERC20_ABI,
-          functionName: 'approve',
-          args: [gridexAddress, 0n],
-        });
-        updateStep(stepIdx, { hash: hash0 });
-        await waitForSuccessfulReceipt(hash0);
-      }
-
-      const hash1 = await writeContractAsync({
-        address: tokenAddress,
-        abi: ERC20_ABI,
-        functionName: 'approve',
-        args: [gridexAddress, requiredAmount],
-      });
-      updateStep(stepIdx, { hash: hash1 });
-      await waitForSuccessfulReceipt(hash1);
-      updateStep(stepIdx, { status: 'done' });
-    };
-
     const buildPlaceRequest = () => {
       const askPrice0 = priceToContractBigInt(formData.askPrice0, baseToken.decimals, quoteToken.decimals);
       const bidPrice0 = priceToContractBigInt(formData.bidPrice0, baseToken.decimals, quoteToken.decimals);
@@ -702,168 +489,54 @@ export function GridOrderForm({ baseToken, quoteToken, onPriceLinesChange, exter
         : quoteIsNative
           ? totals.quoteTotal
           : 0n;
+      const functionName: 'placeETHGridOrders' | 'placeGridOrders' =
+        (baseIsNative || quoteIsNative) ? 'placeETHGridOrders' : 'placeGridOrders';
 
-      return { param, value };
+      return {
+        args: [baseToken.address, quoteToken.address, param] as const,
+        functionName,
+        value,
+      };
     };
 
-    try {
-      const placeRequest = buildPlaceRequest();
+    await submitOrder({
+      address,
+      baseApproval: {
+        currentAllowance: (baseAllowance as bigint | undefined) ?? 0n,
+        enabled: needsBaseApproval,
+        requiredAmount: totals.baseTotal,
+        stage: 'approving_base',
+        symbol: baseToken.symbol,
+        tokenAddress: baseToken.address,
+      },
+      buildPlaceRequest,
+      gridexAddress,
+      onPlaceSuccess: async (receipt) => {
+        const gridOrderCreatedLogs = parseEventLogs({
+          abi: GRID_ORDER_CREATED_EVENT_ABI,
+          logs: receipt.logs.filter(
+            (log) => log.address.toLowerCase() === gridexAddress.toLowerCase(),
+          ),
+          eventName: 'GridOrderCreated',
+          strict: false,
+        });
 
-      if (shouldTryErc7702 && connectorClient && erc7702Executor) {
-        try {
-          setSubmitStage('placing');
-          updateStep(stepIndexMap.place, { status: 'active' });
-
-          const calls = [];
-
-          const pushApproveCalls = (
-            tokenAddress: `0x${string}`,
-            requiredAmount: bigint,
-            currentAllowance: bigint,
-          ) => {
-            if (tokenAddress === zeroAddress) return;
-            if (requiredAmount <= 0n || currentAllowance >= requiredAmount) return;
-
-            if (currentAllowance > 0n) {
-              calls.push({
-                abi: ERC20_ABI,
-                to: tokenAddress,
-                functionName: 'approve',
-                args: [gridexAddress, 0n],
-              });
-            }
-
-            calls.push({
-              abi: ERC20_ABI,
-              to: tokenAddress,
-              functionName: 'approve',
-              args: [gridexAddress, requiredAmount],
-            });
-          };
-
-          pushApproveCalls(
-            baseToken.address,
-            totals.baseTotal,
-            (baseAllowance as bigint | undefined) ?? 0n,
-          );
-          pushApproveCalls(
-            quoteToken.address,
-            totals.quoteTotal,
-            (quoteAllowance as bigint | undefined) ?? 0n,
-          );
-
-          calls.push({
-            abi: GRIDEX_ABI,
-            to: gridexAddress,
-            functionName: (baseIsNative || quoteIsNative) ? 'placeETHGridOrders' : 'placeGridOrders',
-            args: [baseToken.address, quoteToken.address, placeRequest.param],
-            value: placeRequest.value,
-          });
-
-          const txHash = await executeErc7702Batch({
-            walletClient: connectorClient,
-            account: address,
-            executorAddress: erc7702Executor,
-            calls,
-          });
-
-          updateStep(stepIndexMap.place, { hash: txHash, status: 'active' });
-          const receipt = await waitForSuccessfulReceipt(txHash);
-          const gridOrderCreatedLogs = parseEventLogs({
-            abi: GRID_ORDER_CREATED_EVENT_ABI,
-            logs: receipt.logs.filter(
-              (log) => log.address.toLowerCase() === gridexAddress.toLowerCase(),
-            ),
-            eventName: 'GridOrderCreated',
-            strict: false,
-          });
-
-          if (gridOrderCreatedLogs.length === 0) {
-            throw new Error('GridOrderCreated event not found in transaction receipt');
-          }
-
-          updateStep(stepIndexMap.place, { status: 'done' });
-          return;
-        } catch (erc7702Error) {
-          if (!isErc7702FallbackError(erc7702Error)) {
-            throw erc7702Error;
-          }
-
-          stepIndexMap = setupSteps(false);
+        if (gridOrderCreatedLogs.length === 0) {
+          throw new Error('GridOrderCreated event not found in transaction receipt');
         }
-      }
-
-      if (stepIndexMap.approveBase >= 0) {
-        await approveIfNeeded(
-          baseToken.address,
-          totals.baseTotal,
-          (baseAllowance as bigint | undefined) ?? 0n,
-          'approving_base',
-          stepIndexMap.approveBase,
-        );
-      }
-
-      if (stepIndexMap.approveQuote >= 0) {
-        await approveIfNeeded(
-          quoteToken.address,
-          totals.quoteTotal,
-          (quoteAllowance as bigint | undefined) ?? 0n,
-          'approving_quote',
-          stepIndexMap.approveQuote,
-        );
-      }
-
-      setSubmitStage('placing');
-      updateStep(stepIndexMap.place, { status: 'active' });
-
-      const txHash =
-        (baseIsNative || quoteIsNative)
-          ? await writeContractAsync({
-              address: gridexAddress,
-              abi: GRIDEX_ABI,
-              functionName: 'placeETHGridOrders',
-              args: [baseToken.address, quoteToken.address, placeRequest.param],
-              value: placeRequest.value,
-            })
-          : await writeContractAsync({
-              address: gridexAddress,
-              abi: GRIDEX_ABI,
-              functionName: 'placeGridOrders',
-              args: [baseToken.address, quoteToken.address, placeRequest.param],
-            });
-
-      updateStep(stepIndexMap.place, { hash: txHash, status: 'active' });
-
-      const receipt = await waitForSuccessfulReceipt(txHash);
-      const gridOrderCreatedLogs = parseEventLogs({
-        abi: GRID_ORDER_CREATED_EVENT_ABI,
-        logs: receipt.logs.filter(
-          (log) => log.address.toLowerCase() === gridexAddress.toLowerCase(),
-        ),
-        eventName: 'GridOrderCreated',
-        strict: false,
-      });
-
-      if (gridOrderCreatedLogs.length === 0) {
-        throw new Error('GridOrderCreated event not found in transaction receipt');
-      }
-
-      updateStep(stepIndexMap.place, { status: 'done' });
-    } catch (err: unknown) {
-      console.error('Error placing grid order:', err);
-      const message =
-        err instanceof Error ? err.message : 'Transaction failed';
-      setTxError(message);
-      // Mark the currently active step as error
-      setTxSteps((prev) =>
-        prev.map((s) => (s.status === 'active' ? { ...s, status: 'error' } : s)),
-      );
-    } finally {
-      setSubmitStage('idle');
-    }
+      },
+      quoteApproval: {
+        currentAllowance: (quoteAllowance as bigint | undefined) ?? 0n,
+        enabled: needsQuoteApproval,
+        requiredAmount: totals.quoteTotal,
+        stage: 'approving_quote',
+        symbol: quoteToken.symbol,
+        tokenAddress: quoteToken.address,
+      },
+    });
   };
 
-  const isLoading = isPending || submitStage !== 'idle';
+  const isLoading = isPending || isSubmitting;
 
   return (
     <Card variant="bordered">
@@ -1158,7 +831,7 @@ export function GridOrderForm({ baseToken, quoteToken, onPriceLinesChange, exter
 
       <TransactionStatusDialog
         open={txDialogOpen}
-        onClose={() => setTxDialogOpen(false)}
+        onClose={closeTxDialog}
         title={t('grid.order_form.place_grid')}
         steps={txSteps}
         error={txError}

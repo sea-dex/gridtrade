@@ -1,12 +1,9 @@
 'use client';
 
-import { useTranslation } from '@/hooks/useTranslation';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Shield, Eye, Database, Lock, Globe, UserCheck, Clock, Mail } from 'lucide-react';
 
 export default function PrivacyPage() {
-  const { t } = useTranslation();
-
   const lastUpdated = 'February 14, 2026';
 
   return (

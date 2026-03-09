@@ -84,7 +84,7 @@ export function useGridOrders(params: UseGridOrdersParams = {}): UseGridOrdersRe
     } finally {
       setIsLoading(false);
     }
-  }, [selectedChainId, page, pageSize, params.owner, params.pairId, params.baseToken, params.quoteToken, params.oneshot, params.status, isInitialLoad]);
+  }, [selectedChainId, page, pageSize, params.owner, params.baseToken, params.quoteToken, params.oneshot, params.status, isInitialLoad]);
 
   useEffect(() => {
     fetchGridsWithOrders();

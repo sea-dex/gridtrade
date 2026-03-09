@@ -14,7 +14,6 @@ import {
   DocHr,
   DocEndpoint,
   DocStrong,
-  DocLink,
 } from '../_components/DocsProse';
 import { DocsPageNav } from '../_components/DocsPageNav';
 
