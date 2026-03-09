@@ -263,20 +263,28 @@ export function GridOrderList({ baseToken, quoteToken, oneshot = false }: GridOr
     }
   };
 
-  // Order status badge: 0=active, 1=filled/cancelled
+  // Order status badge: 0=active, 1=completed, 2=cancelled
   const getOrderStatusBadge = (status: number) => {
-    if (status === 0) {
-      return (
-        <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-medium bg-(--green-dim) text-(--green) border border-[rgba(52,211,153,0.15)] rounded-sm">
-          {t('grid.order_list.status_active')}
-        </span>
-      );
+    switch (status) {
+      case 0:
+        return (
+          <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-medium bg-(--green-dim) text-(--green) border border-[rgba(52,211,153,0.15)] rounded-sm">
+            {t('grid.order_list.status_active')}
+          </span>
+        );
+      case 1:
+        return (
+          <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-medium bg-(--accent-dim) text-(--accent) border border-(--accent)/20 rounded-sm">
+            {t('grid.order_list.status_completed')}
+          </span>
+        );
+      default:
+        return (
+          <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-medium bg-[rgba(136,150,171,0.06)] text-(--text-disabled) border border-(--border-subtle) rounded-sm">
+            {t('grid.order_list.status_cancelled')}
+          </span>
+        );
     }
-    return (
-      <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-medium bg-[rgba(136,150,171,0.06)] text-(--text-disabled) border border-(--border-subtle) rounded-sm">
-        {t('grid.order_list.status_cancelled')}
-      </span>
-    );
   };
 
   const totalPages = Math.ceil(total / pageSize);
@@ -847,6 +855,10 @@ function OrderRow({
         {order.status === 0 ? (
           <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium bg-(--green-dim) text-(--green) border border-[rgba(52,211,153,0.15)] rounded-sm">
             {t('grid.order_list.status_active')}
+          </span>
+        ) : order.status === 1 ? (
+          <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium bg-(--accent-dim) text-(--accent) border border-(--accent)/20 rounded-sm">
+            {t('grid.order_list.status_completed')}
           </span>
         ) : (
           <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium bg-[rgba(136,150,171,0.06)] text-(--text-disabled) border border-(--border-subtle) rounded-sm">

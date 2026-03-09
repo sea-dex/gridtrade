@@ -96,6 +96,7 @@
       "view_details": "詳細を見る",
       "no_orders": "グリッド注文が見つかりません",
       "status_active": "アクティブ",
+      "status_completed": "完了",
       "status_cancelled": "キャンセル済み",
       "show_cancelled": "キャンセル済みを表示",
       "show_all_pairs": "すべてのペアを表示"

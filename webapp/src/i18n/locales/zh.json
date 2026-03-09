@@ -108,6 +108,7 @@
       "hide_details": "收起详情",
       "no_orders": "未找到网格订单",
       "status_active": "活跃",
+      "status_completed": "已完成",
       "status_cancelled": "已取消",
       "order_id": "订单 ID",
       "side": "方向",

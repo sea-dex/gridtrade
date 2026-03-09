@@ -96,6 +96,7 @@
       "view_details": "Voir Détails",
       "no_orders": "Aucun ordre grid trouvé",
       "status_active": "Actif",
+      "status_completed": "Terminé",
       "status_cancelled": "Annulé",
       "show_cancelled": "Afficher Annulés",
       "show_all_pairs": "Afficher Toutes les Paires"

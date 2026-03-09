@@ -96,6 +96,7 @@
       "view_details": "Подробности",
       "no_orders": "Грид ордера не найдены",
       "status_active": "Активен",
+      "status_completed": "Завершен",
       "status_cancelled": "Отменен",
       "show_cancelled": "Показать Отмененные",
       "show_all_pairs": "Показать Все Пары"

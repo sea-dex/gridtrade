@@ -106,6 +106,7 @@
       "hide_details": "Hide Details",
       "no_orders": "No grid orders found",
       "status_active": "Active",
+      "status_completed": "Completed",
       "status_cancelled": "Cancelled",
       "order_id": "Order ID",
       "side": "Side",

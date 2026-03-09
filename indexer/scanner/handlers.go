@@ -627,10 +627,15 @@ func (s *Scanner) handleFilledOrder(ctx context.Context, tx pgx.Tx, log types.Lo
 		return nil, err
 	}
 
-	// Update grid's total_profit: total_profit += gridProfit + orderFee
-	// Only update for non-compound orders
-	if !orderInfo.Compound {
-		totalProfitAdd := addBigStrings(gridProfit, orderFee)
+	// Update grid's total_profit using gridProfit plus the grid's fee share.
+	// oneshot orders contribute 25% of orderFee.
+	// non-oneshot, non-compound orders contribute 75% of orderFee.
+	feeShare := calcGridFeeShare(orderFee, orderInfo.Oneshot, orderInfo.Compound)
+	totalProfitAdd := addBigStrings(gridProfit, feeShare)
+	if totalProfitAdd != "0" {
+		if err := db.UpdateGridProfits(ctx, tx, s.cfg.ChainID, gridID, totalProfitAdd, log.BlockNumber); err != nil {
+			return nil, fmt.Errorf("update grid profits: %w", err)
+		}
 		if err := db.UpdateGridTotalProfit(ctx, tx, s.cfg.ChainID, gridID, totalProfitAdd, log.BlockNumber); err != nil {
 			return nil, fmt.Errorf("update grid total_profit: %w", err)
 		}
@@ -758,7 +763,7 @@ func (s *Scanner) handleWithdrawProfit(ctx context.Context, tx pgx.Tx, log types
 		"amt", event.Amt.String(),
 	)
 
-	if err := db.UpdateGridProfits(ctx, tx, s.cfg.ChainID, gridID, event.Amt.String(), log.BlockNumber); err != nil {
+	if err := db.SubtractGridProfits(ctx, tx, s.cfg.ChainID, gridID, event.Amt.String(), log.BlockNumber); err != nil {
 		return nil, err
 	}
 
@@ -910,6 +915,27 @@ func calcOrderFee(quoteVol *big.Int, fee int) string {
 	orderFee := new(big.Int).Div(numerator, big.NewInt(4000000))
 
 	return orderFee.String()
+}
+
+// calcGridFeeShare calculates the portion of orderFee credited to grid total_profit.
+// oneshot orders credit 25% of orderFee.
+// non-oneshot orders with compound=false credit 75% of orderFee.
+// other orders credit 0.
+func calcGridFeeShare(orderFee string, oneshot, compound bool) string {
+	feeInt, ok := new(big.Int).SetString(orderFee, 10)
+	if !ok || feeInt.Sign() <= 0 {
+		return "0"
+	}
+
+	switch {
+	case oneshot:
+		return new(big.Int).Div(feeInt, big.NewInt(4)).String()
+	case !compound:
+		numerator := new(big.Int).Mul(feeInt, big.NewInt(3))
+		return numerator.Div(numerator, big.NewInt(4)).String()
+	default:
+		return "0"
+	}
 }
 
 // calcGridProfit calculates the grid profit for a reverse fill.

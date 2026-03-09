@@ -243,13 +243,22 @@ func InsertOrderFill(ctx context.Context, tx pgx.Tx, chainID int64,
 	return nil
 }
 
-// UpdateOrderOnFill updates an order's amount and rev_amount after a fill.
+// UpdateOrderOnFill updates an order's amount/rev_amount after a fill.
+// A oneshot order becomes completed (status=1) once its remaining amount reaches zero.
 func UpdateOrderOnFill(ctx context.Context, tx pgx.Tx, chainID int64,
 	orderID, newAmount, newRevAmount string, blockNumber uint64) error {
 	_, err := tx.Exec(ctx, `
-		UPDATE orders SET amount = $1, rev_amount = $2, update_block = $5, updated_at = NOW()
+		UPDATE orders
+		SET amount = $1,
+		    rev_amount = $2,
+		    status = CASE
+		        WHEN status = 0 AND oneshot AND CAST($6 AS NUMERIC) = 0 THEN 1
+		        ELSE status
+		    END,
+		    update_block = $5,
+		    updated_at = NOW()
 		WHERE chain_id = $3 AND order_id = $4
-	`, newAmount, newRevAmount, chainID, orderID, int64(blockNumber))
+	`, newAmount, newRevAmount, chainID, orderID, int64(blockNumber), newAmount)
 	if err != nil {
 		return fmt.Errorf("update order on fill: %w", err)
 	}
@@ -302,10 +311,8 @@ func UpdateGridFee(ctx context.Context, tx pgx.Tx, chainID int64, gridID int64, 
 	return nil
 }
 
-// UpdateGridProfits adds to a grid's profits.
+// UpdateGridProfits adds to a grid's current accumulated profits.
 func UpdateGridProfits(ctx context.Context, tx pgx.Tx, chainID int64, gridID int64, amt string, blockNumber uint64) error {
-	// We store profits as a string representation of big.Int
-	// For simplicity, we use PostgreSQL's numeric casting to add
 	_, err := tx.Exec(ctx, `
 		UPDATE grids SET profits = (CAST(profits AS NUMERIC) + CAST($1 AS NUMERIC))::TEXT,
 		    update_block = $4, updated_at = NOW()
@@ -313,6 +320,20 @@ func UpdateGridProfits(ctx context.Context, tx pgx.Tx, chainID int64, gridID int
 	`, amt, chainID, gridID, int64(blockNumber))
 	if err != nil {
 		return fmt.Errorf("update grid profits: %w", err)
+	}
+	return nil
+}
+
+// SubtractGridProfits deducts withdrawn profits from a grid's current accumulated profits.
+func SubtractGridProfits(ctx context.Context, tx pgx.Tx, chainID int64, gridID int64, amt string, blockNumber uint64) error {
+	_, err := tx.Exec(ctx, `
+		UPDATE grids
+		SET profits = GREATEST(CAST(profits AS NUMERIC) - CAST($1 AS NUMERIC), 0)::TEXT,
+		    update_block = $4, updated_at = NOW()
+		WHERE chain_id = $2 AND grid_id = $3
+	`, amt, chainID, gridID, int64(blockNumber))
+	if err != nil {
+		return fmt.Errorf("subtract grid profits: %w", err)
 	}
 	return nil
 }
@@ -415,6 +436,7 @@ type OrderInfo struct {
 	PairID   int
 	IsAsk    bool
 	Compound bool
+	Oneshot  bool
 	Price    string
 	RevPrice string
 	Fee      int
@@ -424,9 +446,9 @@ type OrderInfo struct {
 func GetOrderInfo(ctx context.Context, tx pgx.Tx, chainID int64, orderID string) (*OrderInfo, error) {
 	var info OrderInfo
 	err := tx.QueryRow(ctx,
-		`SELECT grid_id, pair_id, is_ask, compound, price, rev_price, fee FROM orders WHERE chain_id = $1 AND order_id = $2`,
+		`SELECT grid_id, pair_id, is_ask, compound, oneshot, price, rev_price, fee FROM orders WHERE chain_id = $1 AND order_id = $2`,
 		chainID, orderID,
-	).Scan(&info.GridID, &info.PairID, &info.IsAsk, &info.Compound, &info.Price, &info.RevPrice, &info.Fee)
+	).Scan(&info.GridID, &info.PairID, &info.IsAsk, &info.Compound, &info.Oneshot, &info.Price, &info.RevPrice, &info.Fee)
 	if err != nil {
 		return nil, fmt.Errorf("get order info: %w", err)
 	}
@@ -525,9 +547,9 @@ func ComputeProtocolStats(ctx context.Context, tx pgx.Tx, chainID int64, nativeT
 		return nil, fmt.Errorf("compute total trades: %w", err)
 	}
 
-	// Total profit: SUM of profits from all grids
+	// Total profit generated: SUM of total_profit from all grids
 	err = tx.QueryRow(ctx, `
-		SELECT COALESCE(SUM(profits::NUMERIC), 0)::TEXT
+		SELECT COALESCE(SUM(total_profit::NUMERIC), 0)::TEXT
 		FROM grids WHERE chain_id = $1
 	`, chainID).Scan(&stats.TotalProfit)
 	if err != nil {
@@ -711,10 +733,10 @@ SELECT
   g.grid_id,
   g.owner AS trader,
   g.base_token || '/' || g.quote_token AS pair,
-  g.profits AS profit,
-  -- profit_rate = profits / initial_investment * 100
+  g.total_profit AS profit,
+  -- profit_rate = total_profit / initial_investment * 100
   CASE WHEN inv.total_invested > 0
-    THEN (g.profits::NUMERIC / inv.total_invested * 100)::REAL
+    THEN (g.total_profit::NUMERIC / inv.total_invested * 100)::REAL
     ELSE 0
   END AS profit_rate,
   COALESCE(fills.volume, '0') AS volume,
@@ -722,11 +744,11 @@ SELECT
   COALESCE(tvl_sub.tvl, '0') AS tvl,
   -- apr = profit_rate * 365 / days_active
   CASE WHEN inv.total_invested > 0 AND EXTRACT(EPOCH FROM NOW() - g.created_at) > 86400
-    THEN (g.profits::NUMERIC / inv.total_invested * 365.0 / (EXTRACT(EPOCH FROM NOW() - g.created_at) / 86400) * 100)::REAL
+    THEN (g.total_profit::NUMERIC / inv.total_invested * 365.0 / (EXTRACT(EPOCH FROM NOW() - g.created_at) / 86400) * 100)::REAL
     ELSE 0
   END AS apr,
   $2 AS period,
-  ROW_NUMBER() OVER (ORDER BY g.profits::NUMERIC DESC) AS rank,
+  ROW_NUMBER() OVER (ORDER BY g.total_profit::NUMERIC DESC) AS rank,
   $3 AS update_block
 FROM grids g
 -- initial_investment: initial_quote_amount + initial_base_amount * bid_price0 / 1e36
@@ -843,7 +865,7 @@ func (r *Repository) GetActiveGridsForAPR(ctx context.Context, chainID int64) ([
 		SELECT g.grid_id, g.chain_id, g.pair_id,
 			g.initial_base_amount, g.initial_quote_amount,
 			g.init_base_price, g.init_quote_price,
-			g.profits, g.compound, g.created_at,
+			g.total_profit, g.compound, g.created_at,
 			p.base_token_address, p.quote_token_address
 		FROM grids g
 		JOIN pairs p ON g.chain_id = p.chain_id AND g.pair_id = p.pair_id
