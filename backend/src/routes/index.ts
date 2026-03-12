@@ -9,6 +9,12 @@ import feesRoutes from './fees.js';
 import aiRoutes from './ai.js';
 
 const routes: FastifyPluginAsync = async (fastify) => {
+  // Health check endpoint
+  fastify.get('/health', async () => ({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+  }));
+
   // Register all API routes
   await fastify.register(gridsRoutes, { prefix: '/grids' });
   await fastify.register(ordersRoutes, { prefix: '/orders' });
