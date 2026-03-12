@@ -169,13 +169,21 @@ function serializeResponse(res: Record<string, unknown>): Record<string, unknown
  * Text mode uses single-line output for local debugging. JSON mode emits
  * one JSON object per line for structured log aggregation. Production keeps
  * writing JSON to both stdout and `./logs/app.log`.
+ *
+ * Note: When using transport.targets (multiple transports), Pino does not allow
+ * custom level formatters. We only apply the custom level formatter when not
+ * using multiple targets.
  */
+const transport = buildTransport();
+const usesMultipleTargets = transport !== undefined && 'targets' in transport;
+
 export const logger = pino({
   level: LOG_LEVEL,
   messageKey: 'message',
   timestamp: pino.stdTimeFunctions.isoTime,
   formatters: {
-    level: (label) => ({ level: label.toUpperCase() }),
+    // Custom level formatter is not allowed with transport.targets
+    ...(usesMultipleTargets ? {} : { level: (label) => ({ level: label.toUpperCase() }) }),
     bindings: (bindings) => ({
       pid: bindings.pid,
       host: bindings.hostname,
@@ -188,7 +196,7 @@ export const logger = pino({
     req: serializeRequest,
     res: serializeResponse,
   },
-  transport: buildTransport(),
+  transport,
 });
 
 // ---------------------------------------------------------------------------
