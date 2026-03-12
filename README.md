@@ -15,10 +15,10 @@ GridEx is a decentralized grid trading protocol that allows traders to automate 
 
 | Contract | Address |
 |----------|---------|
-| GridExRouter | `0x4F805a66448F53Fb6bFa5A7E29dBaE36c158aacF` |
-| Vault | `0xe09799B35B5f54D7d529F4Ed3599149346Fcd403` |
-| Linear | `0xbD1d3a308F5e1B0E464fB488746C179805F0ADCf` |
-| Geometry | `0xBEe9A1ED1fB177f0A055803fa7aa9fa2ea888414` |
+| GridExRouter | `0xa0F2a4b56fbA7F98332D39fB18f4073bB2b78dd9` |
+| Vault | `0x5a93dbc8BfB3cA53cD1A3aAfdcc84aFBF5276CC8` |
+| Linear | `0xFce4A9fE4764101259E154C7E4Ebce90763A9085` |
+| Geometry | `0x75320716bF2Bbfb27F2e0F1cC3b2dDc7a9Da626f` |
 
 ## Project Structure
 

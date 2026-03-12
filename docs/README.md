@@ -73,9 +73,19 @@ gridtrade/
 | Base | 8453 | Supported |
 | BNB Testnet | 97 | Supported (Default) |
 
-## Contract Address
+## Contract Addresses
 
-GridEx Contract: `0x4F805a66448F53Fb6bFa5A7E29dBaE36c158aacF`
+| Contract | Address |
+|----------|---------|
+| Vault | `0x5a93dbc8BfB3cA53cD1A3aAfdcc84aFBF5276CC8` |
+| Timelock | `0x2cD09B3FD55c89e4096D588e821BA011cd9C142A` |
+| AdminFacet | `0xEC5b5122C717191a3785508cDD8E3D23c217AE2A` |
+| TradeFacet | `0x9D605177908D9ba6CAC6F817E7AB007C1A3Ced48` |
+| CancelFacet | `0x00065F12989ae6F0A8B402B5060A98f0C2ED6157` |
+| ViewFacet | `0x30C141dD5C64d7F21b7aE22f9803e209368E4899` |
+| Router | `0xa0F2a4b56fbA7F98332D39fB18f4073bB2b78dd9` |
+| Linear | `0xFce4A9fE4764101259E154C7E4Ebce90763A9085` |
+| Geometry | `0x75320716bF2Bbfb27F2e0F1cC3b2dDc7a9Da626f` |
 
 ## Languages
 

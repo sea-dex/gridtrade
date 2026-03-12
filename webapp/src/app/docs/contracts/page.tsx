@@ -15,43 +15,48 @@ import { DocsPageNav } from '../_components/DocsPageNav';
 
 const CONTRACT_ADDRESSES = [
   {
+    name: 'Vault',
+    address: '0x5a93dbc8BfB3cA53cD1A3aAfdcc84aFBF5276CC8',
+    description: 'Holds user funds and manages token deposits / withdrawals.',
+  },
+  {
+    name: 'Timelock',
+    address: '0x2cD09B3FD55c89e4096D588e821BA011cd9C142A',
+    description: 'Timelock controller for governance actions and delayed execution.',
+  },
+  {
     name: 'AdminFacet',
-    address: '0xe65587895ad87dd67a36ffd80551fecd088e4b41',
+    address: '0xEC5b5122C717191a3785508cDD8E3D23c217AE2A',
     description: 'Administrative functions for protocol governance and configuration.',
   },
   {
     name: 'TradeFacet',
-    address: '0xdf56923d7fe9fc431d2182d2a53f9fca6d3bcadc',
+    address: '0x9D605177908D9ba6CAC6F817E7AB007C1A3Ced48',
     description: 'Core trading logic for creating and executing grid orders.',
   },
   {
     name: 'CancelFacet',
-    address: '0x3533135ab7a9ae91a626e1aff8a8ae5205ab6664',
+    address: '0x00065F12989ae6F0A8B402B5060A98f0C2ED6157',
     description: 'Handles grid order cancellation and fund withdrawal.',
   },
   {
     name: 'ViewFacet',
-    address: '0xcc4d49cd07437f1c812a0d701f5069ea569b9b60',
+    address: '0x30C141dD5C64d7F21b7aE22f9803e209368E4899',
     description: 'Read-only functions for querying grid and order state.',
   },
   {
-    name: 'GridExRouter',
-    address: '0x4F805a66448F53Fb6bFa5A7E29dBaE36c158aacF',
+    name: 'Router',
+    address: '0xa0F2a4b56fbA7F98332D39fB18f4073bB2b78dd9',
     description: 'Main entry point (Diamond proxy) that routes calls to the appropriate facet.',
   },
   {
-    name: 'Vault',
-    address: '0xe09799B35B5f54D7d529F4Ed3599149346Fcd403',
-    description: 'Holds user funds and manages token deposits / withdrawals.',
-  },
-  {
     name: 'Linear',
-    address: '0xbD1d3a308F5e1B0E464fB488746C179805F0ADCf',
+    address: '0xFce4A9fE4764101259E154C7E4Ebce90763A9085',
     description: 'Linear grid strategy contract for evenly-spaced price levels.',
   },
   {
     name: 'Geometry',
-    address: '0xBEe9A1ED1fB177f0A055803fa7aa9fa2ea888414',
+    address: '0x75320716bF2Bbfb27F2e0F1cC3b2dDc7a9Da626f',
     description: 'Geometry grid strategy contract for ratio-based price progression.',
   },
 ];
