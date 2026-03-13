@@ -12,31 +12,31 @@ export const CHAIN_NAMES: Record<number, string> = {
 // v2 contract addresses - same across all EVM chains
 // Updated: Router (GridEx), Vault, Linear, Geometry
 export const GRIDEX_ADDRESSES: Record<number, `0x${string}`> = {
-  [mainnet.id]: '0x4F805a66448F53Fb6bFa5A7E29dBaE36c158aacF',
-  [bsc.id]: '0x4F805a66448F53Fb6bFa5A7E29dBaE36c158aacF',
-  [base.id]: '0x4F805a66448F53Fb6bFa5A7E29dBaE36c158aacF',
-  [bscTestnet.id]: '0x4F805a66448F53Fb6bFa5A7E29dBaE36c158aacF',
+  [mainnet.id]: '0xa0F2a4b56fbA7F98332D39fB18f4073bB2b78dd9',
+  [bsc.id]: '0xa0F2a4b56fbA7F98332D39fB18f4073bB2b78dd9',
+  [base.id]: '0xa0F2a4b56fbA7F98332D39fB18f4073bB2b78dd9',
+  [bscTestnet.id]: '0xa0F2a4b56fbA7F98332D39fB18f4073bB2b78dd9',
 };
 
 export const VAULT_ADDRESSES: Record<number, `0x${string}`> = {
-  [mainnet.id]: '0xe09799B35B5f54D7d529F4Ed3599149346Fcd403',
-  [bsc.id]: '0xe09799B35B5f54D7d529F4Ed3599149346Fcd403',
-  [base.id]: '0xe09799B35B5f54D7d529F4Ed3599149346Fcd403',
-  [bscTestnet.id]: '0xe09799B35B5f54D7d529F4Ed3599149346Fcd403',
+  [mainnet.id]: '0x5a93dbc8BfB3cA53cD1A3aAfdcc84aFBF5276CC8',
+  [bsc.id]: '0x5a93dbc8BfB3cA53cD1A3aAfdcc84aFBF5276CC8',
+  [base.id]: '0x5a93dbc8BfB3cA53cD1A3aAfdcc84aFBF5276CC8',
+  [bscTestnet.id]: '0x5a93dbc8BfB3cA53cD1A3aAfdcc84aFBF5276CC8',
 };
 
 export const LINEAR_STRATEGY_ADDRESSES: Record<number, `0x${string}`> = {
-  [mainnet.id]: '0xbD1d3a308F5e1B0E464fB488746C179805F0ADCf',
-  [bsc.id]: '0xbD1d3a308F5e1B0E464fB488746C179805F0ADCf',
-  [base.id]: '0xbD1d3a308F5e1B0E464fB488746C179805F0ADCf',
-  [bscTestnet.id]: '0xbD1d3a308F5e1B0E464fB488746C179805F0ADCf',
+  [mainnet.id]: '0xFce4A9fE4764101259E154C7E4Ebce90763A9085',
+  [bsc.id]: '0xFce4A9fE4764101259E154C7E4Ebce90763A9085',
+  [base.id]: '0xFce4A9fE4764101259E154C7E4Ebce90763A9085',
+  [bscTestnet.id]: '0xFce4A9fE4764101259E154C7E4Ebce90763A9085',
 };
 
 export const GEOMETRY_STRATEGY_ADDRESSES: Record<number, `0x${string}`> = {
-  [mainnet.id]: '0xBEe9A1ED1fB177f0A055803fa7aa9fa2ea888414',
-  [bsc.id]: '0xBEe9A1ED1fB177f0A055803fa7aa9fa2ea888414',
-  [base.id]: '0xBEe9A1ED1fB177f0A055803fa7aa9fa2ea888414',
-  [bscTestnet.id]: '0xBEe9A1ED1fB177f0A055803fa7aa9fa2ea888414',
+  [mainnet.id]: '0x75320716bF2Bbfb27F2e0F1cC3b2dDc7a9Da626f',
+  [bsc.id]: '0x75320716bF2Bbfb27F2e0F1cC3b2dDc7a9Da626f',
+  [base.id]: '0x75320716bF2Bbfb27F2e0F1cC3b2dDc7a9Da626f',
+  [bscTestnet.id]: '0x75320716bF2Bbfb27F2e0F1cC3b2dDc7a9Da626f',
 };
 
 export const NATIVE_TOKENS: Record<number, { symbol: string; name: string; decimals: number }> = {
