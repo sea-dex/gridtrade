@@ -32,6 +32,37 @@ gridtrade/
 
 ## Quick Start
 
+### Bootstrap
+
+```bash
+make bootstrap
+```
+
+This creates the initial local directories and copies missing config templates:
+
+- `backend/.env.example` -> `backend/.env.local`
+- `webapp/.env.example` -> `webapp/.env.local`
+- `indexer/.env.example` -> `indexer/.env`
+- `indexer/config.yaml.example` -> `indexer/config.yaml`
+
+For production-shaped local files:
+
+```bash
+make bootstrap-prod
+```
+
+### Database Migration
+
+```bash
+make migrate
+```
+
+For production env files:
+
+```bash
+make migrate-prod
+```
+
 ### Prerequisites
 
 - Node.js 18+
@@ -112,14 +143,10 @@ GridEx: `0x4F805a66448F53Fb6bFa5A7E29dBaE36c158aacF`
 
 ### Environment Variables
 
-Copy the example environment files:
+Create missing local config files with:
 
 ```bash
-# Frontend
-cp webapp/.env.example webapp/.env.local
-
-# Backend
-cp backend/.env.example backend/.env
+make bootstrap
 ```
 
 ### Running Tests

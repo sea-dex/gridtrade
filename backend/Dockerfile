@@ -15,7 +15,7 @@
 # ── Stage 1: Install dependencies ────────────────────────────
 FROM node:25-alpine AS deps
 
-WORKDIR /app/gridtrade/backend
+WORKDIR /app
 
 # Copy package manifests first for better layer caching
 COPY package.json pnpm-lock.yaml ./
@@ -28,9 +28,9 @@ RUN npm install -g pnpm@10 && pnpm install --frozen-lockfile
 # ── Stage 2: Build TypeScript ────────────────────────────────
 FROM node:25-alpine AS builder
 
-WORKDIR /app/gridtrade/backend
+WORKDIR /app
 
-COPY --from=deps /app/gridtrade/backend/node_modules ./node_modules
+COPY --from=deps /app/node_modules ./node_modules
 COPY package.json pnpm-lock.yaml tsconfig.json ./
 COPY src ./src
 COPY drizzle ./drizzle
@@ -61,7 +61,7 @@ RUN apk add --no-cache tini tzdata
 # Create non-root user
 RUN addgroup -S backend && adduser -S backend -G backend
 
-WORKDIR /app/gridtrade/backend
+WORKDIR /app
 
 # Copy package manifests
 COPY --chown=backend:backend package.json pnpm-lock.yaml ./
@@ -72,14 +72,14 @@ COPY --chown=backend:backend package.json pnpm-lock.yaml ./
 RUN npm install -g pnpm@10 && pnpm install --frozen-lockfile --prod
 
 # Copy compiled output from builder
-COPY --chown=backend:backend --from=builder /app/gridtrade/backend/dist ./dist
+COPY --chown=backend:backend --from=builder /app/dist ./dist
 
 # Copy drizzle migrations (needed for db:migrate at startup)
-COPY --chown=backend:backend --from=builder /app/gridtrade/backend/drizzle ./drizzle
+COPY --chown=backend:backend --from=builder /app/drizzle ./drizzle
 COPY --chown=backend:backend drizzle.config.ts ./
 
 # Only the log directory needs write access at runtime.
-RUN mkdir -p /app/gridtrade/backend/logs && chown backend:backend /app/gridtrade/backend/logs
+RUN mkdir -p /app/logs && chown backend:backend /app/logs
 
 # The .env.production.local file is mounted at runtime, not baked into the image.
 # Mount point: /app/.env.production.local

@@ -19,10 +19,10 @@ services:
     expose:
       - "5000"
     volumes:
-      # Mount env file (read-only) – secrets stay on the host, never in the image
-      - ./.env.production.local:/app/gridtrade/backend/.env.production.local:ro
-      # Persist logs in a Docker-managed volume to avoid host filesystem permission issues
-      - backend_logs:/app/gridtrade/backend/logs
+      # Mount env file from a stable host path.
+      - /app/gridtrade/backend/.env.production.local:/app/.env.production.local:ro
+      # Persist logs under the unified container app root.
+      - /app/gridtrade/backend/logs:/app/logs
     environment:
       - NODE_ENV=production
       - PORT=5000

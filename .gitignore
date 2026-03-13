@@ -16,9 +16,12 @@ config.*.yaml
 Requirement.md
 
 # Indexer build artifacts
+indexer/.env
 indexer/bin/
 indexer/main
 tradebot/
 docker/
 plans/
 deploy/
+scripts/
+Makefile
