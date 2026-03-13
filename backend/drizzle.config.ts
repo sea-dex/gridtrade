@@ -24,12 +24,18 @@ const envFiles = [
   '.env.local',
   `.env.${nodeEnv}.local`,
 ];
+const explicitDatabaseUrl = process.env.DATABASE_URL;
 
 for (const file of envFiles) {
   const filePath = path.resolve(root, file);
   if (fs.existsSync(filePath)) {
     dotenv.config({ path: filePath, override: true });
   }
+}
+
+// Respect a DATABASE_URL explicitly injected by the caller, e.g. an SSH tunnel.
+if (explicitDatabaseUrl) {
+  process.env.DATABASE_URL = explicitDatabaseUrl;
 }
 
 export default defineConfig({

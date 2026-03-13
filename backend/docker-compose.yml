@@ -13,10 +13,7 @@ services:
       context: .
       dockerfile: Dockerfile
       network: host
-      args:
-        - HTTP_PROXY=${HTTP_PROXY:-}
-        - HTTPS_PROXY=${HTTPS_PROXY:-}
-        - NO_PROXY=${NO_PROXY:-}
+
     container_name: gridex-backend
     restart: unless-stopped
     ports:
