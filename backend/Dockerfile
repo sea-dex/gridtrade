@@ -64,7 +64,7 @@ RUN addgroup -S backend && adduser -S backend -G backend
 WORKDIR /app/gridtrade/backend
 
 # Copy package manifests
-COPY package.json pnpm-lock.yaml ./
+COPY --chown=backend:backend package.json pnpm-lock.yaml ./
 
 # Install production dependencies only
 # RUN corepack enable && corepack prepare pnpm@latest --activate \
@@ -72,14 +72,14 @@ COPY package.json pnpm-lock.yaml ./
 RUN npm install -g pnpm@10 && pnpm install --frozen-lockfile --prod
 
 # Copy compiled output from builder
-COPY --from=builder /app/gridtrade/backend/dist ./dist
+COPY --chown=backend:backend --from=builder /app/gridtrade/backend/dist ./dist
 
 # Copy drizzle migrations (needed for db:migrate at startup)
-COPY --from=builder /app/gridtrade/backend/drizzle ./drizzle
-COPY drizzle.config.ts ./
+COPY --chown=backend:backend --from=builder /app/gridtrade/backend/drizzle ./drizzle
+COPY --chown=backend:backend drizzle.config.ts ./
 
-# Create logs directory and set ownership
-RUN mkdir -p /app/gridtrade/backend/logs && chown -R backend:backend /app/gridtrade/backend
+# Only the log directory needs write access at runtime.
+RUN mkdir -p /app/gridtrade/backend/logs && chown backend:backend /app/gridtrade/backend/logs
 
 # The .env.production.local file is mounted at runtime, not baked into the image.
 # Mount point: /app/.env.production.local
