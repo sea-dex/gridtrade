@@ -91,7 +91,7 @@ RUN mkdir -p /app/gridtrade/backend/logs && chown backend:backend /app/gridtrade
 USER backend
 
 # Expose the API port
-EXPOSE 3000
+EXPOSE 5000
 
 # Use tini as entrypoint for proper signal forwarding
 ENTRYPOINT ["/sbin/tini", "--"]
