@@ -25,6 +25,7 @@ const envFiles = [
   `.env.${nodeEnv}.local`,
 ];
 const explicitDatabaseUrl = process.env.DATABASE_URL;
+const explicitDbHost = process.env.DB_HOST;
 
 for (const file of envFiles) {
   const filePath = path.resolve(root, file);
@@ -38,11 +39,43 @@ if (explicitDatabaseUrl) {
   process.env.DATABASE_URL = explicitDatabaseUrl;
 }
 
+if (explicitDbHost) {
+  process.env.DB_HOST = explicitDbHost;
+}
+
+function isRunningInDocker(): boolean {
+  return fs.existsSync('/.dockerenv');
+}
+
+function resolveDatabaseUrl(databaseUrl: string, dbHost?: string): string {
+  let parsed: URL;
+
+  try {
+    parsed = new URL(databaseUrl);
+  } catch {
+    return databaseUrl;
+  }
+
+  if (dbHost) {
+    parsed.hostname = dbHost;
+    return parsed.toString();
+  }
+
+  if (parsed.hostname === 'host.docker.internal' && !isRunningInDocker()) {
+    parsed.hostname = 'localhost';
+  }
+
+  return parsed.toString();
+}
+
 export default defineConfig({
   schema: './src/db/schema.ts',
   out: './drizzle',
   dialect: 'postgresql',
   dbCredentials: {
-    url: process.env.DATABASE_URL || 'postgres://postgres:password@localhost:5432/gridex',
+    url: resolveDatabaseUrl(
+      process.env.DATABASE_URL || 'postgres://postgres:password@localhost:5432/gridex',
+      process.env.DB_HOST,
+    ),
   },
 });

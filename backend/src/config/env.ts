@@ -29,6 +29,7 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
 
   DATABASE_URL: z.string().default('postgres://postgres:password@localhost:5432/gridex'),
+  DB_HOST: z.string().optional(),
 
   CORS_ORIGINS: z
     .string()
@@ -63,6 +64,35 @@ const envSchema = z.object({
 
 export type Env = z.infer<typeof envSchema>;
 
+function isRunningInDocker(): boolean {
+  return fs.existsSync('/.dockerenv');
+}
+
+function resolveDatabaseUrl(databaseUrl: string, dbHost?: string): string {
+  let parsed: URL;
+
+  try {
+    parsed = new URL(databaseUrl);
+  } catch {
+    return databaseUrl;
+  }
+
+  if (dbHost) {
+    parsed.hostname = dbHost;
+    return parsed.toString();
+  }
+
+  if (parsed.hostname === 'host.docker.internal' && !isRunningInDocker()) {
+    parsed.hostname = 'localhost';
+    console.warn(
+      '[env] DATABASE_URL host "host.docker.internal" is not suitable outside Docker; falling back to "localhost". ' +
+        'Set DB_HOST to override this behavior.',
+    );
+  }
+
+  return parsed.toString();
+}
+
 const parseEnv = (): Env => {
   const result = envSchema.safeParse(process.env);
 
@@ -74,7 +104,10 @@ const parseEnv = (): Env => {
     process.exit(1);
   }
 
-  return result.data;
+  return {
+    ...result.data,
+    DATABASE_URL: resolveDatabaseUrl(result.data.DATABASE_URL, result.data.DB_HOST),
+  };
 };
 
 export const env = parseEnv();

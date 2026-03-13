@@ -147,6 +147,7 @@ backend-ts/
 | `HOST` | Server host | `0.0.0.0` |
 | `NODE_ENV` | Environment | `development` |
 | `DATABASE_URL` | PostgreSQL connection URL | - |
+| `DB_HOST` | Optional hostname override for `DATABASE_URL` | - |
 | `CORS_ORIGINS` | Allowed CORS origins | `http://localhost:3000` |
 | `RATE_LIMIT_MAX` | Max requests per window | `100` |
 | `RATE_LIMIT_WINDOW_MS` | Rate limit window (ms) | `60000` |

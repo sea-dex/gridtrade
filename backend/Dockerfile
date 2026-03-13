@@ -13,7 +13,7 @@
 # ──────────────────────────────────────────────────────────────
 
 # ── Stage 1: Install dependencies ────────────────────────────
-FROM node:24-alpine AS deps
+FROM node:25-alpine AS deps
 
 WORKDIR /app
 
@@ -26,7 +26,7 @@ COPY package.json pnpm-lock.yaml ./
 RUN npm install -g pnpm@10 && pnpm install --frozen-lockfile
 
 # ── Stage 2: Build TypeScript ────────────────────────────────
-FROM node:24-alpine AS builder
+FROM node:25-alpine AS builder
 
 WORKDIR /app
 
@@ -40,7 +40,7 @@ COPY drizzle ./drizzle
 RUN npm install -g pnpm@10 && pnpm run build
 
 # ── Stage 3: Production runtime ──────────────────────────────
-FROM node:24-alpine AS runtime
+FROM node:25-alpine AS runtime
 
 # Accept proxy build arguments (passed from docker-compose)
 # ARG HTTP_PROXY
