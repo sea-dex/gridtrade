@@ -38,18 +38,13 @@ gridtrade/
 make bootstrap
 ```
 
-This creates the initial local directories and copies missing config templates:
-
-- `backend/.env.example` -> `backend/.env.local`
-- `webapp/.env.example` -> `webapp/.env.local`
-- `indexer/.env.example` -> `indexer/.env`
-- `indexer/config.yaml.example` -> `indexer/config.yaml`
-
-For production-shaped local files:
-
-```bash
-make bootstrap-prod
-```
+`make bootstrap` creates the remote backend directory and copies the local
+`backend/.env.production.local` to `/app/gridtrade/backend/.env.production.local`
+over SSH. It defaults to the host/user in
+`deploy/Pulumi.prod.yaml`, and you can override them with `SERVER_HOST`,
+`SERVER_USER`, `SSH_KEY_PATH`, or `REMOTE_BACKEND_PATH`. If the remote file
+already exists, the command stops; use `./scripts/bootstrap.sh -f` to overwrite
+it explicitly.
 
 ### Database Migration
 
@@ -57,11 +52,11 @@ make bootstrap-prod
 make migrate
 ```
 
-For production env files:
-
-```bash
-make migrate-prod
-```
+`make migrate` reads `backend/.env.production.local`, opens an SSH tunnel to the
+server in `deploy/Pulumi.prod.yaml`, and runs the backend production migration
+against the remote database through that tunnel. You can override connection
+settings with `SERVER_HOST`, `SERVER_USER`, `SSH_KEY_PATH`, or
+`LOCAL_FORWARD_PORT`.
 
 ### Prerequisites
 
@@ -143,10 +138,12 @@ GridEx: `0x4F805a66448F53Fb6bFa5A7E29dBaE36c158aacF`
 
 ### Environment Variables
 
-Create missing local config files with:
+For server bootstrap and migration, keep `backend/.env.production.local`
+up to date locally, then run:
 
 ```bash
 make bootstrap
+make migrate
 ```
 
 ### Running Tests
