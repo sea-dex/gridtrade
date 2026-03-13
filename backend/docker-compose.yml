@@ -21,7 +21,7 @@ services:
     volumes:
       # Mount env file from a stable host path.
       - /app/gridtrade/backend/.env.production.local:/app/.env.production.local:ro
-      # Persist logs under the unified container app root.
+      # Persist logs under the unified host path.
       - /app/gridtrade/backend/logs:/app/logs
     environment:
       - NODE_ENV=production
@@ -36,6 +36,3 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
-
-volumes:
-  backend_logs:
