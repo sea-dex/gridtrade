@@ -17,7 +17,7 @@ services:
     container_name: gridex-backend
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "5000:3000"
     volumes:
       # Mount env file (read-only) – secrets stay on the host, never in the image
       - ./.env.production.local:/app/gridtrade/backend/.env.production.local:ro
