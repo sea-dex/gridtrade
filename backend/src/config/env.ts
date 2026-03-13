@@ -34,7 +34,7 @@ const envSchema = z.object({
   CORS_ORIGINS: z
     .string()
     .default('http://localhost:3000')
-    .transform((val: string) => val.split(',')),
+    .transform((val: string) => val.split(',').map((item) => item.trim()).filter(Boolean)),
 
   RATE_LIMIT_MAX: z.string().default('100').transform(Number),
   RATE_LIMIT_WINDOW_MS: z.string().default('60000').transform(Number),

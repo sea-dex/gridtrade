@@ -52,10 +52,10 @@ function ensureLogDir(): void {
 }
 
 // ---------------------------------------------------------------------------
-// Build pino transport targets
+// Build pino output streams / transport
 // ---------------------------------------------------------------------------
 
-function buildTransport(): pino.TransportMultiOptions | pino.TransportSingleOptions | undefined {
+function buildTransport(): pino.TransportSingleOptions | undefined {
   if (LOG_FORMAT === 'text') {
     return {
       target: 'pino-pretty',
@@ -74,27 +74,29 @@ function buildTransport(): pino.TransportMultiOptions | pino.TransportSingleOpti
     return undefined;
   }
 
-  // Production JSON: write structured JSON to both stdout and a log file
+  return undefined;
+}
+
+function buildDestination(): pino.DestinationStream | pino.MultiStreamRes<never> | undefined {
+  if (LOG_FORMAT === 'text') {
+    return undefined;
+  }
+
+  if (NODE_ENV !== 'production') {
+    return undefined;
+  }
+
+  // Production JSON: write structured JSON to both stdout and a log file.
+  // We use multistream instead of transport.targets so custom level formatting
+  // remains available for log consumers like Dokploy.
   ensureLogDir();
 
   const logFile = path.join(LOG_DIR, 'app.log');
 
-  return {
-    targets: [
-      // stdout – for docker logs / container runtime
-      {
-        target: 'pino/file',
-        options: { destination: 1 }, // fd 1 = stdout
-        level: LOG_LEVEL as pino.Level,
-      },
-      // file – persisted on the host via bind-mount
-      {
-        target: 'pino/file',
-        options: { destination: logFile, mkdir: true },
-        level: LOG_LEVEL as pino.Level,
-      },
-    ],
-  };
+  return pino.multistream([
+    { stream: pino.destination(1), level: LOG_LEVEL },
+    { stream: pino.destination(logFile), level: LOG_LEVEL },
+  ]);
 }
 
 function normalizeWhitespace(value: string | undefined): string | undefined {
@@ -170,20 +172,19 @@ function serializeResponse(res: Record<string, unknown>): Record<string, unknown
  * one JSON object per line for structured log aggregation. Production keeps
  * writing JSON to both stdout and `./logs/app.log`.
  *
- * Note: When using transport.targets (multiple transports), Pino does not allow
- * custom level formatters. We only apply the custom level formatter when not
- * using multiple targets.
  */
 const transport = buildTransport();
-const usesMultipleTargets = transport !== undefined && 'targets' in transport;
+const destination = buildDestination();
 
 export const logger = pino({
   level: LOG_LEVEL,
   messageKey: 'message',
   timestamp: pino.stdTimeFunctions.isoTime,
   formatters: {
-    // Custom level formatter is not allowed with transport.targets
-    ...(usesMultipleTargets ? {} : { level: (label) => ({ level: label.toUpperCase() }) }),
+    level: (label) => ({
+      level: label.toUpperCase(),
+      severity: label.toUpperCase(),
+    }),
     bindings: (bindings) => ({
       pid: bindings.pid,
       host: bindings.hostname,
@@ -197,7 +198,7 @@ export const logger = pino({
     res: serializeResponse,
   },
   transport,
-});
+}, destination);
 
 // ---------------------------------------------------------------------------
 // Pre-built child loggers for common modules
