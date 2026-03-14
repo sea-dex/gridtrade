@@ -22,6 +22,19 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
+type panicOnErrorWriter struct {
+	name string
+	w    io.Writer
+}
+
+func (w *panicOnErrorWriter) Write(p []byte) (int, error) {
+	n, err := w.w.Write(p)
+	if err != nil {
+		panic(fmt.Sprintf("failed to write %s: %v", w.name, err))
+	}
+	return n, nil
+}
+
 func main() {
 	configPath := flag.String("config", "config.yaml", "path to config file")
 	flag.Parse()
@@ -52,8 +65,17 @@ func main() {
 		os.Exit(1)
 	}
 
+	logPath := filepath.Join(cfg.Log.Dir, cfg.Log.FileName)
+	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
+	if err != nil {
+		panic(fmt.Sprintf("failed to open log file %s: %v", logPath, err))
+	}
+	if err := logFile.Close(); err != nil {
+		panic(fmt.Sprintf("failed to close log file %s after verification: %v", logPath, err))
+	}
+
 	rotateWriter := &lumberjack.Logger{
-		Filename:   filepath.Join(cfg.Log.Dir, cfg.Log.FileName),
+		Filename:   logPath,
 		MaxSize:    cfg.Log.MaxSizeMB,
 		MaxBackups: cfg.Log.MaxBackups,
 		MaxAge:     cfg.Log.MaxAgeDays,
@@ -61,7 +83,10 @@ func main() {
 	}
 	defer rotateWriter.Close()
 
-	logWriter = io.MultiWriter(os.Stdout, rotateWriter)
+	logWriter = io.MultiWriter(os.Stdout, &panicOnErrorWriter{
+		name: fmt.Sprintf("log file %s", logPath),
+		w:    rotateWriter,
+	})
 
 	logger := slog.New(slog.NewJSONHandler(logWriter, &slog.HandlerOptions{
 		Level: logLevel,
