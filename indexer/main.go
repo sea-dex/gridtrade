@@ -75,7 +75,7 @@ func main() {
 		"log_file", cfg.Log.FileName,
 	)
 
-	logger.Debug("database config",
+	logger.Info("database config",
 		"host", cfg.Database.Host,
 		"port", cfg.Database.Port,
 		"user", cfg.Database.User,
