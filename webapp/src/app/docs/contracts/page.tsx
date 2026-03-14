@@ -21,7 +21,7 @@ const CONTRACT_ADDRESSES = [
   },
   {
     name: 'Timelock',
-    address: '0x2cD09B3FD55c89e4096D588e821BA011cd9C142A',
+    address: '0x0AFF660E90C8b884515a55A776b94D3464430Fe6',
     description: 'Timelock controller for governance actions and delayed execution.',
   },
   {
