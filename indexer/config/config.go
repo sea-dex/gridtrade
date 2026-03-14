@@ -71,7 +71,13 @@ type KafkaConfig struct {
 
 // LogConfig holds logging settings.
 type LogConfig struct {
-	Level string `yaml:"level"` // debug, info, warn, error
+	Level      string `yaml:"level"`       // debug, info, warn, error
+	Dir        string `yaml:"dir"`         // directory for persisted log files
+	FileName   string `yaml:"file"`        // active log file name
+	MaxSizeMB  int    `yaml:"max_size_mb"` // rotate after reaching this size in MB
+	MaxBackups int    `yaml:"max_backups"` // number of rotated files to retain
+	MaxAgeDays int    `yaml:"max_age_days"`
+	Compress   bool   `yaml:"compress"`
 }
 
 // expandEnv expands environment variables in a string, supporting
@@ -143,6 +149,21 @@ func Load(path string) (*Config, error) {
 	}
 	if cfg.Log.Level == "" {
 		cfg.Log.Level = "info"
+	}
+	if cfg.Log.Dir == "" {
+		cfg.Log.Dir = "logs"
+	}
+	if cfg.Log.FileName == "" {
+		cfg.Log.FileName = "indexer.log"
+	}
+	if cfg.Log.MaxSizeMB <= 0 {
+		cfg.Log.MaxSizeMB = 100
+	}
+	if cfg.Log.MaxBackups <= 0 {
+		cfg.Log.MaxBackups = 10
+	}
+	if cfg.Log.MaxAgeDays <= 0 {
+		cfg.Log.MaxAgeDays = 30
 	}
 
 	return cfg, nil

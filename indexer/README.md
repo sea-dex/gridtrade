@@ -70,6 +70,12 @@ Configuration supports environment variable expansion using `${VAR:-default}` sy
 | `KAFKA_BROKER` | Kafka broker address | `localhost:9092` |
 | `KAFKA_TOPIC` | Kafka topic for events | `gridex-events` |
 | `LOG_LEVEL` | Log level (debug/info/warn/error) | `info` |
+| `LOG_DIR` | Log directory | `logs` |
+| `LOG_FILE` | Active log file name | `indexer.log` |
+| `LOG_MAX_SIZE_MB` | Rotate when file reaches this size | `100` |
+| `LOG_MAX_BACKUPS` | Number of rotated files to retain | `10` |
+| `LOG_MAX_AGE_DAYS` | Delete rotated files older than this many days | `30` |
+| `LOG_COMPRESS` | Gzip rotated log files | `false` |
 
 ## Run
 
@@ -109,6 +115,8 @@ docker run --rm -v $(pwd)/config.yaml:/app/config.yaml gridex-indexer
 ```
 
 The Docker image includes both `config.yaml` (default) and `config.prod.yaml`. By default, Docker runs with `ENV=prod` to use the production config. Set `ENV=dev` to use the default config instead.
+
+In Docker production mode, the default log directory is `/app/gridtrade/indexer/logs`, and `docker-compose.yml` mounts that path from the host so JSON logs are persisted outside the container.
 
 ### Docker Compose
 

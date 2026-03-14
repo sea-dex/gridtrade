@@ -14,22 +14,11 @@ RUN apk add --no-cache git ca-certificates tzdata
 
 WORKDIR /src
 
-# Avoid inheriting host proxy env during docker build (e.g. HTTP(S)_PROXY=http://127.0.0.1:7897)
-# which is unreachable from inside the build container and breaks `go mod download`.
-ENV HTTP_PROXY= \
-    HTTPS_PROXY= \
-    http_proxy= \
-    https_proxy= \
-    ALL_PROXY= \
-    all_proxy= \
-    NO_PROXY= \
-    no_proxy=
 
 # Cache Go modules
 COPY go.mod go.sum ./
 # Ensure Go does not try to use host-only proxy settings (e.g. 127.0.0.1:7897)
-RUN env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy -u ALL_PROXY -u all_proxy -u NO_PROXY -u no_proxy \
-    go mod download
+RUN go mod download
 
 # Copy source code
 COPY . .
@@ -40,8 +29,7 @@ ARG COMMIT=unknown
 ARG BUILD_TIME=unknown
 
 # Build static binary
-RUN env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy -u ALL_PROXY -u all_proxy -u NO_PROXY -u no_proxy \
-    CGO_ENABLED=0 GOOS=linux go build \
+RUN CGO_ENABLED=0 GOOS=linux go build \
       -ldflags "-s -w \
         -X main.version=${VERSION} \
         -X main.commit=${COMMIT} \
@@ -70,8 +58,11 @@ COPY migrations/ /app/migrations/
 
 # Copy config files for different environments
 # config.yaml is the default (dev settings)
-COPY config.yaml /app/config.yaml
-COPY config.prod.yaml /app/config.prod.yaml
+# COPY config.yaml /app/config.yaml
+# COPY config.prod.yaml /app/config.prod.yaml
+
+# Create default log directory used by the production config.
+RUN mkdir -p /app/logs && chown -R indexer:indexer /app/
 
 # Switch to non-root user
 USER indexer

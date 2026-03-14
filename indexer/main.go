@@ -4,9 +4,11 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"sync"
 	"syscall"
 
@@ -17,6 +19,7 @@ import (
 	"github.com/gridex/indexer/kafka"
 	"github.com/gridex/indexer/rpc"
 	"github.com/gridex/indexer/scanner"
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 func main() {
@@ -43,7 +46,24 @@ func main() {
 		logLevel = slog.LevelInfo
 	}
 
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+	logWriter := io.Writer(os.Stdout)
+	if err := os.MkdirAll(cfg.Log.Dir, 0o755); err != nil {
+		fmt.Fprintf(os.Stderr, "failed to create log dir: %v\n", err)
+		os.Exit(1)
+	}
+
+	rotateWriter := &lumberjack.Logger{
+		Filename:   filepath.Join(cfg.Log.Dir, cfg.Log.FileName),
+		MaxSize:    cfg.Log.MaxSizeMB,
+		MaxBackups: cfg.Log.MaxBackups,
+		MaxAge:     cfg.Log.MaxAgeDays,
+		Compress:   cfg.Log.Compress,
+	}
+	defer rotateWriter.Close()
+
+	logWriter = io.MultiWriter(os.Stdout, rotateWriter)
+
+	logger := slog.New(slog.NewJSONHandler(logWriter, &slog.HandlerOptions{
 		Level: logLevel,
 	}))
 	slog.SetDefault(logger)
@@ -51,6 +71,8 @@ func main() {
 	logger.Info("starting gridex indexer",
 		"chains", len(cfg.Chains),
 		"log_level", cfg.Log.Level,
+		"log_dir", cfg.Log.Dir,
+		"log_file", cfg.Log.FileName,
 	)
 
 	logger.Debug("database config",

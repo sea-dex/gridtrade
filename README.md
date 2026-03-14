@@ -46,6 +46,16 @@ over SSH. It defaults to the host/user in
 already exists, the command stops; use `./scripts/bootstrap.sh -f` to overwrite
 it explicitly.
 
+To bootstrap the indexer config instead:
+
+```bash
+make bootstrap-indexer
+```
+
+This copies [indexer/config.prod.yaml](/Users/guotie/guotie/product/grid/gridtrade/indexer/config.prod.yaml) to `/app/gridtrade/indexer/config.prod.yaml`.
+The script form is `./scripts/bootstrap.sh <backend|indexer>`, and `-f` works
+for both targets.
+
 ### Database Migration
 
 ```bash

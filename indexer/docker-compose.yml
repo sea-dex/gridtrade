@@ -36,14 +36,9 @@ services:
       # is unreachable from inside the container. Go's net/http client
       # respects these env vars and will try to proxy through them,
       # causing "proxyconnect tcp: connection refused" errors.
-      - HTTP_PROXY=
-      - HTTPS_PROXY=
-      - http_proxy=
-      - https_proxy=
-      - NO_PROXY=*
-      - no_proxy=*
     volumes:
-      - ./config.prod.yaml:/app/config.prod.yaml:ro
+      - /app/gridtrade/indexer/config.prod.yaml:/app/config.prod.yaml:ro
+      - /app/gridtrade/indexer/logs:/app/logs
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:

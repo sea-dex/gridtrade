@@ -25,3 +25,4 @@ plans/
 deploy/
 scripts/
 Makefile
+indexer/logs/
