@@ -19,6 +19,7 @@ Requirement.md
 indexer/.env
 indexer/bin/
 indexer/main
+indexer/apy.md
 tradebot/
 docker/
 plans/

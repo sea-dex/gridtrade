@@ -41,9 +41,3 @@ services:
       - /app/gridtrade/indexer/logs:/app/logs
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    networks:
-      - kafka_default
-
-networks:
-  kafka_default:
-    external: true
