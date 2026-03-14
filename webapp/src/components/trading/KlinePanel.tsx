@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { PriceLine } from '@/types/grid';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Copy, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useStore } from '@/store/useStore';
 import { useBaseTokens, useQuoteTokens } from '@/hooks/useTokens';
@@ -347,14 +347,26 @@ function KlinePanelInner({
           ))}
         </div>
 
-        {/* Right: Current price */}
+        {/* Right: Current price + Token addresses */}
         {baseResolved && quoteResolvedWithSwap && (
-          <div className="text-left sm:text-right flex sm:block items-center gap-2">
-            <div className="text-xs text-(--text-disabled)">
-              {baseResolved.symbol}/{quoteResolvedWithSwap.symbol}
+          <div className="text-left sm:text-right flex flex-col gap-1">
+            {/* Base token: symbol + address */}
+            <div className="flex items-center gap-1.5 sm:justify-end">
+              <span className="text-xs font-semibold text-(--text-primary)">
+                {baseResolved.symbol}
+              </span>
+              <CopyButton text={baseResolved.address} label={baseResolved.symbol} />
             </div>
+            {/* Quote token: symbol + address */}
+            <div className="flex items-center gap-1.5 sm:justify-end">
+              <span className="text-xs font-semibold text-(--text-primary)">
+                {quoteResolvedWithSwap.symbol}
+              </span>
+              <CopyButton text={quoteResolvedWithSwap.address} label={quoteResolvedWithSwap.symbol} />
+            </div>
+            {/* Current price */}
             {currentPrice !== null && (
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 sm:justify-end">
                 <span className="text-xs sm:text-sm font-semibold text-(--text-primary)">
                   {currentPrice.toLocaleString(undefined, {
                     minimumFractionDigits: Math.min(pricePrecision, 2),
@@ -425,5 +437,37 @@ function TokenIcon({ token, size = 20 }: { token: TokenItem; size?: number }) {
     >
       {token.symbol.slice(0, 2)}
     </div>
+  );
+}
+
+/** Copy button with feedback */
+function CopyButton({ text, label }: { text: string; label: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
+
+  return (
+    <button
+      onClick={handleCopy}
+      className="flex items-center gap-1 text-xs text-(--text-tertiary) hover:text-(--text-secondary) transition-colors"
+      title={`Copy ${label} address`}
+    >
+      <span className="font-mono">
+        {text.slice(0, 6)}...{text.slice(-4)}
+      </span>
+      {copied ? (
+        <Check size={12} className="text-(--green)" />
+      ) : (
+        <Copy size={12} />
+      )}
+    </button>
   );
 }

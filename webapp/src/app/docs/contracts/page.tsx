@@ -62,8 +62,11 @@ const CONTRACT_ADDRESSES = [
 ];
 
 const SUPPORTED_CHAINS = [
-  { name: 'Ethereum', chainId: 1, explorer: 'https://etherscan.io/address/' },
   { name: 'BNB Chain', chainId: 56, explorer: 'https://bscscan.com/address/' },
+];
+
+const PLANNED_CHAINS = [
+  { name: 'Ethereum', chainId: 1, explorer: 'https://etherscan.io/address/' },
   { name: 'Base', chainId: 8453, explorer: 'https://basescan.org/address/' },
   { name: 'BSC Testnet', chainId: 97, explorer: 'https://testnet.bscscan.com/address/' },
 ];
@@ -81,7 +84,7 @@ export default function ContractsPage() {
       </DocP>
 
       <DocBlockquote>
-        All contract addresses are identical on Ethereum, BNB Chain, Base, and BSC Testnet.
+        Currently deployed on BNB Chain (BSC Mainnet). Additional chains are planned for future releases.
       </DocBlockquote>
 
       <DocHr />
@@ -102,11 +105,25 @@ export default function ContractsPage() {
       {/* ── Supported Chains ── */}
       <DocH2 id="supported-chains">Supported Chains</DocH2>
       <DocP>
-        The contracts are deployed at the same addresses on all supported chains:
+        GridEx is currently deployed on the following chain:
       </DocP>
       <DocTable
         headers={['Chain', 'Chain ID', 'Block Explorer']}
         rows={SUPPORTED_CHAINS.map((chain) => [
+          chain.name,
+          String(chain.chainId),
+          chain.explorer.replace(/\/address\/$/, ''),
+        ])}
+      />
+
+      {/* ── Planned Chains ── */}
+      <DocH3 id="planned-chains">Planned Chains</DocH3>
+      <DocP>
+        Support for additional chains is planned for future releases:
+      </DocP>
+      <DocTable
+        headers={['Chain', 'Chain ID', 'Block Explorer']}
+        rows={PLANNED_CHAINS.map((chain) => [
           chain.name,
           String(chain.chainId),
           chain.explorer.replace(/\/address\/$/, ''),
